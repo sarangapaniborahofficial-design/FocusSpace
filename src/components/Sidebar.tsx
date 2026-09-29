@@ -1,8 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
-import { BarChart3, CalendarDays, ChevronLeft, ChevronRight, CircleUserRound, Dumbbell, FileText, FolderKanban, GraduationCap, Home, Plus, Settings, Sparkles, Target, type LucideIcon } from 'lucide-react';
+import { BarChart3, CalendarDays, ChevronLeft, ChevronRight, CircleUserRound, Dumbbell, FileText, FolderKanban, GraduationCap, Home, Plus, Settings, Sparkles, Target, Download, type LucideIcon } from 'lucide-react';
 import { db } from '../db/db';
-import { useMediaQuery } from '../lib/hooks';
+import { useMediaQuery, usePWAInstall } from '../lib/hooks';
 import { createPage } from '../lib/pages';
 import { toast } from '../lib/toast';
 import type { Category } from '../types';
@@ -16,6 +16,7 @@ export function Sidebar({ collapsed, setCollapsed, active, setActive, categories
   activePageId: string | null; onOpenPage: (categoryId: string, pageId: string) => void;
 }) {
   const isMobile = useMediaQuery('(max-width: 767px)');
+  const { isInstallable, install } = usePWAInstall();
   // The desktop "collapsed" preference must not hide labels inside the mobile drawer.
   const compact = collapsed && !isMobile;
 
@@ -48,6 +49,7 @@ export function Sidebar({ collapsed, setCollapsed, active, setActive, categories
           ))}
         </nav>
         <div className="p-3 border-t border-zinc-800/80">
+          {isInstallable && <NavItem compact={compact} icon={Download} label="Install App" active={false} onClick={install} />}
           <NavItem compact={compact} icon={Settings} label="Settings" active={active === 'settings'} onClick={() => setActive('settings')} />
           <button onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} className="mt-2 w-full h-9 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900 hidden md:grid place-items-center">{collapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}</button>
         </div>
