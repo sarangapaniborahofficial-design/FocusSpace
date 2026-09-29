@@ -1,0 +1,156 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+  --radius-sm: 1rem;
+  --radius-md: 9999px; /* Pill buttons */
+  --radius-lg: 1.5rem; /* Cards */
+  --radius-xl: 2rem;
+  --radius-2xl: 2.5rem;
+}
+
+:root { font-family: "Plus Jakarta Sans", system-ui, sans-serif; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; background: #e8ebe9; color: #18181b; }
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; }
+::selection { background: #d9f95d; color: #111111; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #e4e4e7; border-radius: 999px; }
+
+/* Clean Calendar overrides for native light theme */
+.calendar-shell .fc {
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: #f4f4f5;
+  --fc-neutral-text-color: #71717a;
+  --fc-border-color: #e4e4e7;
+  --fc-button-text-color: #3f3f46;
+  --fc-button-bg-color: #ffffff;
+  --fc-button-border-color: #e4e4e7;
+  --fc-button-hover-bg-color: #f4f4f5;
+  --fc-button-hover-border-color: #d4d4d8;
+  --fc-button-active-bg-color: #e4e4e7;
+  --fc-button-active-border-color: #d4d4d8;
+  --fc-event-bg-color: #3f3f46;
+  --fc-event-border-color: #3f3f46;
+  --fc-event-text-color: #ffffff;
+  --fc-today-bg-color: rgba(24, 24, 27, .04);
+  --fc-now-indicator-color: #18181b;
+  color: #3f3f46;
+  font-size: 12px;
+}
+.calendar-shell .fc .fc-toolbar-title { font-size: 15px; font-weight: 600; }
+.calendar-shell .fc .fc-button { border-radius: 8px; text-transform: none; font-weight: 500; box-shadow: none; }
+.calendar-shell .fc .fc-scrollgrid { border-color: #e4e4e7; border-radius: 12px; overflow: hidden; }
+.calendar-shell .fc-theme-standard td, .calendar-shell .fc-theme-standard th { border-color: #e4e4e7; }
+.calendar-shell .fc .fc-col-header-cell-cushion, .calendar-shell .fc .fc-daygrid-day-number { color: #71717a; text-decoration: none; padding: 8px; }
+.calendar-shell .fc .fc-timegrid-slot-label-cushion { color: #a1a1aa; }
+.calendar-shell .fc .fc-timegrid-axis-cushion { color: #a1a1aa; }
+.calendar-shell .fc .fc-event { border-radius: 6px; border-width: 1px; font-weight: 600; }
+.calendar-shell .fc .fc-event.focusspace-event-done { opacity: .42; text-decoration: line-through; }
+.calendar-shell .fc .fc-timegrid-event { padding: 2px 4px; }
+.calendar-shell .fc .fc-daygrid-event { padding: 2px 4px; }
+.calendar-shell .fc .fc-highlight { background: rgba(24, 24, 27, .06); }
+.calendar-shell .fc .fc-timegrid-now-indicator-line { border-width: 1px; }
+
+/* TipTap Editor */
+.rt-prose { padding: .75rem 1rem; min-height: 160px; outline: none; font-size: 15px; line-height: 1.65; color: #3f3f46; }
+.rt-prose p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; height: 0; pointer-events: none; color: #a1a1aa; }
+.rt-prose h2 { font-size: 20px; font-weight: 600; letter-spacing: -.01em; margin: 1.25rem 0 .4rem; color: #18181b; }
+.rt-prose h3 { font-size: 16px; font-weight: 600; margin: 1.1rem 0 .3rem; color: #18181b; }
+.rt-prose p { margin: .4rem 0; }
+.rt-prose strong { font-weight: 600; color: #18181b; }
+.rt-prose blockquote { border-left: 2px solid #e4e4e7; padding-left: 1rem; margin: .75rem 0; color: #71717a; }
+.rt-prose pre { background: #f4f4f5; border-radius: .75rem; padding: .9rem 1rem; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: #18181b; }
+.rt-prose code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em; }
+.rt-prose p code { padding: .12em .4em; border-radius: .375rem; background: #f4f4f5; }
+.rt-prose ul, .rt-prose ol { padding-left: 1.4rem; margin: .4rem 0; }
+.rt-prose ul[data-type="taskList"] { list-style: none; padding-left: 0; }
+.rt-prose ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: .5rem; margin: .2rem 0; }
+.rt-prose ul[data-type="taskList"] li > label { margin-top: .2rem; }
+.rt-prose ul[data-type="taskList"] input[type="checkbox"] { accent-color: #111111; }
+.rt-prose ul[data-type="taskList"] li[data-checked="true"] > div { color: #a1a1aa; text-decoration: line-through; }
+.rt-prose a { color: #0284c7; text-decoration: underline; text-underline-offset: 2px; }
+
+/* Animations & Utilities */
+@keyframes view-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes pulse-soft { 50% { opacity: .55; } }
+.view-in { animation: view-in .16s ease-out both; }
+.pop-in { animation: pop-in .18s cubic-bezier(.2, .7, .2, 1) both; }
+.skeleton { background: #e4e4e7; border-radius: .75rem; animation: pulse-soft 1.4s ease-in-out infinite; }
+
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid #18181b; outline-offset: 2px; }
+
+/* Global Lime Accent Injection for specific elements */
+.dot-on { background: #d9f95d !important; }
+.ring-zinc-900 { --tw-ring-color: #111111 !important; }
+.bg-zinc-700 { background-color: #d9f95d !important; color: #111111 !important; } /* Re-mapped for active states / lime pills */
+:root {
+  --ring-fill: #111111;
+  --ring-track: #d9f95d;
+  --accent: #d9f95d;
+  --grid: #e4e4e7;
+  --ink-3: #a1a1aa;
+  --focus-ring: #111111;
+}
+
+
+:root {
+  --app-bg: #e8ebe9;
+  --main-bg: #ffffff;
+  --sidebar-bg: #111111;
+  --sidebar-active-bg: #333333;
+  --sidebar-active-text: #ffffff;
+}
+
+[data-theme="dark"], [data-theme="oled"] {
+  --app-bg: #09090b; /* Deep black root background */
+  --main-bg: #18181b; /* zinc-900 equivalent main floating card */
+  --sidebar-bg: #09090b; /* Keep sidebar black */
+  --sidebar-active-bg: #27272a; /* zinc-800 equivalent */
+  --sidebar-active-text: #ffffff;
+
+  /* Invert the Zinc palette dynamically */
+  --color-zinc-50: #18181b;  /* mapped to 900 */
+  --color-zinc-100: #27272a; /* mapped to 800 */
+  --color-zinc-200: #3f3f46; /* mapped to 700 */
+  --color-zinc-300: #52525b; /* mapped to 600 */
+  --color-zinc-400: #71717a; /* mapped to 500 */
+  --color-zinc-500: #a1a1aa; /* mapped to 400 */
+  --color-zinc-600: #d4d4d8; /* mapped to 300 */
+  --color-zinc-700: #e4e4e7; /* mapped to 200 */
+  --color-zinc-800: #f4f4f5; /* mapped to 100 */
+  --color-zinc-900: #fafafa; /* mapped to 50 */
+  --color-zinc-950: #ffffff; /* used for very bright text in dark mode */
+  
+  --color-white: #09090b; /* bg-white becomes dark surface */
+  --color-black: #ffffff;
+}
+
+/* Calendar & Rich Text overrides for dark mode */
+[data-theme="dark"] .calendar-shell .fc, [data-theme="oled"] .calendar-shell .fc {
+  --fc-neutral-bg-color: #18181b;
+  --fc-neutral-text-color: #71717a;
+  --fc-border-color: #27272a;
+  --fc-button-text-color: #d4d4d8;
+  --fc-button-bg-color: #18181b;
+  --fc-button-border-color: #27272a;
+  --fc-button-hover-bg-color: #27272a;
+  --fc-button-hover-border-color: #3f3f46;
+  --fc-button-active-bg-color: #3f3f46;
+  --fc-button-active-border-color: #52525b;
+  --fc-event-bg-color: #d4d4d8;
+  --fc-event-border-color: #d4d4d8;
+  --fc-event-text-color: #09090b;
+  --fc-today-bg-color: rgba(161, 161, 170, .06);
+  --fc-now-indicator-color: #f4f4f5;
+  color: #d4d4d8;
+}
+
+[data-theme="dark"] .rt-prose, [data-theme="oled"] .rt-prose { color: #d4d4d8; }
+[data-theme="dark"] .rt-prose h2, [data-theme="dark"] .rt-prose h3, [data-theme="oled"] .rt-prose h2, [data-theme="oled"] .rt-prose h3 { color: #ffffff; }
+[data-theme="dark"] .rt-prose strong, [data-theme="oled"] .rt-prose strong { color: #ffffff; }
+[data-theme="dark"] .rt-prose pre, [data-theme="oled"] .rt-prose pre { background: #18181b !important; color: #d4d4d8; border-color: #27272a; }
+[data-theme="dark"] .rt-prose p code, [data-theme="oled"] .rt-prose p code { background: #18181b; }
