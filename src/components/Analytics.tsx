@@ -18,7 +18,7 @@ const readRange = (): RangeId => {
 };
 
 const oneDecimal = (n: number) => (Math.round(n * 10) / 10).toString();
-const card = 'rounded-2xl border border-zinc-900 bg-zinc-950/40';
+const card = 'rounded-2xl border border-zinc-100 bg-zinc-50/40';
 
 export function Analytics() {
   const today = useToday();
@@ -57,12 +57,12 @@ export function Analytics() {
           <p className="text-sm text-zinc-500 mt-1">What you finished and how long you focused, across every workspace.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex h-9 rounded-lg border border-zinc-900 overflow-hidden" role="group" aria-label="Time range">
+          <div className="flex h-9 rounded-lg border border-zinc-100 overflow-hidden" role="group" aria-label="Time range">
             {RANGE_OPTIONS.map(o => (
-              <button key={o.id} onClick={() => setRange(o.id)} aria-pressed={range === o.id} className={`px-3 text-sm transition-colors ${range === o.id ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-200'}`}>{o.label}</button>
+              <button key={o.id} onClick={() => setRange(o.id)} aria-pressed={range === o.id} className={`px-3 text-sm transition-colors ${range === o.id ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>{o.label}</button>
             ))}
           </div>
-          <select value={categoryId} onChange={e => setCategoryPick(e.target.value)} aria-label="Category" className="h-9 rounded-lg bg-zinc-950 border border-zinc-900 px-3 text-sm text-zinc-400 outline-none">
+          <select value={categoryId} onChange={e => setCategoryPick(e.target.value)} aria-label="Category" className="h-9 rounded-lg bg-zinc-50 border border-zinc-100 px-3 text-sm text-zinc-500 outline-none">
             <option value="all">All categories</option>
             {(categories ?? []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
@@ -122,10 +122,10 @@ export function Analytics() {
                     Week of {dateLabel(week.start)} · {week.daysLeft === 0 ? 'last day' : `${week.daysLeft} ${week.daysLeft === 1 ? 'day' : 'days'} left`}
                   </p>
                 </div>
-                <button onClick={() => setEditingGoals(v => !v)} className="text-xs text-zinc-500 hover:text-zinc-200 px-2 py-1 rounded-md hover:bg-zinc-900">{editingGoals ? 'Done' : 'Edit goals'}</button>
+                <button onClick={() => setEditingGoals(v => !v)} className="text-xs text-zinc-500 hover:text-zinc-200 px-2 py-1 rounded-md hover:bg-zinc-100">{editingGoals ? 'Done' : 'Edit goals'}</button>
               </div>
               {editingGoals && (
-                <div className="pop-in grid grid-cols-2 gap-2 mb-4 rounded-xl border border-zinc-900 bg-white/60 p-3">
+                <div className="pop-in grid grid-cols-2 gap-2 mb-4 rounded-xl border border-zinc-100 bg-zinc-50/60 p-3">
                   <GoalInput label="Tasks per week" value={goals.tasks} max={200} onChange={v => { const next = cleanGoals({ ...goals, tasks: v }); setGoals(next); saveGoals(next); }} />
                   <GoalInput label="Focus hours per week" value={goals.focusHours} max={100} onChange={v => { const next = cleanGoals({ ...goals, focusHours: v }); setGoals(next); saveGoals(next); }} />
                 </div>
@@ -251,7 +251,7 @@ export function Analytics() {
 
 function Stat({ label, value, sub, className = '' }: { label: string; value: string; sub: ReactNode; className?: string }) {
   return (
-    <div className={`p-5 border-zinc-900 min-w-0 ${className}`}>
+    <div className={`p-5 border-zinc-100 min-w-0 ${className}`}>
       <div className="text-xs text-zinc-500">{label}</div>
       <div className="text-2xl font-semibold tracking-tight mt-1.5 tabular-nums">{value}</div>
       <div className="text-xs text-zinc-600 mt-1.5">{sub}</div>
@@ -300,7 +300,7 @@ function GoalInput({ label, value, max, onChange }: { label: string; value: numb
   return (
     <label className="text-xs text-zinc-500">
       {label}
-      <input type="number" min={1} max={max} value={value} onChange={e => onChange(Number(e.target.value))} className="mt-1 w-full h-9 rounded-lg bg-zinc-950 border border-zinc-900 px-2 text-sm text-zinc-200 outline-none" />
+      <input type="number" min={1} max={max} value={value} onChange={e => onChange(Number(e.target.value))} className="mt-1 w-full h-9 rounded-lg bg-zinc-50 border border-zinc-100 px-2 text-sm outline-none" />
     </label>
   );
 }

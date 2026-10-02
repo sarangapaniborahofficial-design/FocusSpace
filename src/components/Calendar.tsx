@@ -161,13 +161,13 @@ export function Calendar() {
       </div>
 
       <div className="flex-1 min-h-[620px] grid xl:grid-cols-[290px_minmax(0,1fr)] gap-4">
-        <aside ref={externalRef} className="rounded-2xl border border-zinc-900 bg-zinc-950/40 overflow-hidden flex flex-col min-h-[280px]">
-          <div className="p-4 border-b border-zinc-900">
+        <aside ref={externalRef} className="rounded-2xl border border-zinc-100 bg-zinc-50/40 overflow-hidden flex flex-col min-h-[280px]">
+          <div className="p-4 border-b border-zinc-100">
             <div className="font-medium">Unscheduled</div>
             <div className="text-xs text-zinc-600 mt-1">Drag a task to a date/time.</div>
             <div className="relative mt-3">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
-              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Find a task…" className="w-full h-9 rounded-lg bg-white border border-zinc-900 pl-9 pr-3 text-sm outline-none focus:border-zinc-600" />
+              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Find a task…" className="w-full h-9 rounded-lg bg-white border border-zinc-100 pl-9 pr-3 text-sm outline-none focus:border-zinc-600" />
             </div>
           </div>
           <div className="p-2 overflow-y-auto space-y-2">
@@ -179,7 +179,7 @@ export function Calendar() {
               return (
                 <div
                   key={task.id}
-                  className="fc-external-task rounded-xl border border-zinc-900 bg-white/70 hover:bg-zinc-950 cursor-grab active:cursor-grabbing p-3"
+                  className="fc-external-task rounded-xl border border-zinc-100 bg-white/70 hover:bg-zinc-50 cursor-grab active:cursor-grabbing p-3"
                   data-task-id={task.id}
                   data-title={task.title}
                   data-duration={durationString(task.estimatedDuration)}
@@ -203,7 +203,7 @@ export function Calendar() {
           </div>
         </aside>
 
-        <section className="rounded-2xl border border-zinc-900 bg-white/70 overflow-hidden min-h-[620px] flex flex-col">
+        <section className="rounded-2xl border border-zinc-100 bg-white/70 overflow-hidden min-h-[620px] flex flex-col">
           <div className="calendar-shell flex-1 min-h-[620px] p-2 sm:p-3">
             <FullCalendar
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -243,7 +243,7 @@ export function Calendar() {
       {selectedTask && (
         <div className="fade-in fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4" onMouseDown={() => setSelectedTask(null)}>
           <div role="dialog" aria-modal="true" aria-label="Scheduled task" className="pop-in w-full max-w-md rounded-2xl border border-zinc-700 bg-white shadow-2xl" onMouseDown={e => e.stopPropagation()}>
-            <div className="p-5 border-b border-zinc-900 flex items-start justify-between gap-4">
+            <div className="p-5 border-b border-zinc-100 flex items-start justify-between gap-4">
               <div>
                 <div className="text-xs uppercase tracking-[.16em] text-zinc-600">Scheduled task</div>
                 <h2 className="font-semibold mt-1">{selectedTask.title}</h2>
