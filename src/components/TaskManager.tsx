@@ -137,11 +137,11 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
             <option value="updated">Sort: recently edited</option>
           </select>
           <div className="relative" ref={filterPopover}>
-            <button onClick={() => setFiltersOpen(v => !v)} aria-expanded={filtersOpen} className={`h-9 pl-3 pr-2 rounded-lg border text-sm flex items-center gap-1.5 ${activeFilterCount ? 'border-zinc-300 bg-zinc-100 text-white' : 'border-zinc-100 text-zinc-500 hover:bg-zinc-50'}`}>
-              Filters{activeFilterCount > 0 && <span className="text-xs tabular-nums bg-zinc-200 rounded-full px-1.5">{activeFilterCount}</span>}<ChevronDown size={14} />
+            <button onClick={() => setFiltersOpen(v => !v)} aria-expanded={filtersOpen} className={`h-9 pl-3 pr-2 rounded-lg border text-sm flex items-center gap-1.5 transition-colors ${activeFilterCount ? 'border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900' : 'border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-900'}`}>
+              Filters{activeFilterCount > 0 && <span className="text-xs tabular-nums bg-white/20 dark:bg-black/10 rounded-full px-1.5">{activeFilterCount}</span>}<ChevronDown size={14} />
             </button>
             {filtersOpen && (
-              <div className="pop-in absolute z-20 top-11 right-0 w-64 rounded-xl border border-zinc-200 bg-white shadow-2xl p-3 space-y-3">
+              <div className="pop-in absolute z-20 top-11 right-0 w-64 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl p-3 space-y-3">
                 <FilterSelect label="Status" value={filters.status} onChange={v => setFilters(f => ({ ...f, status: v as TaskFilters['status'] }))} options={[['all', 'Any'], ['open', 'Open'], ['To Do', 'To do'], ['In Progress', 'In progress'], ['Submitted/Done', 'Done']]} />
                 <FilterSelect label="Priority" value={filters.priority} onChange={v => setFilters(f => ({ ...f, priority: v as TaskFilters['priority'] }))} options={[['all', 'Any'], ...PRIORITIES.map(p => [p, p] as [string, string])]} />
                 <FilterSelect label="Due" value={filters.due} onChange={v => setFilters(f => ({ ...f, due: v as TaskFilters['due'] }))} options={[['any', 'Any time'], ['overdue', 'Overdue'], ['today', 'Today'], ['week', 'Next 7 days'], ['none', 'No due date']]} />
