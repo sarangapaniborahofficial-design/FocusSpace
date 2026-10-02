@@ -43,7 +43,10 @@ export function usePWAInstall() {
   }, []);
   
   const install = async () => {
-    if (!prompt) return;
+    if (!prompt) {
+      alert('Your browser is managing the installation. Look for an "Install" icon in your URL address bar (near the bookmark star), or check your browser menu for "Add to Home Screen".');
+      return;
+    }
     prompt.prompt();
     const { outcome } = await prompt.userChoice;
     if (outcome === 'accepted') setPrompt(null);

@@ -145,19 +145,17 @@ export function Settings({ theme, setTheme }: { theme: string; setTheme: (theme:
       <div className="p-5 grid md:grid-cols-3 gap-3">{themes.map(t => <button key={t.id} onClick={()=>{setTheme(t.id);localStorage.setItem('focusspace-theme',t.id)}} className={`text-left rounded-xl border p-4 transition ${theme===t.id?'border-zinc-400 bg-zinc-100/80':'border-zinc-100 bg-white/30 hover:bg-zinc-50'}`}><div className="text-sm font-medium">{t.name}</div><div className="text-xs text-zinc-300 mt-1">{t.description}</div></button>)}</div>
     </section>
 
-    {isInstallable && (
-      <section className="rounded-2xl border border-zinc-100 bg-zinc-50/40 overflow-hidden">
-        <div className="p-5 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 font-medium"><Smartphone size={16}/> Install App</div>
-            <p className="text-xs text-zinc-300 mt-1">Install FocusSpace to your device for native offline access.</p>
-          </div>
-          <button onClick={install} className="h-9 px-4 rounded-lg bg-zinc-900 text-white text-sm font-medium flex items-center gap-2 hover:bg-zinc-800 transition">
-            <Download size={15}/> Install
-          </button>
+    <section className="rounded-2xl border border-zinc-100 bg-zinc-50/40 overflow-hidden">
+      <div className="p-5 flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2 font-medium"><Smartphone size={16}/> Install App</div>
+          <p className="text-xs text-zinc-300 mt-1">Install FocusSpace to your device for native offline access.</p>
         </div>
-      </section>
-    )}
+        <button onClick={install} className="h-9 px-4 rounded-lg bg-zinc-900 text-white text-sm font-medium flex items-center gap-2 hover:bg-zinc-800 transition">
+          <Download size={15}/> Install
+        </button>
+      </div>
+    </section>
 
     <section className="rounded-2xl border border-zinc-100 bg-zinc-50/40 overflow-hidden">
       <div className="p-5 border-b border-zinc-100 flex items-center justify-between"><div><div className="font-medium">Categories</div><p className="text-xs text-zinc-300 mt-1">Create, rename and recolor your workspaces.</p></div><button onClick={startCreate} className="h-9 px-3 rounded-lg bg-zinc-900 text-white text-sm font-medium flex items-center gap-1.5"><Plus size={15}/> Add category</button></div>

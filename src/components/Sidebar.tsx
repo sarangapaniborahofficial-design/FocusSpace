@@ -67,7 +67,7 @@ function NavItem({ icon: Icon, label, active, onClick, compact, dot }: {
       title={compact ? label : undefined}
       aria-label={compact ? label : undefined}
       aria-current={active ? 'page' : undefined}
-      className={`w-full h-10 rounded-lg flex items-center gap-3 px-3 mb-1 text-sm transition ${active ? 'bg-zinc-800 text-[var(--sidebar-active-text)] shadow-inner' : 'text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200'} ${compact ? 'justify-center' : ''}`}
+      className={`w-full h-10 rounded-lg flex items-center gap-3 px-3 mb-1 text-sm transition ${active ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)] shadow-inner' : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-200'} ${compact ? 'justify-center' : ''}`}
     >
       <Icon size={17} strokeWidth={active ? 2.2 : 1.8} />
       {!compact && <><span className="truncate flex-1 text-left">{label}</span>{dot && <span className="size-2 rounded-full" style={{ backgroundColor: dot }} />}</>}
@@ -89,7 +89,7 @@ function CategoryPages({ categoryId, activePageId, onOpenPage }: { categoryId: s
       {shown.map(page => (
         <button
           key={page.id} onClick={() => onOpenPage(categoryId, page.id)} aria-current={activePageId === page.id ? 'page' : undefined} title={page.title || 'Untitled'}
-          className={`w-full h-8 rounded-md flex items-center gap-2 px-2 text-[13px] text-left transition ${activePageId === page.id ? 'bg-zinc-800 text-[var(--sidebar-active-text)]' : 'text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200'}`}
+          className={`w-full h-8 rounded-md flex items-center gap-2 px-2 text-[13px] text-left transition ${activePageId === page.id ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-200'}`}
         >
           <FileText size={13} className="shrink-0" /><span className="truncate">{page.title.trim() || 'Untitled'}</span>
         </button>
