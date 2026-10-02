@@ -11,10 +11,10 @@
 
 :root { font-family: "Plus Jakarta Sans", system-ui, sans-serif; }
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; background: #e8ebe9; color: #18181b; }
+body { margin: 0; min-width: 320px; background: var(--app-bg); color: var(--color-zinc-950); }
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
-::selection { background: #d9f95d; color: #111111; }
+::selection { background: #ff5e00; color: #ffffff; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #e4e4e7; border-radius: 999px; }
@@ -84,13 +84,13 @@ button { cursor: pointer; }
 button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid #18181b; outline-offset: 2px; }
 
 /* Global Lime Accent Injection for specific elements */
-.dot-on { background: #d9f95d !important; }
+.dot-on { background: #ff5e00 !important; }
 .ring-zinc-900 { --tw-ring-color: #111111 !important; }
-.bg-zinc-700 { background-color: #d9f95d !important; color: #111111 !important; } /* Re-mapped for active states / lime pills */
+.bg-zinc-700 { background-color: #ff5e00 !important; color: #111111 !important; } /* Re-mapped for active states / lime pills */
 :root {
   --ring-fill: #111111;
-  --ring-track: #d9f95d;
-  --accent: #d9f95d;
+  --ring-track: #ff5e00;
+  --accent: #ff5e00;
   --grid: #e4e4e7;
   --ink-3: #a1a1aa;
   --focus-ring: #111111;
@@ -98,34 +98,47 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 
 :root {
-  --app-bg: #e8ebe9;
+  --app-bg: #f5f2eb;
   --main-bg: #ffffff;
-  --sidebar-bg: #111111;
-  --sidebar-active-bg: #333333;
+  --sidebar-bg: #141211;
+  --sidebar-active-bg: #292422;
   --sidebar-active-text: #ffffff;
+
+  /* Warm neutral light palette */
+  --color-zinc-50: #fcfbf9;
+  --color-zinc-100: #f5f2eb;
+  --color-zinc-200: #e8e3dc;
+  --color-zinc-300: #d6cfc5;
+  --color-zinc-400: #afa699;
+  --color-zinc-500: #887d6e;
+  --color-zinc-600: #61574a;
+  --color-zinc-700: #4a4136;
+  --color-zinc-800: #332d26;
+  --color-zinc-900: #1a1714;
+  --color-zinc-950: #0f0d0a;
 }
 
 [data-theme="dark"], [data-theme="oled"] {
-  --app-bg: #09090b; /* Deep black root background */
-  --main-bg: #18181b; /* zinc-900 equivalent main floating card */
-  --sidebar-bg: #09090b; /* Keep sidebar black */
-  --sidebar-active-bg: #27272a; /* zinc-800 equivalent */
+  --app-bg: #000000;
+  --main-bg: #0a0908;
+  --sidebar-bg: #000000;
+  --sidebar-active-bg: #1c1917;
   --sidebar-active-text: #ffffff;
 
-  /* Invert the Zinc palette dynamically */
-  --color-zinc-50: #18181b;  /* mapped to 900 */
-  --color-zinc-100: #27272a; /* mapped to 800 */
-  --color-zinc-200: #3f3f46; /* mapped to 700 */
-  --color-zinc-300: #52525b; /* mapped to 600 */
-  --color-zinc-400: #71717a; /* mapped to 500 */
-  --color-zinc-500: #a1a1aa; /* mapped to 400 */
-  --color-zinc-600: #d4d4d8; /* mapped to 300 */
-  --color-zinc-700: #e4e4e7; /* mapped to 200 */
-  --color-zinc-800: #f4f4f5; /* mapped to 100 */
-  --color-zinc-900: #fafafa; /* mapped to 50 */
-  --color-zinc-950: #ffffff; /* used for very bright text in dark mode */
+  /* Cream/Black dark palette */
+  --color-zinc-50: #0a0908;
+  --color-zinc-100: #141211;
+  --color-zinc-200: #292422;
+  --color-zinc-300: #4a4136;
+  --color-zinc-400: #786a5a;
+  --color-zinc-500: #a39686;
+  --color-zinc-600: #c9bfb3;
+  --color-zinc-700: #e3deda;
+  --color-zinc-800: #f2eee9;
+  --color-zinc-900: #fdfcfb;
+  --color-zinc-950: #ffffff;
   
-  --color-white: #09090b; /* bg-white becomes dark surface */
+  --color-white: #0a0908;
   --color-black: #ffffff;
 }
 
