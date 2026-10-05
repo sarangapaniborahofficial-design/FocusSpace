@@ -21,7 +21,7 @@ export function PageView({ pageId, onBack }: { pageId: string; onBack: () => voi
   if (!loaded.page) {
     return (
       <div className="p-5 lg:p-7 max-w-3xl mx-auto">
-        <EmptyState icon={Sparkles} title="This page no longer exists" text="It may have been deleted." action={<button onClick={onBack} className="h-9 px-3 rounded-lg border border-zinc-200 bg-zinc-50 text-sm hover:bg-zinc-100">Back to pages</button>} />
+        <EmptyState icon={Sparkles} title="This page no longer exists" text="It may have been deleted." action={<button onClick={onBack} className="h-8 px-3 rounded-md border border-zinc-200 bg-zinc-50 text-sm hover:bg-zinc-100">Back to pages</button>} />
       </div>
     );
   }
@@ -98,7 +98,7 @@ function PageEditor({ page, onBack }: { page: Page; onBack: () => void }) {
         <div className="flex items-center justify-between mb-3">
           <h2 id="journal-heading" className="font-medium">Journal</h2>
           {!todayEntry && (
-            <button onClick={() => void openToday()} className="h-8 px-3 rounded-lg bg-zinc-900 text-white text-xs font-medium flex items-center gap-1.5"><Plus size={13} /> Write today's entry</button>
+            <button onClick={() => void openToday()} className="h-8 px-3 rounded-md bg-[var(--accent)] text-[#121214] text-xs font-medium flex items-center gap-1.5"><Plus size={13} /> Write today's entry</button>
           )}
         </div>
 
@@ -106,7 +106,7 @@ function PageEditor({ page, onBack }: { page: Page; onBack: () => void }) {
           <div className="skeleton h-40" />
         ) : sorted.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-100">
-            <EmptyState compact icon={Sparkles} title="No entries yet" text="Write today's entry to start this page's journal." action={<button onClick={() => void openToday()} className="h-9 px-3 rounded-lg bg-zinc-900 text-white text-sm font-medium">Write today's entry</button>} />
+            <EmptyState compact icon={Sparkles} title="No entries yet" text="Write today's entry to start this page's journal." action={<button onClick={() => void openToday()} className="h-8 px-3 rounded-md bg-[var(--accent)] text-[#121214] text-sm font-medium">Write today's entry</button>} />
           </div>
         ) : (
           <ul className="space-y-3">

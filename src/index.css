@@ -1,23 +1,27 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
-  --radius-sm: 1rem;
-  --radius-md: 9999px; /* Pill buttons */
-  --radius-lg: 1.5rem; /* Cards */
-  --radius-xl: 2rem;
-  --radius-2xl: 2.5rem;
+  --font-sans: "Geist", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --radius-sm: 0.125rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
 }
 
-:root { font-family: "Plus Jakarta Sans", system-ui, sans-serif; }
+:root { font-family: "Geist", system-ui, sans-serif; }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; background: var(--app-bg); color: var(--color-zinc-950); }
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
-::selection { background: #ff5e00; color: #ffffff; }
+::selection { background: #f59e0b; color: #121214; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #e4e4e7; border-radius: 999px; }
+
+/* Fonts */
+.font-mono { font-family: "JetBrains Mono", monospace; font-feature-settings: "tnum" 1; }
 
 /* Clean Calendar overrides for native light theme */
 .calendar-shell .fc {
@@ -26,7 +30,7 @@ button { cursor: pointer; }
   --fc-neutral-text-color: #71717a;
   --fc-border-color: #e4e4e7;
   --fc-button-text-color: #3f3f46;
-  --fc-button-bg-color: #ffffff;
+  --fc-button-bg-color: #121214;
   --fc-button-border-color: #e4e4e7;
   --fc-button-hover-bg-color: #f4f4f5;
   --fc-button-hover-border-color: #d4d4d8;
@@ -34,7 +38,7 @@ button { cursor: pointer; }
   --fc-button-active-border-color: #d4d4d8;
   --fc-event-bg-color: #3f3f46;
   --fc-event-border-color: #3f3f46;
-  --fc-event-text-color: #ffffff;
+  --fc-event-text-color: #121214;
   --fc-today-bg-color: rgba(24, 24, 27, .04);
   --fc-now-indicator-color: #18181b;
   color: #3f3f46;
@@ -84,13 +88,13 @@ button { cursor: pointer; }
 button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid #18181b; outline-offset: 2px; }
 
 /* Global Lime Accent Injection for specific elements */
-.dot-on { background: #ff5e00 !important; }
+.dot-on { background: #f59e0b !important; }
 .ring-zinc-900 { --tw-ring-color: #111111 !important; }
-.bg-zinc-700 { background-color: #ff5e00 !important; color: #111111 !important; } /* Re-mapped for active states / lime pills */
+.bg-zinc-700 { background-color: #f59e0b !important; color: #111111 !important; } /* Re-mapped for active states / lime pills */
 :root {
   --ring-fill: #111111;
-  --ring-track: #ff5e00;
-  --accent: #ff5e00;
+  --ring-track: #f59e0b;
+  --accent: #f59e0b;
   --grid: #e4e4e7;
   --ink-3: #a1a1aa;
   --focus-ring: #111111;
@@ -119,27 +123,28 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 }
 
 [data-theme="dark"], [data-theme="oled"] {
-  --app-bg: #000000;
-  --main-bg: #0a0908;
-  --sidebar-bg: #000000;
-  --sidebar-active-bg: #1c1917;
-  --sidebar-active-text: #ffffff;
+  --app-bg: #121214;
+  --main-bg: #18181b;
+  --sidebar-bg: #121214;
+  --sidebar-active-bg: #202024;
+  --sidebar-active-text: #f4f4f5;
 
-  /* Cream/Black dark palette */
-  --color-zinc-50: #0a0908;
-  --color-zinc-100: #141211;
-  --color-zinc-200: #292422;
-  --color-zinc-300: #4a4136;
-  --color-zinc-400: #786a5a;
-  --color-zinc-500: #a39686;
-  --color-zinc-600: #c9bfb3;
-  --color-zinc-700: #e3deda;
-  --color-zinc-800: #f2eee9;
-  --color-zinc-900: #fdfcfb;
+  /* Warm Zinc & Stone Minimalist (Dark) */
+  --color-zinc-50: #121214;
+  --color-zinc-100: #18181b;
+  --color-zinc-200: #202024;
+  --color-zinc-300: #27272a;
+  --color-zinc-400: #2e2e33;
+  --color-zinc-500: #3f3f46;
+  --color-zinc-600: #71717a;
+  --color-zinc-700: #a1a1aa;
+  --color-zinc-800: #e4e4e7;
+  --color-zinc-900: #f4f4f5;
   --color-zinc-950: #ffffff;
   
-  --color-white: #0a0908;
+  --color-white: #121214;
   --color-black: #ffffff;
+  --grid: #2e2e33;
 }
 
 /* Calendar & Rich Text overrides for dark mode */
@@ -163,7 +168,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 }
 
 [data-theme="dark"] .rt-prose, [data-theme="oled"] .rt-prose { color: #d4d4d8; }
-[data-theme="dark"] .rt-prose h2, [data-theme="dark"] .rt-prose h3, [data-theme="oled"] .rt-prose h2, [data-theme="oled"] .rt-prose h3 { color: #ffffff; }
-[data-theme="dark"] .rt-prose strong, [data-theme="oled"] .rt-prose strong { color: #ffffff; }
+[data-theme="dark"] .rt-prose h2, [data-theme="dark"] .rt-prose h3, [data-theme="oled"] .rt-prose h2, [data-theme="oled"] .rt-prose h3 { color: #121214; }
+[data-theme="dark"] .rt-prose strong, [data-theme="oled"] .rt-prose strong { color: #121214; }
 [data-theme="dark"] .rt-prose pre, [data-theme="oled"] .rt-prose pre { background: #18181b !important; color: #d4d4d8; border-color: #27272a; }
 [data-theme="dark"] .rt-prose p code, [data-theme="oled"] .rt-prose p code { background: #18181b; }

@@ -223,10 +223,10 @@ function Panel({ task, categories }: { task: Task; categories: Category[] }) {
         </div>
 
         <div className="shrink-0 border-t border-zinc-100 px-5 py-4 flex items-center justify-between gap-3">
-          <button type="button" onClick={() => { closeTaskEditor(); void deleteTask(task); }} className="h-10 px-3 rounded-lg text-sm text-zinc-600 hover:bg-zinc-400/10 flex items-center gap-1.5"><Trash2 size={15} /> Delete</button>
+          <button type="button" onClick={() => { closeTaskEditor(); void deleteTask(task); }} className="h-8 px-2 rounded-md text-sm text-zinc-600 hover:bg-zinc-400/10 flex items-center gap-1.5"><Trash2 size={15} /> Delete</button>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={requestClose} className="h-10 px-4 rounded-lg text-sm text-zinc-500 hover:bg-zinc-50">Cancel</button>
-            <button type="submit" disabled={!valid || !dirty || saving} title="Ctrl/⌘ + Enter" className="h-10 px-5 rounded-lg bg-zinc-900 text-white font-medium text-sm hover:bg-white disabled:opacity-40">Save</button>
+            <button type="button" onClick={requestClose} className="h-8 px-3 rounded-md text-sm text-zinc-500 hover:bg-zinc-50">Cancel</button>
+            <button type="submit" disabled={!valid || !dirty || saving} title="Ctrl/⌘ + Enter" className="h-8 px-3 rounded-md bg-[var(--accent)] text-[#121214] font-medium text-sm hover:bg-white disabled:opacity-40">Save</button>
           </div>
         </div>
       </form>

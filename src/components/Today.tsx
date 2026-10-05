@@ -53,13 +53,13 @@ export function Today({ onQuickAdd }: { onQuickAdd: () => void }) {
         <div className="space-y-4">
           {tasks !== undefined && plan.next && (
             <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-4 flex items-center gap-3">
-              <span className="size-9 rounded-lg bg-zinc-900 text-white grid place-items-center shrink-0"><Sparkles size={16} /></span>
+              <span className="size-9 rounded-lg bg-[var(--accent)] text-[#121214] grid place-items-center shrink-0"><Sparkles size={16} /></span>
               <div className="min-w-0 flex-1">
                 <div className="text-[10px] uppercase tracking-[.15em] text-zinc-400">Do this next</div>
                 <button onClick={() => openTaskEditor(plan.next!.task.id)} className="font-medium text-zinc-900 hover:underline underline-offset-2 truncate block text-left">{plan.next.task.title}</button>
                 <div className="text-xs text-zinc-400 mt-0.5">{plan.next.reason}</div>
               </div>
-              <button onClick={() => focusOnTask(plan.next!.task)} className="shrink-0 h-9 px-3 rounded-lg bg-zinc-900 text-white text-sm font-medium">Focus</button>
+              <button onClick={() => focusOnTask(plan.next!.task)} className="shrink-0 h-8 px-3 rounded-md bg-[var(--accent)] text-[#121214] text-sm font-medium">Focus</button>
             </section>
           )}
 
@@ -76,7 +76,7 @@ export function Today({ onQuickAdd }: { onQuickAdd: () => void }) {
                   icon={Inbox}
                   title="Nothing on the books today"
                   text="Enjoy the breathing room, or pull something forward."
-                  action={<button onClick={onQuickAdd} className="h-9 px-3 rounded-lg bg-zinc-900 text-white text-sm font-medium flex items-center gap-1.5"><Plus size={15} /> Add a task</button>}
+                  action={<button onClick={onQuickAdd} className="h-8 px-3 rounded-md bg-[var(--accent)] text-[#121214] text-sm font-medium flex items-center gap-1.5"><Plus size={15} /> Add a task</button>}
                 />
               ) : (
                 <>

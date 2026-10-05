@@ -18,7 +18,7 @@ export function MiniTimer({ onOpen }: { onOpen: () => void }) {
           <span className="block text-[11px] text-zinc-400 mt-1 max-w-[150px] truncate">{s.taskTitle ?? MODE_LABELS[s.mode]}</span>
         </span>
       </button>
-      <button onClick={() => timer.toggle()} aria-label={s.running ? 'Pause timer' : 'Start timer'} className="size-9 rounded-full bg-zinc-900 text-white grid place-items-center hover:bg-white">
+      <button onClick={() => timer.toggle()} aria-label={s.running ? 'Pause timer' : 'Start timer'} className="size-9 rounded-full bg-[var(--accent)] text-[#121214] grid place-items-center hover:bg-white">
         {s.running ? <Pause size={15} /> : <Play size={15} fill="currentColor" />}
       </button>
     </div>

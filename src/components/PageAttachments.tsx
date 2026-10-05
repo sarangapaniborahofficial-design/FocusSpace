@@ -43,7 +43,7 @@ export function Attachments({ pageId }: { pageId: string }) {
     >
       <div className="flex items-center justify-between mb-3">
         <h2 id="files-heading" className="font-medium flex items-center gap-2"><Paperclip size={15} /> Files {sorted.length > 0 && <span className="text-xs text-zinc-300 font-normal tabular-nums">{sorted.length}</span>}</h2>
-        <button onClick={() => input.current?.click()} className="h-8 px-3 rounded-lg border border-zinc-100 text-sm text-zinc-600 hover:bg-zinc-50">Add files</button>
+        <button onClick={() => input.current?.click()} className="h-8 px-3 rounded-md border border-zinc-100 text-sm text-zinc-600 hover:bg-zinc-50">Add files</button>
         <input ref={input} type="file" multiple onChange={onPick} className="hidden" aria-label="Choose files to attach" />
       </div>
 

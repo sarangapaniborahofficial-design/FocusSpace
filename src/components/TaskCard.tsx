@@ -37,16 +37,16 @@ export function TaskCard({ task, category, onUpdate, onDelete, onStart, dragging
       draggable={!!onDragStart}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className={`group rounded-xl border border-zinc-100 bg-zinc-50/50 hover:bg-zinc-50/80 transition overflow-hidden ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''} ${dragging ? 'opacity-40' : ''}`}
+      className={`group rounded-lg border border-zinc-100 bg-zinc-50/50 hover:bg-zinc-50/80 transition overflow-hidden ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''} ${dragging ? 'opacity-40' : ''}`}
     >
-      <div className="p-4">
+      <div className="p-3 py-2.5">
         <div className="flex gap-3">
           {selectable ? (
             <button
               onClick={onToggleSelect}
               aria-label={selected ? `Deselect “${task.title}”` : `Select “${task.title}”`}
               aria-pressed={!!selected}
-              className={`mt-0.5 size-5 rounded-md border grid place-items-center shrink-0 ${selected ? 'bg-zinc-900 border-zinc-900 text-white' : 'border-zinc-200 hover:border-zinc-500'}`}
+              className={`mt-0.5 size-5 rounded-md border grid place-items-center shrink-0 ${selected ? 'bg-[var(--accent)] border-[var(--accent)] text-[#121214]' : 'border-zinc-200 hover:border-zinc-500'}`}
             >
               {selected && <Check size={12} />}
             </button>
@@ -55,7 +55,7 @@ export function TaskCard({ task, category, onUpdate, onDelete, onStart, dragging
               onClick={() => void changeStatus(task, isDone ? 'To Do' : 'Submitted/Done')}
               aria-label={isDone ? `Mark “${task.title}” as not done` : `Mark “${task.title}” as done`}
               aria-pressed={isDone}
-              className={`mt-0.5 size-5 rounded-full border grid place-items-center shrink-0 ${isDone ? 'bg-zinc-900 border-zinc-900 text-white' : 'border-zinc-200 hover:border-zinc-500'}`}
+              className={`mt-0.5 size-5 rounded-full border grid place-items-center shrink-0 ${isDone ? 'bg-[#10b981] border-[#10b981] text-[#121214]' : 'border-zinc-200 hover:border-zinc-500'}`}
             >
               {isDone && <Check size={12} />}
             </button>

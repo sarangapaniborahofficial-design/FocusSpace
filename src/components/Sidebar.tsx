@@ -25,7 +25,7 @@ export function Sidebar({ collapsed, setCollapsed, active, setActive, categories
       {mobileOpen && <div className="fade-in fixed inset-0 z-40 bg-black/60 md:hidden" onClick={onCloseMobile} aria-hidden="true" />}
       <aside
         aria-label="Sidebar"
-        className={`fixed inset-y-0 left-0 z-50 w-[260px] md:static md:z-auto ${compact ? 'md:w-[76px]' : 'md:w-[250px]'} shrink-0 bg-[var(--sidebar-bg)] md:rounded-3xl border border-zinc-800 text-zinc-300 transition-[transform,width] duration-200 flex flex-col ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
+        className={`fixed inset-y-0 left-0 z-50 w-[240px] md:static md:z-auto ${compact ? 'md:w-[52px]' : 'md:w-[240px]'} shrink-0 bg-[var(--sidebar-bg)] md:rounded-3xl border border-zinc-800 text-zinc-300 transition-[transform,width] duration-200 flex flex-col ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
       >
         <div className="h-16 flex items-center px-4 border-b border-zinc-800/80">
           <button onClick={() => setActive('home')} className="flex items-center gap-3 min-w-0">
@@ -67,7 +67,7 @@ function NavItem({ icon: Icon, label, active, onClick, compact, dot }: {
       title={compact ? label : undefined}
       aria-label={compact ? label : undefined}
       aria-current={active ? 'page' : undefined}
-      className={`w-full h-10 rounded-lg flex items-center gap-3 px-3 mb-1 text-sm transition ${active ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)] shadow-inner' : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-200'} ${compact ? 'justify-center' : ''}`}
+      className={`w-full h-8 rounded-md flex items-center gap-3 px-3 mb-1 text-sm transition ${active ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)] shadow-inner' : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-200'} ${compact ? 'justify-center' : ''}`}
     >
       <Icon size={17} strokeWidth={active ? 2.2 : 1.8} />
       {!compact && <><span className="truncate flex-1 text-left">{label}</span>{dot && <span className="size-2 rounded-full" style={{ backgroundColor: dot }} />}</>}

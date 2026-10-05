@@ -123,7 +123,7 @@ export function Pomodoro() {
         <button onClick={() => timer.reset()} aria-label="Reset timer" title="Reset" className="size-10 rounded-full border border-zinc-100 grid place-items-center text-zinc-400 hover:text-white">
           <RotateCcw size={16} />
         </button>
-        <button onClick={() => timer.toggle()} aria-label={s.running ? 'Pause timer' : 'Start timer'} title={s.running ? 'Pause (Space)' : 'Start (Space)'} className="size-12 rounded-full bg-zinc-900 text-white grid place-items-center hover:bg-white">
+        <button onClick={() => timer.toggle()} aria-label={s.running ? 'Pause timer' : 'Start timer'} title={s.running ? 'Pause (Space)' : 'Start (Space)'} className="size-12 rounded-full bg-[var(--accent)] text-[#121214] grid place-items-center hover:bg-white">
           {s.running ? <Pause size={19} /> : <Play size={19} fill="currentColor" />}
         </button>
         <button onClick={() => timer.nextMode()} aria-label="Skip to next timer" title="Next timer" className="size-10 rounded-full border border-zinc-100 grid place-items-center text-zinc-400 hover:text-white">

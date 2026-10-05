@@ -79,11 +79,11 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
   };
 
   const emptyAction = (
-    <button onClick={onQuickAdd} className="h-9 px-3 rounded-lg bg-zinc-900 text-white text-sm font-medium flex items-center gap-1.5"><Plus size={15} /> New task</button>
+    <button onClick={onQuickAdd} className="h-8 px-3 rounded-md bg-[var(--accent)] text-[#121214] text-sm font-medium flex items-center gap-1.5"><Plus size={15} /> New task</button>
   );
   const clearFilters = () => { setQ(''); setFilters(NO_FILTERS); };
   const noMatches = (
-    <EmptyState icon={Search} title="No tasks match" text={q.trim() ? `Nothing matches “${q.trim()}”. Try a different word or clear the filters.` : 'Nothing matches these filters.'} action={<button onClick={clearFilters} className="h-9 px-3 rounded-lg border border-zinc-200 bg-zinc-50 text-sm hover:bg-zinc-100">Clear filters</button>} />
+    <EmptyState icon={Search} title="No tasks match" text={q.trim() ? `Nothing matches “${q.trim()}”. Try a different word or clear the filters.` : 'Nothing matches these filters.'} action={<button onClick={clearFilters} className="h-8 px-3 rounded-md border border-zinc-200 bg-zinc-50 text-sm hover:bg-zinc-100">Clear filters</button>} />
   );
 
   return (
@@ -96,11 +96,11 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
         </div>
         <div className="flex gap-2 self-start md:self-auto">
           {view === 'list' && all.length > 0 && (
-            <button onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))} aria-pressed={selectMode} className={`h-10 px-3 rounded-lg border text-sm font-medium ${selectMode ? 'border-zinc-300 bg-zinc-100 text-white' : 'border-zinc-100 text-zinc-500 hover:bg-zinc-50'}`}>
+            <button onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))} aria-pressed={selectMode} className={`h-8 px-2 rounded-md border text-sm font-medium ${selectMode ? 'border-zinc-300 bg-zinc-100 text-white' : 'border-zinc-100 text-zinc-500 hover:bg-zinc-50'}`}>
               {selectMode ? 'Cancel' : 'Select'}
             </button>
           )}
-          <button onClick={onQuickAdd} className="h-10 px-4 rounded-lg bg-zinc-900 text-white font-medium text-sm flex items-center gap-2"><Plus size={16} /> New task</button>
+          <button onClick={onQuickAdd} className="h-8 px-3 rounded-md bg-[var(--accent)] text-[#121214] font-medium text-sm flex items-center gap-2"><Plus size={16} /> New task</button>
         </div>
       </header>
 
@@ -137,7 +137,7 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
             <option value="updated">Sort: recently edited</option>
           </select>
           <div className="relative" ref={filterPopover}>
-            <button onClick={() => setFiltersOpen(v => !v)} aria-expanded={filtersOpen} className={`h-9 pl-3 pr-2 rounded-lg border text-sm flex items-center gap-1.5 transition-colors ${activeFilterCount ? 'border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900' : 'border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-900'}`}>
+            <button onClick={() => setFiltersOpen(v => !v)} aria-expanded={filtersOpen} className={`h-9 pl-3 pr-2 rounded-lg border text-sm flex items-center gap-1.5 transition-colors ${activeFilterCount ? 'border-zinc-900 bg-[var(--accent)] text-[#121214] dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900' : 'border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-900'}`}>
               Filters{activeFilterCount > 0 && <span className="text-xs tabular-nums bg-white/20 dark:bg-black/10 rounded-full px-1.5">{activeFilterCount}</span>}<ChevronDown size={14} />
             </button>
             {filtersOpen && (

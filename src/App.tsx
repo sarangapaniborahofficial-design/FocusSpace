@@ -119,17 +119,17 @@ export default function App() {
     return (
       <div className="min-h-screen white grid place-items-center p-6">
         <div className="max-w-sm text-center" role="alert">
-          <div className="size-10 rounded-xl bg-zinc-900 text-white grid place-items-center mx-auto mb-4"><Command size={18} /></div>
+          <div className="size-10 rounded-xl bg-[var(--accent)] text-[#121214] grid place-items-center mx-auto mb-4"><Command size={18} /></div>
           <h1 className="text-lg font-semibold">FocusSpace can't open its local database</h1>
           <p className="text-sm text-zinc-500 mt-2">This usually happens in private browsing, or when the browser blocks site storage. Allow storage for this site (or use a normal window) and try again.</p>
           <p className="text-xs text-zinc-600 mt-3 break-words">{dbError}</p>
-          <button onClick={boot} className="mt-5 h-10 px-4 rounded-lg bg-zinc-900 text-white text-sm font-medium">Try again</button>
+          <button onClick={boot} className="mt-5 h-10 px-4 rounded-lg bg-[var(--accent)] text-[#121214] text-sm font-medium">Try again</button>
         </div>
       </div>
     );
   }
 
-  if (!ready) return <div className="min-h-screen white grid place-items-center"><div className="text-center"><div className="size-10 rounded-xl bg-zinc-900 text-white grid place-items-center mx-auto mb-3"><Command size={18} /></div><div className="text-sm text-zinc-500">Initializing local workspace…</div></div></div>;
+  if (!ready) return <div className="min-h-screen white grid place-items-center"><div className="text-center"><div className="size-10 rounded-xl bg-[var(--accent)] text-[#121214] grid place-items-center mx-auto mb-3"><Command size={18} /></div><div className="text-sm text-zinc-500">Initializing local workspace…</div></div></div>;
 
   const title = VIEW_TITLES[active] ?? categories.find(c => c.id === active)?.name ?? 'Home';
 

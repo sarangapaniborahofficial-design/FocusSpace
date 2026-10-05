@@ -49,8 +49,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode; onReset?: ()
         <p className="text-sm text-zinc-400 mt-2">Your tasks and settings are safe in local storage. Try again, or head back to Home.</p>
         <p className="text-xs text-zinc-300 mt-3 break-words">{this.state.error.message}</p>
         <div className="mt-5 flex justify-center gap-2">
-          <button onClick={() => this.setState({ error: null })} className="h-10 px-4 rounded-lg border border-zinc-200 bg-zinc-50 text-sm hover:bg-zinc-100">Try again</button>
-          <button onClick={() => { this.setState({ error: null }); this.props.onReset?.(); }} className="h-10 px-4 rounded-lg bg-zinc-900 text-white text-sm font-medium">Go to Home</button>
+          <button onClick={() => this.setState({ error: null })} className="h-8 px-3 rounded-md border border-zinc-200 bg-zinc-50 text-sm hover:bg-zinc-100">Try again</button>
+          <button onClick={() => { this.setState({ error: null }); this.props.onReset?.(); }} className="h-8 px-3 rounded-md bg-[var(--accent)] text-[#121214] text-sm font-medium">Go to Home</button>
         </div>
       </div>
     );
@@ -72,8 +72,8 @@ export function ConfirmDialog({ title, text, confirmLabel, cancelLabel = 'Cancel
         <h2 className="font-semibold">{title}</h2>
         {text && <p className="text-sm text-zinc-400 mt-2">{text}</p>}
         <div className="mt-5 flex justify-end gap-2">
-          <button autoFocus onClick={onCancel} className="h-10 px-4 rounded-lg text-sm text-zinc-500 hover:bg-zinc-50">{cancelLabel}</button>
-          <button onClick={onConfirm} className={`h-10 px-4 rounded-lg text-sm font-medium ${danger ? 'bg-zinc-400/90 text-white hover:bg-zinc-400' : 'bg-zinc-900 text-white hover:bg-white'}`}>{confirmLabel}</button>
+          <button autoFocus onClick={onCancel} className="h-8 px-3 rounded-md text-sm text-zinc-500 hover:bg-zinc-50">{cancelLabel}</button>
+          <button onClick={onConfirm} className={`h-8 px-3 rounded-md text-sm font-medium ${danger ? 'bg-zinc-400/90 text-white hover:bg-zinc-400' : 'bg-[var(--accent)] text-[#121214] hover:bg-[#d97706]'}`}>{confirmLabel}</button>
         </div>
       </div>
     </div>

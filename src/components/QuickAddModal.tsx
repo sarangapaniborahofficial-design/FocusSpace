@@ -95,8 +95,8 @@ export function QuickAddModal({ open, onClose, defaultCategory }: { open: boolea
           </label>
         </div>
         <div className="p-5 pt-0 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="h-10 px-4 rounded-lg text-sm text-zinc-500 hover:bg-zinc-50">Cancel</button>
-          <button disabled={!title.trim() || !selected} className="h-10 px-5 rounded-lg bg-zinc-900 text-white font-medium text-sm disabled:opacity-40">Create task</button>
+          <button type="button" onClick={onClose} className="h-8 px-3 rounded-md text-sm text-zinc-500 hover:bg-zinc-50">Cancel</button>
+          <button disabled={!title.trim() || !selected} className="h-8 px-3 rounded-md bg-[var(--accent)] text-[#121214] font-medium text-sm disabled:opacity-40">Create task</button>
         </div>
       </form>
     </div>
