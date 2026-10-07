@@ -1,10 +1,10 @@
 import Dexie, { type Table } from 'dexie';
-import type { Category, FileBlob, FocusLog, Habit, JournalEntry, Page, PageFile, PageLink, Status, Task } from '../types';
+import type { Category, FileBlob, FocusLog, Goal, Habit, JournalEntry, Page, PageFile, PageLink, Status, Task } from '../types';
 import { migratePageToV3 } from '../lib/migrateV3';
 import { uid, isoToday } from '../lib/utils';
 
 class FocusSpaceDB extends Dexie {
-  tasks!: Table<Task, string>; categories!: Table<Category, string>; habits!: Table<Habit, string>; focusLogs!: Table<FocusLog, string>;
+  tasks!: Table<Task, string>; categories!: Table<Category, string>; habits!: Table<Habit, string>; goals!: Table<Goal, string>; focusLogs!: Table<FocusLog, string>;
   pages!: Table<Page, string>; files!: Table<PageFile, string>; fileBlobs!: Table<FileBlob, string>;
   journalEntries!: Table<JournalEntry, string>; pageLinks!: Table<PageLink, string>;
   constructor() {

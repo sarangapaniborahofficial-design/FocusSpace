@@ -18,6 +18,7 @@ export interface Task {
   /** Id of the next occurrence created when this recurring task was completed. */
   spawnedNextId?: string;
 }
+export interface Goal { id: string; categoryId?: string; title: string; metricLabel: string; currentValue: number; targetValue: number; deadline?: string; createdAt: string; updatedAt: string; }
 export interface Habit { id: string; name: string; color: string; active: boolean; completions: string[]; targetLabel?: string; }
 export interface FocusLog { id: string; taskId?: string; startedAt: string; endedAt: string; durationMinutes: number; mode: 'focus' | 'shortBreak' | 'longBreak'; }
 

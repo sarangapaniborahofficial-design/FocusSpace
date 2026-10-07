@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *, [data-theme=oled], [data-theme=oled] *));
+
 @theme {
   --font-sans: "Geist", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
@@ -80,21 +82,32 @@ button { cursor: pointer; }
 /* Animations & Utilities */
 @keyframes view-in { from { opacity: 0; transform: translateY(4px) scale(0.995); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes pop-in { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes bar-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes bar-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes pulse-soft { 50% { opacity: .55; } }
 .view-in { animation: view-in .25s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .pop-in { animation: pop-in .18s cubic-bezier(.2, .7, .2, 1) both; }
+.fade-in { animation: fade-in .2s ease-out both; }
+.slide-in { animation: slide-in .3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.toast-in { animation: toast-in .3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.bar-y { transform-origin: bottom; animation: bar-y .5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.bar-x { transform-origin: left; animation: bar-x .5s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .skeleton { background: #e4e4e7; border-radius: .75rem; animation: pulse-soft 1.4s ease-in-out infinite; }
 
 button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid #18181b; outline-offset: 2px; }
 
 /* Global Lime Accent Injection for specific elements */
-.dot-on { background: #f59e0b !important; }
+.dot-on { background: #799e85 !important; }
+.dot-off { background: var(--ring-track); opacity: 0.3; }
 .ring-zinc-900 { --tw-ring-color: #111111 !important; }
-.bg-zinc-700 { background-color: #f59e0b !important; color: #111111 !important; } /* Re-mapped for active states / lime pills */
+.bg-zinc-700 { background-color: #799e85 !important; color: #111111 !important; } /* Re-mapped for active states / lime pills */
 :root {
   --ring-fill: #111111;
-  --ring-track: #f59e0b;
-  --accent: #f59e0b;
+  --ring-track: #799e85;
+  --accent: #799e85;
   --grid: #e4e4e7;
   --ink-3: #a1a1aa;
   --focus-ring: #111111;
@@ -102,11 +115,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 
 :root {
-  --app-bg: #f5f2eb;
+  --app-bg: #f2f4f2;
   --main-bg: #ffffff;
-  --sidebar-bg: #141211;
-  --sidebar-active-bg: #292422;
-  --sidebar-active-text: #ffffff;
+  --sidebar-bg: #f2f4f2;
+  --sidebar-active-bg: #e2e8e4;
+  --sidebar-active-text: #1a1c1b;
 
   /* Warm neutral light palette */
   --color-zinc-50: #fcfbf9;
@@ -123,9 +136,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 }
 
 [data-theme="dark"], [data-theme="oled"] {
-  --app-bg: #121214;
+  --app-bg: #121413;
   --main-bg: #18181b;
-  --sidebar-bg: #121214;
+  --sidebar-bg: #121413;
   --sidebar-active-bg: #202024;
   --sidebar-active-text: #f4f4f5;
 
@@ -168,7 +181,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 }
 
 [data-theme="dark"] .rt-prose, [data-theme="oled"] .rt-prose { color: #d4d4d8; }
-[data-theme="dark"] .rt-prose h2, [data-theme="dark"] .rt-prose h3, [data-theme="oled"] .rt-prose h2, [data-theme="oled"] .rt-prose h3 { color: #121214; }
-[data-theme="dark"] .rt-prose strong, [data-theme="oled"] .rt-prose strong { color: #121214; }
+[data-theme="dark"] .rt-prose h2, [data-theme="dark"] .rt-prose h3, [data-theme="oled"] .rt-prose h2, [data-theme="oled"] .rt-prose h3 { color: #ffffff; }
+[data-theme="dark"] .rt-prose strong, [data-theme="oled"] .rt-prose strong { color: #ffffff; }
 [data-theme="dark"] .rt-prose pre, [data-theme="oled"] .rt-prose pre { background: #18181b !important; color: #d4d4d8; border-color: #27272a; }
 [data-theme="dark"] .rt-prose p code, [data-theme="oled"] .rt-prose p code { background: #18181b; }
+[data-theme="dark"] .rt-prose a, [data-theme="oled"] .rt-prose a { color: #38bdf8; }

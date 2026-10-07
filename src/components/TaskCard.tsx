@@ -46,7 +46,7 @@ export function TaskCard({ task, category, onUpdate, onDelete, onStart, dragging
               onClick={onToggleSelect}
               aria-label={selected ? `Deselect “${task.title}”` : `Select “${task.title}”`}
               aria-pressed={!!selected}
-              className={`mt-0.5 size-5 rounded-md border grid place-items-center shrink-0 ${selected ? 'bg-[var(--accent)] border-[var(--accent)] text-[#121214]' : 'border-zinc-200 hover:border-zinc-500'}`}
+              className={`mt-0.5 size-5 rounded-xl border grid place-items-center shrink-0 ${selected ? 'bg-[var(--accent)] border-[var(--accent)] text-[#121214]' : 'border-zinc-200 hover:border-zinc-500'}`}
             >
               {selected && <Check size={12} />}
             </button>
@@ -74,7 +74,7 @@ export function TaskCard({ task, category, onUpdate, onDelete, onStart, dragging
               <span>•</span>
               <span className="flex items-center gap-1"><Clock3 size={12} />{task.estimatedDuration}m</span>
               <span>•</span>
-              <span className={overdue ? 'text-zinc-600' : ''}>
+              <span className={overdue ? 'text-rose-500 font-medium' : ''}>
                 {relativeDay(task.dueDate)}{task.dueTime ? ` ${task.dueTime}` : ''}{overdue ? ' · overdue' : ''}
               </span>
             </div>
@@ -110,7 +110,7 @@ export function TaskCard({ task, category, onUpdate, onDelete, onStart, dragging
                   key={status}
                   onClick={() => task.status !== status && void changeStatus(task, status)}
                   aria-pressed={task.status === status}
-                  className={`px-2.5 py-1 rounded-md text-xs transition-colors ${task.status === status ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-400 hover:text-zinc-700'}`}
+                  className={`px-2.5 py-1 rounded-xl text-xs transition-colors ${task.status === status ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-400 hover:text-zinc-700'}`}
                 >
                   {STATUS_LABEL[status]}
                 </button>

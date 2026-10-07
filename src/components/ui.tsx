@@ -68,12 +68,12 @@ export function ConfirmDialog({ title, text, confirmLabel, cancelLabel = 'Cancel
   }, [onCancel]);
   return (
     <div className="fade-in fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm grid place-items-center p-4" onMouseDown={onCancel}>
-      <div role="dialog" aria-modal="true" aria-label={title} onMouseDown={e => e.stopPropagation()} className="pop-in w-full max-w-sm rounded-2xl border border-zinc-200 bg-white shadow-2xl p-5">
+      <div role="dialog" aria-modal="true" aria-label={title} onMouseDown={e => e.stopPropagation()} className="pop-in w-full max-w-sm rounded-2xl border border-zinc-200 bg-white dark:bg-zinc-100 dark:border-zinc-300 shadow-2xl p-5">
         <h2 className="font-semibold">{title}</h2>
         {text && <p className="text-sm text-zinc-400 mt-2">{text}</p>}
         <div className="mt-5 flex justify-end gap-2">
           <button autoFocus onClick={onCancel} className="h-8 px-3 rounded-md text-sm text-zinc-500 hover:bg-zinc-50">{cancelLabel}</button>
-          <button onClick={onConfirm} className={`h-8 px-3 rounded-md text-sm font-medium ${danger ? 'bg-zinc-400/90 text-white hover:bg-zinc-400' : 'bg-[var(--accent)] text-[#121214] hover:bg-[#d97706]'}`}>{confirmLabel}</button>
+          <button onClick={onConfirm} className={`h-8 px-3 rounded-md text-sm font-medium ${danger ? 'bg-rose-500 text-white hover:bg-rose-600' : 'bg-[var(--accent)] text-[#121214] hover:bg-[#d97706]'}`}>{confirmLabel}</button>
         </div>
       </div>
     </div>

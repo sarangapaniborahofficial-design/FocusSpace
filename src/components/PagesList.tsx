@@ -56,7 +56,7 @@ export function PagesList({ categoryId, tabs, onOpenPage }: { categoryId?: strin
   };
 
   const createButton = (
-    <button onClick={() => void newPage()} disabled={creating} className="h-8 px-3 rounded-md bg-[var(--accent)] text-[#121214] font-medium text-sm flex items-center gap-2 hover:bg-white disabled:opacity-60"><Plus size={16} /> New page</button>
+    <button onClick={() => void newPage()} disabled={creating} className="h-8 px-3 rounded-xl bg-[var(--accent)] text-[#121214] font-medium text-sm flex items-center gap-2 hover:bg-[#d97706] disabled:opacity-60"><Plus size={16} /> New page</button>
   );
   const loading = pages === undefined;
   const count = pages?.length ?? 0;
@@ -96,7 +96,7 @@ export function PagesList({ categoryId, tabs, onOpenPage }: { categoryId?: strin
 
           {visible.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-zinc-100">
-              <EmptyState icon={Search} title="No pages match your search" text={`Nothing matches “${q.trim()}”.`} action={<button onClick={() => setQ('')} className="h-8 px-3 rounded-md border border-zinc-200 bg-zinc-50 text-sm hover:bg-zinc-100">Clear search</button>} />
+              <EmptyState icon={Search} title="No pages match your search" text={`Nothing matches “${q.trim()}”.`} action={<button onClick={() => setQ('')} className="h-8 px-3 rounded-xl border border-zinc-200 bg-zinc-50 text-sm hover:bg-zinc-100">Clear search</button>} />
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">

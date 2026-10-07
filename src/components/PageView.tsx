@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeft, Check, Circle, Flame, ListChecks, Pencil, Plus, Sparkles, Trash2, X, CalendarDays } from 'lucide-react';
+import { ArrowLeft, Check, Circle, Flame, ListChecks, Pencil, Plus, Sparkles, Target, Trash2, X, CalendarDays } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { db } from '../db/db';
 import { computeStreaks } from '../lib/analytics';
@@ -21,7 +21,7 @@ export function PageView({ pageId, onBack }: { pageId: string; onBack: () => voi
   if (!loaded.page) {
     return (
       <div className="p-5 lg:p-7 max-w-3xl mx-auto">
-        <EmptyState icon={Sparkles} title="This page no longer exists" text="It may have been deleted." action={<button onClick={onBack} className="h-8 px-3 rounded-md border border-zinc-200 bg-zinc-50 text-sm hover:bg-zinc-100">Back to pages</button>} />
+        <EmptyState icon={Sparkles} title="This page no longer exists" text="It may have been deleted." action={<button onClick={onBack} className="h-8 px-3 rounded-xl border border-zinc-200 bg-zinc-50 text-sm hover:bg-zinc-100">Back to pages</button>} />
       </div>
     );
   }
@@ -98,7 +98,7 @@ function PageEditor({ page, onBack }: { page: Page; onBack: () => void }) {
         <div className="flex items-center justify-between mb-3">
           <h2 id="journal-heading" className="font-medium">Journal</h2>
           {!todayEntry && (
-            <button onClick={() => void openToday()} className="h-8 px-3 rounded-md bg-[var(--accent)] text-[#121214] text-xs font-medium flex items-center gap-1.5"><Plus size={13} /> Write today's entry</button>
+            <button onClick={() => void openToday()} className="h-8 px-3 rounded-xl bg-[var(--accent)] text-[#121214] text-xs font-medium flex items-center gap-1.5"><Plus size={13} /> Write today's entry</button>
           )}
         </div>
 
@@ -106,7 +106,7 @@ function PageEditor({ page, onBack }: { page: Page; onBack: () => void }) {
           <div className="skeleton h-40" />
         ) : sorted.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-100">
-            <EmptyState compact icon={Sparkles} title="No entries yet" text="Write today's entry to start this page's journal." action={<button onClick={() => void openToday()} className="h-8 px-3 rounded-md bg-[var(--accent)] text-[#121214] text-sm font-medium">Write today's entry</button>} />
+            <EmptyState compact icon={Sparkles} title="No entries yet" text="Write today's entry to start this page's journal." action={<button onClick={() => void openToday()} className="h-8 px-3 rounded-xl bg-[var(--accent)] text-[#121214] text-sm font-medium">Write today's entry</button>} />
           </div>
         ) : (
           <ul className="space-y-3">
@@ -147,9 +147,9 @@ function JournalEntryRow({ entry, isToday, editing, onEdit, onDoneEditing }: { e
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-100/80">
         <span className="text-xs font-medium text-zinc-500">{isToday ? `Today · ${dateLabel(entry.date)}` : dateLabel(entry.date)}</span>
         {editing ? (
-          <button onClick={() => void flush()} className="text-xs text-zinc-500 hover:text-white px-2 py-1 rounded-md hover:bg-zinc-100">Done</button>
+          <button onClick={() => void flush()} className="text-xs text-zinc-500 hover:text-white px-2 py-1 rounded-xl hover:bg-zinc-100">Done</button>
         ) : (
-          <button onClick={onEdit} aria-label="Edit this entry" title="Edit" className="text-zinc-300 hover:text-zinc-700 p-1 rounded-md hover:bg-zinc-100"><Pencil size={13} /></button>
+          <button onClick={onEdit} aria-label="Edit this entry" title="Edit" className="text-zinc-300 hover:text-zinc-700 p-1 rounded-xl hover:bg-zinc-100"><Pencil size={13} /></button>
         )}
       </div>
       <div className="px-1 py-1">
@@ -175,7 +175,7 @@ function LegacyBanner({ pageId }: { pageId: string }) {
     <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
       <p className="text-sm text-amber-200">This page was converted from the old note format into its first journal entry below.</p>
       <div className="mt-2 flex items-center gap-3">
-        <button onClick={() => void confirmLegacyPage(pageId)} className="h-8 px-3 rounded-md bg-amber-400 text-amber-950 text-xs font-medium">Looks right, dismiss</button>
+        <button onClick={() => void confirmLegacyPage(pageId)} className="h-8 px-3 rounded-xl bg-amber-400 text-amber-950 text-xs font-medium">Looks right, dismiss</button>
         <button onClick={() => setShowOriginal(v => !v)} className="text-xs text-amber-200/80 hover:text-amber-100">{showOriginal ? 'Hide original text' : 'View original text'}</button>
       </div>
       {showOriginal && <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-amber-100/80 bg-black/20 rounded-lg p-3 max-h-64 overflow-y-auto">{page.legacyMarkdown}</pre>}
@@ -186,7 +186,8 @@ function LegacyBanner({ pageId }: { pageId: string }) {
 /* ---------- related tasks & habits (live references, never copies) ---------- */
 
 function RelatedSection({ pageId, links }: { pageId: string; links: PageLink[] }) {
-  const [picking, setPicking] = useState<'task' | 'habit' | null>(null);
+  const [picking, setPicking] = useState<'task' | 'habit' | 'goal' | null>(null);
+  const goalLinks = links.filter(l => l.kind === 'goal');
   const taskLinks = links.filter(l => l.kind === 'task');
   const habitLinks = links.filter(l => l.kind === 'habit');
   const taskIds = taskLinks.map(l => l.targetId);
@@ -215,8 +216,8 @@ function RelatedSection({ pageId, links }: { pageId: string; links: PageLink[] }
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-medium text-zinc-600">Related</h2>
         <div className="flex gap-1">
-          <button onClick={() => setPicking(picking === 'task' ? null : 'task')} className="text-xs h-7 px-2.5 rounded-md text-zinc-500 hover:text-[var(--sidebar-active-text)] hover:bg-[var(--sidebar-active-bg)]">+ Task</button>
-          <button onClick={() => setPicking(picking === 'habit' ? null : 'habit')} className="text-xs h-7 px-2.5 rounded-md text-zinc-500 hover:text-[var(--sidebar-active-text)] hover:bg-[var(--sidebar-active-bg)]">+ Habit</button>
+          <button onClick={() => setPicking(picking === 'task' ? null : 'task')} className="text-xs h-7 px-2.5 rounded-xl text-zinc-500 hover:text-[var(--sidebar-active-text)] hover:bg-[var(--sidebar-active-bg)]">+ Task</button>
+          <button onClick={() => setPicking(picking === 'habit' ? null : 'habit')} className="text-xs h-7 px-2.5 rounded-xl text-zinc-500 hover:text-[var(--sidebar-active-text)] hover:bg-[var(--sidebar-active-bg)]">+ Habit</button>
         </div>
       </div>
       {picking && <LinkPicker pageId={pageId} kind={picking} existing={links.map(l => l.targetId)} onDone={() => setPicking(null)} />}
@@ -229,7 +230,7 @@ function RelatedSection({ pageId, links }: { pageId: string; links: PageLink[] }
               <div key={t.id} className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
                 <Circle size={14} className="text-zinc-300 shrink-0" />
                 <span className="min-w-0 truncate font-medium">{t.title}</span>
-                <span className="ml-auto text-xs font-semibold px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">{dateLabel(t.dueDate!)}</span>
+                <span className="ml-auto text-xs font-semibold px-1.5 py-0.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">{dateLabel(t.dueDate!)}</span>
               </div>
             ))}
           </div>
@@ -239,31 +240,31 @@ function RelatedSection({ pageId, links }: { pageId: string; links: PageLink[] }
       <div className="space-y-3">
         {taskLinks.length > 0 && <div className="space-y-1.5">{taskLinks.map(l => <LinkedTaskRow key={l.id} link={l} />)}</div>}
         {habitLinks.length > 0 && <div className="space-y-1.5">{habitLinks.map(l => <LinkedHabitRow key={l.id} link={l} />)}</div>}
-        {/* Goals slot stays hidden until Goals exist (e.g. goalLinks.length > 0) */}
-        {links.some(l => l.kind === 'goal') && <div className="space-y-1.5 text-sm text-zinc-400 italic">Goals will appear here once implemented</div>}
+        {goalLinks.length > 0 && <div className="space-y-1.5">{goalLinks.map(l => <LinkedGoalRow key={l.id} link={l} />)}</div>}
       </div>
     </section>
   );
 }
 
-function LinkPicker({ pageId, kind, existing, onDone }: { pageId: string; kind: 'task' | 'habit'; existing: string[]; onDone: () => void }) {
+function LinkPicker({ pageId, kind, existing, onDone }: { pageId: string; kind: 'task' | 'habit' | 'goal'; existing: string[]; onDone: () => void }) {
   const tasks = useLiveQuery(() => db.tasks.toArray(), []) ?? [];
   const habits = useLiveQuery(() => db.habits.toArray(), []) ?? [];
+  const goals = useLiveQuery(() => db.goals.toArray(), []) ?? [];
   const [q, setQ] = useState('');
   const needle = q.trim().toLowerCase();
-  const label = (item: Task | Habit) => ('title' in item ? item.title : item.name);
-  const items = (kind === 'task' ? (tasks as (Task | Habit)[]) : habits).filter(item => !existing.includes(item.id) && (!needle || label(item).toLowerCase().includes(needle)));
+  const label = (item: any) => item.title || item.name;
+  const items = (kind === 'task' ? tasks : kind === 'habit' ? habits : goals).filter(item => !existing.includes(item.id) && (!needle || label(item).toLowerCase().includes(needle)));
 
   const pick = async (id: string) => { await addLink(pageId, kind, id); onDone(); };
 
   return (
     <div className="mb-3 rounded-lg border border-zinc-200 bg-white/60 p-2">
-      <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder={`Search ${kind}s…`} className="w-full h-8 rounded-md bg-zinc-50 border border-zinc-100 px-2 text-sm outline-none mb-1.5" />
+      <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder={`Search ${kind}s…`} className="w-full h-8 rounded-xl bg-zinc-50 border border-zinc-100 px-2 text-sm outline-none mb-1.5" />
       <div className="max-h-40 overflow-y-auto">
         {items.length === 0 ? (
           <p className="text-xs text-zinc-300 px-1 py-2">No matches.</p>
         ) : items.slice(0, 8).map(item => (
-          <button key={item.id} onClick={() => void pick(item.id)} className="w-full text-left px-2 py-1.5 rounded-md text-sm text-zinc-600 hover:bg-zinc-100 truncate">
+          <button key={item.id} onClick={() => void pick(item.id)} className="w-full text-left px-2 py-1.5 rounded-xl text-sm text-zinc-600 hover:bg-zinc-100 truncate">
             {label(item)}
           </button>
         ))}
@@ -298,6 +299,24 @@ function LinkedHabitRow({ link }: { link: PageLink }) {
       <span className="min-w-0 truncate text-zinc-600">{habit.name}</span>
       {streak > 0 && <span className="flex items-center gap-1 text-xs text-zinc-400 shrink-0"><Flame size={11} />{streak}</span>}
       <button onClick={() => void removeLink(link.id)} aria-label={`Unlink ${habit.name}`} className="ml-auto shrink-0 text-zinc-200 hover:text-zinc-500 opacity-0 group-hover:opacity-100"><X size={13} /></button>
+    </div>
+  );
+}
+
+
+function LinkedGoalRow({ link }: { link: PageLink }) {
+  const goal = useLiveQuery(() => db.goals.get(link.targetId), [link.targetId]);
+  if (goal === undefined) return null;
+  if (!goal) return null;
+  const pct = Math.min(100, Math.max(0, (goal.currentValue / goal.targetValue) * 100));
+  return (
+    <div className="group flex items-center gap-2 text-sm">
+      <Target size={14} className="text-zinc-300 shrink-0" />
+      <span className="min-w-0 truncate text-zinc-600 dark:text-zinc-300">{goal.title}</span>
+      <span className="flex items-center gap-1 text-xs text-zinc-400 shrink-0 tabular-nums ml-1">
+        {Math.round(pct)}%
+      </span>
+      <button onClick={() => void removeLink(link.id)} aria-label={`Unlink ${goal.title}`} className="ml-auto shrink-0 text-zinc-200 hover:text-zinc-500 opacity-0 group-hover:opacity-100"><X size={13} /></button>
     </div>
   );
 }

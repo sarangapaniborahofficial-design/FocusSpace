@@ -79,11 +79,11 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
   };
 
   const emptyAction = (
-    <button onClick={onQuickAdd} className="h-8 px-3 rounded-md bg-[var(--accent)] text-[#121214] text-sm font-medium flex items-center gap-1.5"><Plus size={15} /> New task</button>
+    <button onClick={onQuickAdd} className="h-8 px-3 rounded-xl bg-[var(--accent)] text-[#121214] text-sm font-medium flex items-center gap-1.5"><Plus size={15} /> New task</button>
   );
   const clearFilters = () => { setQ(''); setFilters(NO_FILTERS); };
   const noMatches = (
-    <EmptyState icon={Search} title="No tasks match" text={q.trim() ? `Nothing matches “${q.trim()}”. Try a different word or clear the filters.` : 'Nothing matches these filters.'} action={<button onClick={clearFilters} className="h-8 px-3 rounded-md border border-zinc-200 bg-zinc-50 text-sm hover:bg-zinc-100">Clear filters</button>} />
+    <EmptyState icon={Search} title="No tasks match" text={q.trim() ? `Nothing matches “${q.trim()}”. Try a different word or clear the filters.` : 'Nothing matches these filters.'} action={<button onClick={clearFilters} className="h-8 px-3 rounded-xl border border-zinc-200 bg-zinc-50 text-sm hover:bg-zinc-100">Clear filters</button>} />
   );
 
   return (
@@ -96,11 +96,11 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
         </div>
         <div className="flex gap-2 self-start md:self-auto">
           {view === 'list' && all.length > 0 && (
-            <button onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))} aria-pressed={selectMode} className={`h-8 px-2 rounded-md border text-sm font-medium ${selectMode ? 'border-zinc-300 bg-zinc-100 text-white' : 'border-zinc-100 text-zinc-500 hover:bg-zinc-50'}`}>
+            <button onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))} aria-pressed={selectMode} className={`h-8 px-2 rounded-xl border text-sm font-medium ${selectMode ? 'border-zinc-300 bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'border-zinc-100 text-zinc-500 hover:bg-zinc-50'}`}>
               {selectMode ? 'Cancel' : 'Select'}
             </button>
           )}
-          <button onClick={onQuickAdd} className="h-8 px-3 rounded-md bg-[var(--accent)] text-[#121214] font-medium text-sm flex items-center gap-2"><Plus size={16} /> New task</button>
+          <button onClick={onQuickAdd} className="h-8 px-3 rounded-xl bg-[var(--accent)] text-[#121214] font-medium text-sm flex items-center gap-2"><Plus size={16} /> New task</button>
         </div>
       </header>
 
@@ -111,17 +111,17 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
           <span className="text-sm text-zinc-600 tabular-nums">{selected.size} selected</span>
           <button onClick={() => setSelected(new Set(listItems.map(t => t.id)))} className="text-xs text-zinc-400 hover:text-zinc-700">Select all {listItems.length}</button>
           <div className="flex-1" />
-          <button disabled={!selected.size} onClick={() => void bulkComplete(selectedTasks).then(exitSelectMode)} className="h-8 px-3 rounded-md text-xs bg-zinc-100 text-zinc-700 hover:bg-zinc-200 disabled:opacity-40">Mark done</button>
+          <button disabled={!selected.size} onClick={() => void bulkComplete(selectedTasks).then(exitSelectMode)} className="h-8 px-3 rounded-xl text-xs bg-zinc-100 text-zinc-700 hover:bg-zinc-200 disabled:opacity-40">Mark done</button>
           <select
             disabled={!selected.size}
             onChange={e => { if (e.target.value) { void bulkSetPriority([...selected], e.target.value as Priority).then(exitSelectMode); } }}
             defaultValue="" aria-label="Set priority for selected tasks"
-            className="h-8 rounded-md bg-zinc-100 text-zinc-700 text-xs px-2 disabled:opacity-40"
+            className="h-8 rounded-xl bg-zinc-100 text-zinc-700 text-xs px-2 disabled:opacity-40"
           >
             <option value="" disabled>Set priority…</option>
             {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
-          <button disabled={!selected.size} onClick={() => void bulkDelete(selectedTasks).then(exitSelectMode)} className="h-8 px-3 rounded-md text-xs bg-zinc-400/15 text-zinc-600 hover:bg-zinc-400/25 disabled:opacity-40 flex items-center gap-1"><Trash2 size={13} /> Delete</button>
+          <button disabled={!selected.size} onClick={() => void bulkDelete(selectedTasks).then(exitSelectMode)} className="h-8 px-3 rounded-xl text-xs bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 dark:text-rose-400 disabled:opacity-40 flex items-center gap-1"><Trash2 size={13} /> Delete</button>
           <button onClick={exitSelectMode} aria-label="Exit selection" className="text-zinc-400 hover:text-zinc-700"><X size={16} /></button>
         </div>
       ) : (
@@ -151,8 +151,8 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
             )}
           </div>
           <div className="flex h-9 rounded-lg border border-zinc-100 overflow-hidden" role="group" aria-label="View">
-            <button onClick={() => changeView('list')} aria-label="List view" aria-pressed={view === 'list'} className={`px-3 ${view === 'list' ? 'bg-zinc-100 text-white' : 'text-zinc-400'}`}><LayoutList size={16} /></button>
-            <button onClick={() => changeView('board')} aria-label="Board view" aria-pressed={view === 'board'} className={`px-3 ${view === 'board' ? 'bg-zinc-100 text-white' : 'text-zinc-400'}`}><SquareKanban size={16} /></button>
+            <button onClick={() => changeView('list')} aria-label="List view" aria-pressed={view === 'list'} className={`px-3 ${view === 'list' ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'text-zinc-400'}`}><LayoutList size={16} /></button>
+            <button onClick={() => changeView('board')} aria-label="Board view" aria-pressed={view === 'board'} className={`px-3 ${view === 'board' ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'text-zinc-400'}`}><SquareKanban size={16} /></button>
           </div>
           <button
             onClick={() => setHideDone(v => !v)}
@@ -160,7 +160,7 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
             aria-pressed={hideDone}
             title={hideDone ? 'Show completed tasks' : 'Hide completed tasks'}
             aria-label={hideDone ? 'Show completed tasks' : 'Hide completed tasks'}
-            className={`size-9 rounded-lg border grid place-items-center disabled:opacity-40 ${hideDone ? 'border-zinc-300 bg-zinc-100 text-white' : 'border-zinc-100 text-zinc-400 hover:text-zinc-700'}`}
+            className={`size-9 rounded-lg border grid place-items-center disabled:opacity-40 ${hideDone ? 'border-zinc-300 bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'border-zinc-100 text-zinc-400 hover:text-zinc-700'}`}
           >
             <CheckSquare2 size={15} />
           </button>

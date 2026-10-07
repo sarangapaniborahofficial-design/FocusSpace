@@ -39,7 +39,7 @@ export function RichTextEditor({ content, onChange, placeholder = 'Write todayâ€
     extensions,
     content: content as object,
     autofocus: autoFocus ? 'end' : false,
-    editorProps: { attributes: { class: 'rt-pzinc', 'aria-label': 'Journal entry' } },
+    editorProps: { attributes: { class: 'rt-prose', 'aria-label': 'Journal entry' } },
     onUpdate: ({ editor }) => {
       const doc = sanitizeDoc(editor.getJSON());
       lastEmitted.current = JSON.stringify(doc);

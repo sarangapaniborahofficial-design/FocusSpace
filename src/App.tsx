@@ -77,6 +77,8 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', theme === 'light' ? '#f5f2eb' : '#121214');
     document.documentElement.style.colorScheme = theme === 'light' ? 'light' : 'dark';
     storage.set('focusspace-theme', theme);
   }, [theme]);
@@ -134,9 +136,9 @@ export default function App() {
   const title = VIEW_TITLES[active] ?? categories.find(c => c.id === active)?.name ?? 'Home';
 
   return (
-    <div className="h-screen overflow-hidden bg-[var(--app-bg)] text-zinc-900 flex p-3 gap-3">
+    <div className="h-screen overflow-hidden bg-[var(--app-bg)] text-zinc-900 flex p-4 gap-4">
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} active={active} setActive={go} categories={categories} mobileOpen={drawer} onCloseMobile={() => setDrawer(false)} activePageId={nav.pageId} onOpenPage={openPageIn} />
-      <main className="flex-1 min-w-0 flex flex-col overflow-hidden bg-[var(--main-bg)] rounded-3xl shadow-sm border border-zinc-200/50">
+      <main className="flex-1 min-w-0 flex flex-col overflow-hidden bg-transparent">
         <Header title={title} onMenu={() => setDrawer(true)} onQuickAdd={openQuick} onSearch={openSearch} theme={theme} setTheme={setTheme} />
         <div className="flex-1 overflow-y-auto pb-20">
           <div key={nav.n} className="view-in">

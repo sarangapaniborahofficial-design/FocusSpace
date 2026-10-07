@@ -161,7 +161,7 @@ export function Calendar() {
       </div>
 
       <div className="flex-1 min-h-[620px] grid xl:grid-cols-[290px_minmax(0,1fr)] gap-4">
-        <aside ref={externalRef} className="rounded-2xl border border-zinc-100 bg-zinc-50/40 overflow-hidden flex flex-col min-h-[280px]">
+        <aside ref={externalRef} className="rounded-3xl border border-black/5 dark:border-white/5 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden flex flex-col min-h-[280px]">
           <div className="p-4 border-b border-zinc-100">
             <div className="font-medium">Unscheduled</div>
             <div className="text-xs text-zinc-600 mt-1">Drag a task to a date/time.</div>
@@ -258,7 +258,7 @@ export function Calendar() {
               <div className="pt-2 text-xs text-zinc-600">Move or resize the event on the calendar to change its schedule.</div>
             </div>
             <div className="px-5 pb-5">
-              <button onClick={() => { openTaskEditor(selectedTask.id); setSelectedTask(null); }} className="w-full h-10 rounded-lg bg-zinc-50 text-white text-sm font-medium hover:bg-white">Edit details</button>
+              <button onClick={() => { openTaskEditor(selectedTask.id); setSelectedTask(null); }} className="w-full h-10 rounded-lg bg-[var(--accent)] text-[#121214] text-sm font-medium hover:bg-[#d97706]">Edit details</button>
             </div>
           </div>
         </div>

@@ -12,7 +12,7 @@ function renderMarks(text: string, marks: RichMark[] | undefined, key: number): 
       case 'italic': return <em key={i}>{child}</em>;
       case 'strike': return <del key={i} className="text-zinc-400">{child}</del>;
       case 'code': return <code key={i} className="md-code-inline">{child}</code>;
-      case 'link': return <a key={i} href={mark.attrs?.href} target="_blank" rel="noopener noreferrer" className="text-sky-300 underline underline-offset-2 hover:text-sky-200 break-words">{child}</a>;
+      case 'link': return <a key={i} href={mark.attrs?.href} target="_blank" rel="noopener noreferrer" className="text-sky-600 dark:text-sky-400 underline underline-offset-2 hover:text-sky-200 break-words">{child}</a>;
       default: return child;
     }
   }, <Fragment key={key}>{text}</Fragment>);

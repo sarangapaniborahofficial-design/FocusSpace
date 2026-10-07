@@ -146,7 +146,7 @@ function Panel({ task, categories }: { task: Task; categories: Category[] }) {
 
           <div className="flex gap-1 p-1 rounded-lg bg-zinc-50 border border-zinc-100 w-fit" role="group" aria-label="Status">
             {STATUSES.map(s => (
-              <button key={s.id} type="button" onClick={() => set('status', s.id)} aria-pressed={draft.status === s.id} className={`px-3 py-1.5 rounded-md text-xs transition-colors ${draft.status === s.id ? 'bg-zinc-200 text-white' : 'text-zinc-400 hover:text-zinc-700'}`}>{s.label}</button>
+              <button key={s.id} type="button" onClick={() => set('status', s.id)} aria-pressed={draft.status === s.id} className={`px-3 py-1.5 rounded-xl text-xs transition-colors ${draft.status === s.id ? 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900' : 'text-zinc-400 hover:text-zinc-700'}`}>{s.label}</button>
             ))}
           </div>
 
@@ -192,8 +192,8 @@ function Panel({ task, categories }: { task: Task; categories: Category[] }) {
               {draft.subtasks.map(s => (
                 <div key={s.id} className="flex items-center gap-2 group">
                   <button type="button" onClick={() => patchSubtask(s.id, { completed: !s.completed })} aria-label={s.completed ? 'Mark subtask as not done' : 'Mark subtask as done'} aria-pressed={s.completed} className={`size-4 shrink-0 rounded border grid place-items-center text-[10px] leading-none ${s.completed ? 'bg-zinc-600 border-zinc-600 text-white' : 'border-zinc-300 hover:border-zinc-500'}`}>{s.completed ? '✓' : ''}</button>
-                  <input value={s.title} onChange={e => patchSubtask(s.id, { title: e.target.value })} aria-label="Subtask title" className={`flex-1 min-w-0 h-9 rounded-md bg-transparent border border-transparent hover:border-zinc-100 focus:border-zinc-300 px-2 text-sm outline-none ${s.completed ? 'line-through text-zinc-400' : 'text-zinc-700'}`} />
-                  <button type="button" onClick={() => removeSubtask(s.id)} aria-label="Remove subtask" className="size-8 grid place-items-center rounded-md text-zinc-300 hover:text-zinc-500 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100"><X size={14} /></button>
+                  <input value={s.title} onChange={e => patchSubtask(s.id, { title: e.target.value })} aria-label="Subtask title" className={`flex-1 min-w-0 h-9 rounded-xl bg-transparent border border-transparent hover:border-zinc-100 focus:border-zinc-300 px-2 text-sm outline-none ${s.completed ? 'line-through text-zinc-400' : 'text-zinc-700'}`} />
+                  <button type="button" onClick={() => removeSubtask(s.id)} aria-label="Remove subtask" className="size-8 grid place-items-center rounded-xl text-zinc-300 hover:text-zinc-500 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100"><X size={14} /></button>
                 </div>
               ))}
             </div>
@@ -223,10 +223,10 @@ function Panel({ task, categories }: { task: Task; categories: Category[] }) {
         </div>
 
         <div className="shrink-0 border-t border-zinc-100 px-5 py-4 flex items-center justify-between gap-3">
-          <button type="button" onClick={() => { closeTaskEditor(); void deleteTask(task); }} className="h-8 px-2 rounded-md text-sm text-zinc-600 hover:bg-zinc-400/10 flex items-center gap-1.5"><Trash2 size={15} /> Delete</button>
+          <button type="button" onClick={() => { closeTaskEditor(); void deleteTask(task); }} className="h-8 px-2 rounded-xl text-sm text-rose-500 hover:bg-rose-500/10 dark:text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 flex items-center gap-1.5"><Trash2 size={15} /> Delete</button>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={requestClose} className="h-8 px-3 rounded-md text-sm text-zinc-500 hover:bg-zinc-50">Cancel</button>
-            <button type="submit" disabled={!valid || !dirty || saving} title="Ctrl/⌘ + Enter" className="h-8 px-3 rounded-md bg-[var(--accent)] text-[#121214] font-medium text-sm hover:bg-white disabled:opacity-40">Save</button>
+            <button type="button" onClick={requestClose} className="h-8 px-3 rounded-xl text-sm text-zinc-500 hover:bg-zinc-50">Cancel</button>
+            <button type="submit" disabled={!valid || !dirty || saving} title="Ctrl/⌘ + Enter" className="h-8 px-3 rounded-xl bg-[var(--accent)] text-[#121214] font-medium text-sm hover:bg-[#d97706] disabled:opacity-40">Save</button>
           </div>
         </div>
       </form>

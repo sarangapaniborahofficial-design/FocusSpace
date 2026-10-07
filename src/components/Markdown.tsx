@@ -10,7 +10,7 @@ function renderInline(nodes: Inline[]): ReactNode {
       case 'strong': return <strong key={i} className="font-semibold text-zinc-900">{renderInline(n.c)}</strong>;
       case 'em': return <em key={i}>{renderInline(n.c)}</em>;
       case 'del': return <del key={i} className="text-zinc-400">{renderInline(n.c)}</del>;
-      case 'link': return <a key={i} href={n.href} target="_blank" rel="noopener noreferrer" className="text-sky-300 underline underline-offset-2 hover:text-sky-200 break-words">{renderInline(n.c)}</a>;
+      case 'link': return <a key={i} href={n.href} target="_blank" rel="noopener noreferrer" className="text-sky-600 dark:text-sky-400 underline underline-offset-2 hover:text-sky-500 dark:hover:text-sky-300 break-words">{renderInline(n.c)}</a>;
     }
   });
 }

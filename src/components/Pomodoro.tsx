@@ -97,14 +97,14 @@ export function Pomodoro() {
           </label>
           <div className="flex justify-between items-center mt-3">
             <button onClick={() => setDraft({ ...DEFAULT_DURATIONS })} className="text-xs text-zinc-300 hover:text-zinc-600">Restore 25 / 5 / 15</button>
-            <button onClick={apply} className="rounded-lg bg-zinc-900 px-3 py-2 text-xs font-medium text-white hover:bg-white">Apply</button>
+            <button onClick={apply} className="rounded-lg bg-[var(--accent)] text-[#121214] px-3 py-2 text-xs font-medium hover:bg-[#d97706]">Apply</button>
           </div>
         </div>
       )}
 
       <div className="flex gap-1 p-1 bg-white rounded-lg mb-5" role="tablist" aria-label="Timer mode">
         {MODES.map(mode => (
-          <button key={mode} role="tab" aria-selected={s.mode === mode} onClick={() => timer.setMode(mode)} className={`flex-1 py-1.5 rounded-md text-xs transition-colors ${s.mode === mode ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-300 hover:text-zinc-600'}`}>
+          <button key={mode} role="tab" aria-selected={s.mode === mode} onClick={() => timer.setMode(mode)} className={`flex-1 py-1.5 rounded-xl text-xs transition-colors ${s.mode === mode ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-300 hover:text-zinc-600'}`}>
             {MODE_LABELS[mode]} · {s.durations[mode]}m
           </button>
         ))}
@@ -123,7 +123,7 @@ export function Pomodoro() {
         <button onClick={() => timer.reset()} aria-label="Reset timer" title="Reset" className="size-10 rounded-full border border-zinc-100 grid place-items-center text-zinc-400 hover:text-white">
           <RotateCcw size={16} />
         </button>
-        <button onClick={() => timer.toggle()} aria-label={s.running ? 'Pause timer' : 'Start timer'} title={s.running ? 'Pause (Space)' : 'Start (Space)'} className="size-12 rounded-full bg-[var(--accent)] text-[#121214] grid place-items-center hover:bg-white">
+        <button onClick={() => timer.toggle()} aria-label={s.running ? 'Pause timer' : 'Start timer'} title={s.running ? 'Pause (Space)' : 'Start (Space)'} className="size-12 rounded-full bg-[var(--accent)] text-[#121214] grid place-items-center hover:bg-[#d97706]">
           {s.running ? <Pause size={19} /> : <Play size={19} fill="currentColor" />}
         </button>
         <button onClick={() => timer.nextMode()} aria-label="Skip to next timer" title="Next timer" className="size-10 rounded-full border border-zinc-100 grid place-items-center text-zinc-400 hover:text-white">

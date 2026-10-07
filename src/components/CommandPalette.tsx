@@ -119,7 +119,7 @@ export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onO
                   data-selected={i === selected}
                   onMouseMove={() => setSelected(i)}
                   onClick={() => run(item)}
-                  className={`w-full flex items-center gap-3 text-left px-3 py-2 rounded-lg text-sm ${i === selected ? 'bg-zinc-100 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}
+                  className={`w-full flex items-center gap-3 text-left px-3 py-2 rounded-lg text-sm ${i === selected ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'text-zinc-600 hover:bg-zinc-50'}`}
                 >
                   {item.dot ? <span className="size-2 rounded-full shrink-0 mx-[3px]" style={{ background: item.dot }} /> : <Icon size={15} className="shrink-0 text-zinc-400" />}
                   <span className="flex-1 truncate">{item.label}</span>

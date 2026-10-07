@@ -18,7 +18,7 @@ const readRange = (): RangeId => {
 };
 
 const oneDecimal = (n: number) => (Math.round(n * 10) / 10).toString();
-const card = 'rounded-2xl border border-zinc-100 bg-zinc-50/40';
+const card = 'rounded-3xl border border-black/5 dark:border-white/5 bg-white dark:bg-zinc-900 shadow-sm';
 
 export function Analytics() {
   const today = useToday();
@@ -59,7 +59,7 @@ export function Analytics() {
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex h-9 rounded-lg border border-zinc-100 overflow-hidden" role="group" aria-label="Time range">
             {RANGE_OPTIONS.map(o => (
-              <button key={o.id} onClick={() => setRange(o.id)} aria-pressed={range === o.id} className={`px-3 text-sm transition-colors ${range === o.id ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-900 dark:hover:text-zinc-200'}`}>{o.label}</button>
+              <button key={o.id} onClick={() => setRange(o.id)} aria-pressed={range === o.id} className={`px-3 text-sm transition-colors ${range === o.id ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-900 dark:hover:text-zinc-800 dark:text-zinc-200'}`}>{o.label}</button>
             ))}
           </div>
           <select value={categoryId} onChange={e => setCategoryPick(e.target.value)} aria-label="Category" className="h-9 rounded-lg bg-zinc-50 border border-zinc-100 px-3 text-sm text-zinc-500 outline-none">
@@ -113,6 +113,8 @@ export function Analytics() {
               />
             </section>
 
+            <GoalsSection />
+
             {/* Weekly goals */}
             <section className={`${card} p-5`} aria-labelledby="goals-title">
               <div className="flex items-start justify-between gap-3 mb-4">
@@ -122,7 +124,7 @@ export function Analytics() {
                     Week of {dateLabel(week.start)} · {week.daysLeft === 0 ? 'last day' : `${week.daysLeft} ${week.daysLeft === 1 ? 'day' : 'days'} left`}
                   </p>
                 </div>
-                <button onClick={() => setEditingGoals(v => !v)} className="text-xs text-zinc-500 hover:text-zinc-200 px-2 py-1 rounded-md hover:bg-zinc-100">{editingGoals ? 'Done' : 'Edit goals'}</button>
+                <button onClick={() => setEditingGoals(v => !v)} className="text-xs text-zinc-500 hover:text-zinc-800 dark:text-zinc-200 px-2 py-1 rounded-xl hover:bg-zinc-100">{editingGoals ? 'Done' : 'Edit goals'}</button>
               </div>
               {editingGoals && (
                 <div className="pop-in grid grid-cols-2 gap-2 mb-4 rounded-xl border border-zinc-100 bg-zinc-50/60 p-3">
@@ -188,7 +190,7 @@ export function Analytics() {
                         <div className="flex items-baseline justify-between gap-3 text-sm">
                           <span className="flex items-center gap-2 min-w-0">
                             <span className="size-2 rounded-full shrink-0" style={{ background: row.category?.color ?? '#71717a' }} />
-                            <span className="truncate text-zinc-200">{row.task.title}</span>
+                            <span className="truncate text-zinc-800 dark:text-zinc-200">{row.task.title}</span>
                           </span>
                           <span className={`shrink-0 text-xs tabular-nums ${over ? 'text-amber-300' : 'text-zinc-500'}`}>{formatDuration(row.totalMin)} / {formatDuration(estimate)}</span>
                         </div>
@@ -218,7 +220,7 @@ export function Analytics() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 text-sm">
                           <span className="size-2 rounded-full shrink-0" style={{ background: row.habit.color }} />
-                          <span className="truncate text-zinc-200">{row.habit.name}</span>
+                          <span className="truncate text-zinc-800 dark:text-zinc-200">{row.habit.name}</span>
                         </div>
                         <div className="text-[11px] text-zinc-600 mt-1 tabular-nums">
                           {row.current} {row.current === 1 ? 'day' : 'days'} streak · best {row.best} · {Math.round(row.rate30 * 100)}% of last 30 days
@@ -287,7 +289,7 @@ function GoalRow({ label, value, target, text }: { label: string; value: number;
     <div>
       <div className="flex justify-between text-sm">
         <span className="text-zinc-300">{label}</span>
-        <span className={`text-xs tabular-nums ${met ? 'text-zinc-200' : 'text-zinc-500'}`}>{text}{met && ' ✓'}</span>
+        <span className={`text-xs tabular-nums ${met ? 'text-zinc-800 dark:text-zinc-200' : 'text-zinc-500'}`}>{text}{met && ' ✓'}</span>
       </div>
       <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--ring-track)' }} role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct * 100)}>
         <div className="bar-x h-full rounded-full" style={{ width: `${pct * 100}%`, background: 'var(--accent)' }} />
@@ -317,7 +319,7 @@ function CategoryBars({ data }: { data: AnalyticsData }) {
         return (
           <li key={row.id}>
             <div className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="flex items-center gap-2 min-w-0"><span className="size-2 rounded-full shrink-0" style={{ background: row.color }} /><span className="truncate text-zinc-200">{row.name}</span></span>
+              <span className="flex items-center gap-2 min-w-0"><span className="size-2 rounded-full shrink-0" style={{ background: row.color }} /><span className="truncate text-zinc-800 dark:text-zinc-200">{row.name}</span></span>
               <span className="shrink-0 text-xs text-zinc-500 tabular-nums">
                 {[useFocus && row.focusMin > 0 ? formatDuration(row.focusMin) : '', row.completed > 0 || !useFocus ? `${row.completed} done` : ''].filter(Boolean).join(' · ')}
               </span>
@@ -420,5 +422,37 @@ function AnalyticsSkeleton() {
       <div className="grid lg:grid-cols-[1.7fr_1fr] gap-4"><div className="skeleton h-72" /><div className="skeleton h-72" /></div>
       <div className="grid lg:grid-cols-2 gap-4"><div className="skeleton h-72" /><div className="skeleton h-72" /></div>
     </div>
+  );
+}
+
+
+function GoalsSection() {
+  const goals = useLiveQuery(() => db.goals.toArray(), []) ?? [];
+  if (goals.length === 0) return null;
+  return (
+    <section className="rounded-3xl border border-black/5 dark:border-white/5 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden" aria-labelledby="active-goals-title">
+      <div className="p-5 border-b border-zinc-100 flex items-center justify-between">
+        <div>
+          <h2 id="active-goals-title" className="font-medium flex items-center gap-2"><Target size={15} /> Long-Term Goals</h2>
+          <p className="text-xs text-zinc-600 mt-1">Track larger milestones</p>
+        </div>
+      </div>
+      <div className="p-5 space-y-4">
+        {goals.map(g => {
+          const pct = Math.min(100, Math.max(0, (g.currentValue / g.targetValue) * 100));
+          return (
+            <div key={g.id}>
+              <div className="flex justify-between items-end mb-1.5">
+                <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{g.title}</span>
+                <span className="text-xs text-zinc-500 tabular-nums">{g.currentValue} / {g.targetValue} {g.metricLabel}</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-[var(--ring-track)] overflow-hidden">
+                <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
