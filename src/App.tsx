@@ -167,6 +167,7 @@ export default function App() {
       {active !== 'home' && <MiniTimer onOpen={goHome} />}
       <Toaster />
       <ReloadPrompt />
+      </div>
     </div>
   );
 }
