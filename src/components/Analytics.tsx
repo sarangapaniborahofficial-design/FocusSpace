@@ -18,7 +18,7 @@ const readRange = (): RangeId => {
 };
 
 const oneDecimal = (n: number) => (Math.round(n * 10) / 10).toString();
-const card = 'rounded-3xl border border-black/5 dark:border-white/5 bg-white dark:bg-zinc-900 shadow-sm';
+const card = 'rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-[var(--card-bg)] shadow-sm';
 
 export function Analytics() {
   const today = useToday();
@@ -52,17 +52,17 @@ export function Analytics() {
     <div className="p-5 lg:p-7 max-w-[1200px] mx-auto">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
         <div>
-          <div className="text-xs uppercase tracking-[.18em] text-zinc-600 mb-1">Insights</div>
+          <div className="text-xs uppercase tracking-[.18em] text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 mb-1">Insights</div>
           <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
-          <p className="text-sm text-zinc-500 mt-1">What you finished and how long you focused, across every workspace.</p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 mt-1">What you finished and how long you focused, across every workspace.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex h-9 rounded-lg border border-zinc-100 overflow-hidden" role="group" aria-label="Time range">
+          <div className="flex h-9 rounded-lg border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 overflow-hidden" role="group" aria-label="Time range">
             {RANGE_OPTIONS.map(o => (
-              <button key={o.id} onClick={() => setRange(o.id)} aria-pressed={range === o.id} className={`px-3 text-sm transition-colors ${range === o.id ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-900 dark:hover:text-zinc-800 dark:text-zinc-200'}`}>{o.label}</button>
+              <button key={o.id} onClick={() => setRange(o.id)} aria-pressed={range === o.id} className={`px-3 text-sm transition-colors ${range === o.id ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 hover:bg-white/5 hover:text-zinc-900 dark:text-zinc-100 dark:hover:text-zinc-800 dark:text-zinc-200 dark:text-zinc-200 dark:text-zinc-600'}`}>{o.label}</button>
             ))}
           </div>
-          <select value={categoryId} onChange={e => setCategoryPick(e.target.value)} aria-label="Category" className="h-9 rounded-lg bg-zinc-50 border border-zinc-100 px-3 text-sm text-zinc-500 outline-none">
+          <select value={categoryId} onChange={e => setCategoryPick(e.target.value)} aria-label="Category" className="h-9 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 px-3 text-sm text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 outline-none">
             <option value="all">All categories</option>
             {(categories ?? []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
@@ -79,7 +79,7 @@ export function Analytics() {
               className="border-r"
               label="On-time completion"
               value={data.dueTotal ? `${Math.round((data.dueDone / data.dueTotal) * 100)}%` : '–'}
-              sub={data.dueTotal ? <>{data.dueDone} of {data.dueTotal} due tasks{data.overdue > 0 && <span className="text-zinc-300"> · {data.overdue} overdue</span>}</> : <>No tasks were due{data.overdue > 0 && <span className="text-zinc-300"> · {data.overdue} overdue</span>}</>}
+              sub={data.dueTotal ? <>{data.dueDone} of {data.dueTotal} due tasks{data.overdue > 0 && <span className="text-zinc-300 dark:text-zinc-500"> · {data.overdue} overdue</span>}</> : <>No tasks were due{data.overdue > 0 && <span className="text-zinc-300 dark:text-zinc-500"> · {data.overdue} overdue</span>}</>}
             />
             <Stat
               label="Habit streak"
@@ -94,7 +94,7 @@ export function Analytics() {
               <div className="flex items-start justify-between gap-3 mb-4">
                 <div>
                   <h2 id="velocity-title" className="font-medium">Completion velocity</h2>
-                  <p className="text-xs text-zinc-600 mt-1">Tasks finished per {rangeInfo.unit}, coloured by category.</p>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 mt-1">Tasks finished per {rangeInfo.unit}, coloured by category.</p>
                 </div>
                 <Legend items={data.seriesCategories} />
               </div>
@@ -120,14 +120,14 @@ export function Analytics() {
               <div className="flex items-start justify-between gap-3 mb-4">
                 <div>
                   <h2 id="goals-title" className="font-medium flex items-center gap-2"><Target size={15} /> This week</h2>
-                  <p className="text-xs text-zinc-600 mt-1">
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 mt-1">
                     Week of {dateLabel(week.start)} · {week.daysLeft === 0 ? 'last day' : `${week.daysLeft} ${week.daysLeft === 1 ? 'day' : 'days'} left`}
                   </p>
                 </div>
-                <button onClick={() => setEditingGoals(v => !v)} className="text-xs text-zinc-500 hover:text-zinc-800 dark:text-zinc-200 px-2 py-1 rounded-xl hover:bg-zinc-100">{editingGoals ? 'Done' : 'Edit goals'}</button>
+                <button onClick={() => setEditingGoals(v => !v)} className="text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 hover:text-zinc-800 dark:text-zinc-200 dark:text-zinc-200 dark:text-zinc-600 px-2 py-1 rounded-xl hover:bg-zinc-100 dark:bg-zinc-800">{editingGoals ? 'Done' : 'Edit goals'}</button>
               </div>
               {editingGoals && (
-                <div className="pop-in grid grid-cols-2 gap-2 mb-4 rounded-xl border border-zinc-100 bg-zinc-50/60 p-3">
+                <div className="pop-in grid grid-cols-2 gap-2 mb-4 rounded-xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/50/60 p-3">
                   <GoalInput label="Tasks per week" value={goals.tasks} max={200} onChange={v => { const next = cleanGoals({ ...goals, tasks: v }); setGoals(next); saveGoals(next); }} />
                   <GoalInput label="Focus hours per week" value={goals.focusHours} max={100} onChange={v => { const next = cleanGoals({ ...goals, focusHours: v }); setGoals(next); saveGoals(next); }} />
                 </div>
@@ -137,7 +137,7 @@ export function Analytics() {
                 <GoalRow label="Focus time" value={week.focusMin} target={goals.focusHours * 60} text={`${formatDuration(week.focusMin)} / ${goals.focusHours}h`} />
                 <GoalRow label="Habit check-ins" value={week.checkins} target={week.habitTarget} text={week.habitTarget ? `${week.checkins} / ${week.habitTarget}` : 'No active habits'} />
               </div>
-              <p className="text-[11px] text-zinc-600 mt-5">Goals cover the whole workspace and ignore the category filter.</p>
+              <p className="text-[11px] text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 mt-5">Goals cover the whole workspace and ignore the category filter.</p>
             </section>
           </div>
 
@@ -146,7 +146,7 @@ export function Analytics() {
             <section className={`${card} p-5`} aria-labelledby="focus-title">
               <div className="mb-4">
                 <h2 id="focus-title" className="font-medium flex items-center gap-2"><Clock3 size={15} /> Focus time</h2>
-                <p className="text-xs text-zinc-600 mt-1">Minutes logged by the Pomodoro timer per {rangeInfo.unit}.</p>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 mt-1">Minutes logged by the Pomodoro timer per {rangeInfo.unit}.</p>
               </div>
               <BarChart
                 title="Focus time"
@@ -164,7 +164,7 @@ export function Analytics() {
             <section className={`${card} p-5`} aria-labelledby="categories-title">
               <div className="mb-4">
                 <h2 id="categories-title" className="font-medium">Where the time goes</h2>
-                <p className="text-xs text-zinc-600 mt-1">{data.focusMin > 0 ? 'Bars compare focus time by category.' : 'Bars compare completed tasks by category.'}</p>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 mt-1">{data.focusMin > 0 ? 'Bars compare focus time by category.' : 'Bars compare completed tasks by category.'}</p>
               </div>
               <CategoryBars data={data} />
             </section>
@@ -175,7 +175,7 @@ export function Analytics() {
             <section className={`${card} p-5`} aria-labelledby="estimate-title">
               <div className="mb-4">
                 <h2 id="estimate-title" className="font-medium">Estimated vs actual</h2>
-                <p className="text-xs text-zinc-600 mt-1">Tasks you focused on in this range. The tick marks your estimate.</p>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 mt-1">Tasks you focused on in this range. The tick marks your estimate.</p>
               </div>
               {data.taskRows.length === 0 ? (
                 <EmptyState compact icon={Clock3} title="No task time yet" text="Use Focus on a task, then run the timer to compare time spent with your estimate." />
@@ -190,9 +190,9 @@ export function Analytics() {
                         <div className="flex items-baseline justify-between gap-3 text-sm">
                           <span className="flex items-center gap-2 min-w-0">
                             <span className="size-2 rounded-full shrink-0" style={{ background: row.category?.color ?? '#71717a' }} />
-                            <span className="truncate text-zinc-800 dark:text-zinc-200">{row.task.title}</span>
+                            <span className="truncate text-zinc-800 dark:text-zinc-200 dark:text-zinc-200 dark:text-zinc-600">{row.task.title}</span>
                           </span>
-                          <span className={`shrink-0 text-xs tabular-nums ${over ? 'text-amber-300' : 'text-zinc-500'}`}>{formatDuration(row.totalMin)} / {formatDuration(estimate)}</span>
+                          <span className={`shrink-0 text-xs tabular-nums ${over ? 'text-amber-300' : 'text-zinc-500 dark:text-zinc-400 dark:text-zinc-500'}`}>{formatDuration(row.totalMin)} / {formatDuration(estimate)}</span>
                         </div>
                         <div className="relative mt-2 h-1.5 rounded-full" style={{ background: 'var(--ring-track)' }}>
                           <div className="bar-x h-full rounded-full" style={{ width: `${(row.totalMin / scale) * 100}%`, background: over ? '#fbbf24' : 'var(--accent)', animationDelay: `${i * 40}ms` }} />
@@ -209,7 +209,7 @@ export function Analytics() {
             <section className={`${card} p-5`} aria-labelledby="habits-title">
               <div className="mb-4">
                 <h2 id="habits-title" className="font-medium flex items-center gap-2"><Flame size={15} /> Habits</h2>
-                <p className="text-xs text-zinc-600 mt-1">Last 14 days across all categories. Streaks survive until a day is missed.</p>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 mt-1">Last 14 days across all categories. Streaks survive until a day is missed.</p>
               </div>
               {habitRows.length === 0 ? (
                 <EmptyState compact icon={Flame} title="No active habits" text="Active habits appear here with their streaks." />
@@ -220,9 +220,9 @@ export function Analytics() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 text-sm">
                           <span className="size-2 rounded-full shrink-0" style={{ background: row.habit.color }} />
-                          <span className="truncate text-zinc-800 dark:text-zinc-200">{row.habit.name}</span>
+                          <span className="truncate text-zinc-800 dark:text-zinc-200 dark:text-zinc-200 dark:text-zinc-600">{row.habit.name}</span>
                         </div>
-                        <div className="text-[11px] text-zinc-600 mt-1 tabular-nums">
+                        <div className="text-[11px] text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 mt-1 tabular-nums">
                           {row.current} {row.current === 1 ? 'day' : 'days'} streak · best {row.best} · {Math.round(row.rate30 * 100)}% of last 30 days
                         </div>
                       </div>
@@ -253,10 +253,10 @@ export function Analytics() {
 
 function Stat({ label, value, sub, className = '' }: { label: string; value: string; sub: ReactNode; className?: string }) {
   return (
-    <div className={`p-5 border-zinc-100 min-w-0 ${className}`}>
-      <div className="text-xs text-zinc-500">{label}</div>
+    <div className={`p-5 border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 min-w-0 ${className}`}>
+      <div className="text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{label}</div>
       <div className="text-2xl font-semibold tracking-tight mt-1.5 tabular-nums">{value}</div>
-      <div className="text-xs text-zinc-600 mt-1.5">{sub}</div>
+      <div className="text-xs text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 mt-1.5">{sub}</div>
     </div>
   );
 }
@@ -274,7 +274,7 @@ function Legend({ items }: { items: { id: string; name: string; color: string }[
   return (
     <ul className="flex flex-wrap justify-end gap-x-3 gap-y-1 max-w-[50%]">
       {items.map(item => (
-        <li key={item.id} className="flex items-center gap-1.5 text-[11px] text-zinc-500">
+        <li key={item.id} className="flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">
           <span className="size-2 rounded-full" style={{ background: item.color }} />{item.name}
         </li>
       ))}
@@ -288,8 +288,8 @@ function GoalRow({ label, value, target, text }: { label: string; value: number;
   return (
     <div>
       <div className="flex justify-between text-sm">
-        <span className="text-zinc-300">{label}</span>
-        <span className={`text-xs tabular-nums ${met ? 'text-zinc-800 dark:text-zinc-200' : 'text-zinc-500'}`}>{text}{met && ' ✓'}</span>
+        <span className="text-zinc-300 dark:text-zinc-500">{label}</span>
+        <span className={`text-xs tabular-nums ${met ? 'text-zinc-800 dark:text-zinc-200 dark:text-zinc-200 dark:text-zinc-600' : 'text-zinc-500 dark:text-zinc-400 dark:text-zinc-500'}`}>{text}{met && ' ✓'}</span>
       </div>
       <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--ring-track)' }} role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct * 100)}>
         <div className="bar-x h-full rounded-full" style={{ width: `${pct * 100}%`, background: 'var(--accent)' }} />
@@ -300,9 +300,9 @@ function GoalRow({ label, value, target, text }: { label: string; value: number;
 
 function GoalInput({ label, value, max, onChange }: { label: string; value: number; max: number; onChange: (v: number) => void }) {
   return (
-    <label className="text-xs text-zinc-500">
+    <label className="text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">
       {label}
-      <input type="number" min={1} max={max} value={value} onChange={e => onChange(Number(e.target.value))} className="mt-1 w-full h-9 rounded-lg bg-zinc-50 border border-zinc-100 px-2 text-sm outline-none" />
+      <input type="number" min={1} max={max} value={value} onChange={e => onChange(Number(e.target.value))} className="mt-1 w-full h-9 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 px-2 text-sm outline-none" />
     </label>
   );
 }
@@ -319,8 +319,8 @@ function CategoryBars({ data }: { data: AnalyticsData }) {
         return (
           <li key={row.id}>
             <div className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="flex items-center gap-2 min-w-0"><span className="size-2 rounded-full shrink-0" style={{ background: row.color }} /><span className="truncate text-zinc-800 dark:text-zinc-200">{row.name}</span></span>
-              <span className="shrink-0 text-xs text-zinc-500 tabular-nums">
+              <span className="flex items-center gap-2 min-w-0"><span className="size-2 rounded-full shrink-0" style={{ background: row.color }} /><span className="truncate text-zinc-800 dark:text-zinc-200 dark:text-zinc-200 dark:text-zinc-600">{row.name}</span></span>
+              <span className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 tabular-nums">
                 {[useFocus && row.focusMin > 0 ? formatDuration(row.focusMin) : '', row.completed > 0 || !useFocus ? `${row.completed} done` : ''].filter(Boolean).join(' · ')}
               </span>
             </div>
@@ -362,12 +362,12 @@ function BarChart({ data, colors, formatValue, formatAxis, caption, emptyText, l
 
   return (
     <div>
-      <div className="h-5 text-xs text-zinc-500 mb-3 tabular-nums" aria-hidden="true">
-        {hovered ? <><span className="text-zinc-300">{hovered.detail}</span> · {formatValue(hovered.total)}</> : caption}
+      <div className="h-5 text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 mb-3 tabular-nums" aria-hidden="true">
+        {hovered ? <><span className="text-zinc-300 dark:text-zinc-500">{hovered.detail}</span> · {formatValue(hovered.total)}</> : caption}
       </div>
 
       <div className="flex gap-2">
-        <div className="w-10 shrink-0 h-44 relative text-[10px] text-zinc-600 text-right tabular-nums" aria-hidden="true">
+        <div className="w-10 shrink-0 h-44 relative text-[10px] text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 text-right tabular-nums" aria-hidden="true">
           <span className="absolute right-0 top-0 -translate-y-1/2">{formatAxis(max)}</span>
           <span className="absolute right-0 bottom-0 translate-y-1/2">0</span>
         </div>
@@ -391,14 +391,14 @@ function BarChart({ data, colors, formatValue, formatAxis, caption, emptyText, l
               ))}
             </div>
             {empty && (
-              <div className="absolute inset-0 grid place-items-center px-6 text-center text-xs text-zinc-600 pointer-events-none">{emptyText}</div>
+              <div className="absolute inset-0 grid place-items-center px-6 text-center text-xs text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 pointer-events-none">{emptyText}</div>
             )}
           </div>
           <div className={`flex ${gap} mt-2 h-4`} aria-hidden="true">
             {data.map((d, i) => (
               <div key={d.key} className="flex-1 relative">
                 {(data.length - 1 - i) % labelEvery === 0 && (
-                  <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-zinc-600">{d.label}</span>
+                  <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">{d.label}</span>
                 )}
               </div>
             ))}
@@ -430,11 +430,11 @@ function GoalsSection() {
   const goals = useLiveQuery(() => db.goals.toArray(), []) ?? [];
   if (goals.length === 0) return null;
   return (
-    <section className="rounded-3xl border border-black/5 dark:border-white/5 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden" aria-labelledby="active-goals-title">
-      <div className="p-5 border-b border-zinc-100 flex items-center justify-between">
+    <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-[var(--card-bg)] shadow-sm overflow-hidden" aria-labelledby="active-goals-title">
+      <div className="p-5 border-b border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 flex items-center justify-between">
         <div>
           <h2 id="active-goals-title" className="font-medium flex items-center gap-2"><Target size={15} /> Long-Term Goals</h2>
-          <p className="text-xs text-zinc-600 mt-1">Track larger milestones</p>
+          <p className="text-xs text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 mt-1">Track larger milestones</p>
         </div>
       </div>
       <div className="p-5 space-y-4">
@@ -443,8 +443,8 @@ function GoalsSection() {
           return (
             <div key={g.id}>
               <div className="flex justify-between items-end mb-1.5">
-                <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{g.title}</span>
-                <span className="text-xs text-zinc-500 tabular-nums">{g.currentValue} / {g.targetValue} {g.metricLabel}</span>
+                <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 dark:text-zinc-200 dark:text-zinc-600">{g.title}</span>
+                <span className="text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 tabular-nums">{g.currentValue} / {g.targetValue} {g.metricLabel}</span>
               </div>
               <div className="h-1.5 rounded-full bg-[var(--ring-track)] overflow-hidden">
                 <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />

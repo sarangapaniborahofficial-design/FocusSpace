@@ -21,7 +21,7 @@ export function PageView({ pageId, onBack }: { pageId: string; onBack: () => voi
   if (!loaded.page) {
     return (
       <div className="p-5 lg:p-7 max-w-3xl mx-auto">
-        <EmptyState icon={Sparkles} title="This page no longer exists" text="It may have been deleted." action={<button onClick={onBack} className="h-8 px-3 rounded-xl border border-zinc-200 bg-zinc-50 text-sm hover:bg-zinc-100">Back to pages</button>} />
+        <EmptyState icon={Sparkles} title="This page no longer exists" text="It may have been deleted." action={<button onClick={onBack} className="h-8 px-3 rounded-xl border border-zinc-200/60 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/50 text-sm hover:bg-zinc-100 dark:bg-zinc-800">Back to pages</button>} />
       </div>
     );
   }
@@ -73,21 +73,21 @@ function PageEditor({ page, onBack }: { page: Page; onBack: () => void }) {
   return (
     <div className="p-5 lg:p-7 max-w-3xl mx-auto">
       <div className="flex items-center justify-between gap-3 mb-6">
-        <button onClick={onBack} className="flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-700 min-w-0"><ArrowLeft size={16} /><span className="truncate">{category ? `${category.name} / ` : ''}Pages</span></button>
-        <button onClick={() => setConfirmingDelete(true)} aria-label="Delete page" title="Delete page" className="size-9 grid place-items-center rounded-lg text-zinc-300 hover:text-zinc-500 hover:bg-zinc-50"><Trash2 size={16} /></button>
+        <button onClick={onBack} className="flex items-center gap-2 text-sm text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:text-zinc-200 dark:text-zinc-600 min-w-0"><ArrowLeft size={16} /><span className="truncate">{category ? `${category.name} / ` : ''}Pages</span></button>
+        <button onClick={() => setConfirmingDelete(true)} aria-label="Delete page" title="Delete page" className="size-9 grid place-items-center rounded-lg text-zinc-300 dark:text-zinc-500 hover:text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 hover:bg-zinc-50 dark:bg-zinc-900/50"><Trash2 size={16} /></button>
       </div>
 
       <input
         value={title} onChange={e => setTitle(e.target.value)} placeholder="Untitled" aria-label="Page title"
         autoFocus={page.title === 'Untitled' && !page.description} onFocus={e => { if (e.currentTarget.value === 'Untitled') e.currentTarget.select(); }}
         onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); descriptionRef.current?.focus(); } }}
-        className="w-full bg-transparent text-3xl font-semibold tracking-tight outline-none placeholder:text-zinc-200 mb-2"
+        className="w-full bg-transparent text-3xl font-semibold tracking-tight outline-none placeholder:text-zinc-200 dark:text-zinc-600 mb-2"
       />
       <textarea
         ref={descriptionRef}
         value={description} onChange={e => setDescription(e.target.value)} placeholder="What is this page about?" aria-label="Page description" rows={1}
         onInput={(e: FormEvent<HTMLTextAreaElement>) => { const el = e.currentTarget; el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; }}
-        className="w-full bg-transparent text-sm text-zinc-500 outline-none placeholder:text-zinc-200 resize-none mb-6"
+        className="w-full bg-transparent text-sm text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 outline-none placeholder:text-zinc-200 dark:text-zinc-600 resize-none mb-6"
       />
 
       {page.legacyMarkdown && <LegacyBanner pageId={page.id} />}
@@ -105,7 +105,7 @@ function PageEditor({ page, onBack }: { page: Page; onBack: () => void }) {
         {entries === undefined ? (
           <div className="skeleton h-40" />
         ) : sorted.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-zinc-100">
+          <div className="rounded-xl border border-dashed border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60">
             <EmptyState compact icon={Sparkles} title="No entries yet" text="Write today's entry to start this page's journal." action={<button onClick={() => void openToday()} className="h-8 px-3 rounded-xl bg-[var(--accent)] text-[#121214] text-sm font-medium">Write today's entry</button>} />
           </div>
         ) : (
@@ -143,13 +143,13 @@ function JournalEntryRow({ entry, isToday, editing, onEdit, onDoneEditing }: { e
   };
 
   return (
-    <li className="rounded-xl border border-zinc-100 bg-zinc-50/30 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-100/80">
-        <span className="text-xs font-medium text-zinc-500">{isToday ? `Today · ${dateLabel(entry.date)}` : dateLabel(entry.date)}</span>
+    <li className="rounded-xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/50/30 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60/80">
+        <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{isToday ? `Today · ${dateLabel(entry.date)}` : dateLabel(entry.date)}</span>
         {editing ? (
-          <button onClick={() => void flush()} className="text-xs text-zinc-500 hover:text-white px-2 py-1 rounded-xl hover:bg-zinc-100">Done</button>
+          <button onClick={() => void flush()} className="text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 hover:text-white px-2 py-1 rounded-xl hover:bg-zinc-100 dark:bg-zinc-800">Done</button>
         ) : (
-          <button onClick={onEdit} aria-label="Edit this entry" title="Edit" className="text-zinc-300 hover:text-zinc-700 p-1 rounded-xl hover:bg-zinc-100"><Pencil size={13} /></button>
+          <button onClick={onEdit} aria-label="Edit this entry" title="Edit" className="text-zinc-300 dark:text-zinc-500 hover:text-zinc-700 dark:text-zinc-200 dark:text-zinc-600 p-1 rounded-xl hover:bg-zinc-100 dark:bg-zinc-800"><Pencil size={13} /></button>
         )}
       </div>
       <div className="px-1 py-1">
@@ -203,34 +203,34 @@ function RelatedSection({ pageId, links }: { pageId: string; links: PageLink[] }
   if (links.length === 0 && !picking) {
     return (
       <section className="mb-6">
-        <div className="flex items-center gap-2 text-sm text-zinc-400">
+        <div className="flex items-center gap-2 text-sm text-zinc-400 dark:text-zinc-500">
           <span>No related tasks or habits yet.</span>
-          <button onClick={() => setPicking('task')} className="text-zinc-600 hover:text-white underline underline-offset-2">Link one</button>
+          <button onClick={() => setPicking('task')} className="text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 hover:text-white underline underline-offset-2">Link one</button>
         </div>
       </section>
     );
   }
 
   return (
-    <section className="mb-6 rounded-xl border border-zinc-100 bg-zinc-50/30 p-4">
+    <section className="mb-6 rounded-xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/50/30 p-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-medium text-zinc-600">Related</h2>
+        <h2 className="text-sm font-medium text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">Related</h2>
         <div className="flex gap-1">
-          <button onClick={() => setPicking(picking === 'task' ? null : 'task')} className="text-xs h-7 px-2.5 rounded-xl text-zinc-500 hover:text-[var(--sidebar-active-text)] hover:bg-[var(--sidebar-active-bg)]">+ Task</button>
-          <button onClick={() => setPicking(picking === 'habit' ? null : 'habit')} className="text-xs h-7 px-2.5 rounded-xl text-zinc-500 hover:text-[var(--sidebar-active-text)] hover:bg-[var(--sidebar-active-bg)]">+ Habit</button>
+          <button onClick={() => setPicking(picking === 'task' ? null : 'task')} className="text-xs h-7 px-2.5 rounded-xl text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 hover:text-[var(--sidebar-active-text)] hover:bg-[var(--sidebar-active-bg)]">+ Task</button>
+          <button onClick={() => setPicking(picking === 'habit' ? null : 'habit')} className="text-xs h-7 px-2.5 rounded-xl text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 hover:text-[var(--sidebar-active-text)] hover:bg-[var(--sidebar-active-bg)]">+ Habit</button>
         </div>
       </div>
       {picking && <LinkPicker pageId={pageId} kind={picking} existing={links.map(l => l.targetId)} onDone={() => setPicking(null)} />}
       
       {calendarTasks.length > 0 && (
-        <div className="mb-4 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-100 dark:border-zinc-800 p-3 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2 flex items-center gap-1"><CalendarDays size={12}/> Calendar / Upcoming</div>
+        <div className="mb-4 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 dark:border-zinc-800 p-3 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 mb-2 flex items-center gap-1"><CalendarDays size={12}/> Calendar / Upcoming</div>
           <div className="space-y-2">
             {calendarTasks.map(t => (
-              <div key={t.id} className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                <Circle size={14} className="text-zinc-300 shrink-0" />
+              <div key={t.id} className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 dark:text-zinc-500">
+                <Circle size={14} className="text-zinc-300 dark:text-zinc-500 shrink-0" />
                 <span className="min-w-0 truncate font-medium">{t.title}</span>
-                <span className="ml-auto text-xs font-semibold px-1.5 py-0.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">{dateLabel(t.dueDate!)}</span>
+                <span className="ml-auto text-xs font-semibold px-1.5 py-0.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 dark:text-zinc-400 dark:text-zinc-500">{dateLabel(t.dueDate!)}</span>
               </div>
             ))}
           </div>
@@ -258,13 +258,13 @@ function LinkPicker({ pageId, kind, existing, onDone }: { pageId: string; kind: 
   const pick = async (id: string) => { await addLink(pageId, kind, id); onDone(); };
 
   return (
-    <div className="mb-3 rounded-lg border border-zinc-200 bg-white/60 p-2">
-      <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder={`Search ${kind}s…`} className="w-full h-8 rounded-xl bg-zinc-50 border border-zinc-100 px-2 text-sm outline-none mb-1.5" />
+    <div className="mb-3 rounded-lg border border-zinc-200/60 dark:border-zinc-800/60 bg-white/60 p-2">
+      <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder={`Search ${kind}s…`} className="w-full h-8 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 px-2 text-sm outline-none mb-1.5" />
       <div className="max-h-40 overflow-y-auto">
         {items.length === 0 ? (
-          <p className="text-xs text-zinc-300 px-1 py-2">No matches.</p>
+          <p className="text-xs text-zinc-300 dark:text-zinc-500 px-1 py-2">No matches.</p>
         ) : items.slice(0, 8).map(item => (
-          <button key={item.id} onClick={() => void pick(item.id)} className="w-full text-left px-2 py-1.5 rounded-xl text-sm text-zinc-600 hover:bg-zinc-100 truncate">
+          <button key={item.id} onClick={() => void pick(item.id)} className="w-full text-left px-2 py-1.5 rounded-xl text-sm text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 hover:bg-zinc-100 dark:bg-zinc-800 truncate">
             {label(item)}
           </button>
         ))}
@@ -280,10 +280,10 @@ function LinkedTaskRow({ link }: { link: PageLink }) {
   const done = task.status === 'Submitted/Done';
   return (
     <div className="group flex items-center gap-2 text-sm">
-      {done ? <Check size={14} className="text-zinc-400 shrink-0" /> : <Circle size={14} className="text-zinc-300 shrink-0" />}
-      <span className={`min-w-0 truncate ${done ? 'line-through text-zinc-300' : 'text-zinc-600'}`}>{task.title}</span>
-      {task.dueDate && <span className="text-xs text-zinc-300 shrink-0">{relativeDay(task.dueDate)}</span>}
-      <button onClick={() => void removeLink(link.id)} aria-label={`Unlink ${task.title}`} className="ml-auto shrink-0 text-zinc-200 hover:text-zinc-500 opacity-0 group-hover:opacity-100"><X size={13} /></button>
+      {done ? <Check size={14} className="text-zinc-400 dark:text-zinc-500 shrink-0" /> : <Circle size={14} className="text-zinc-300 dark:text-zinc-500 shrink-0" />}
+      <span className={`min-w-0 truncate ${done ? 'line-through text-zinc-300 dark:text-zinc-500' : 'text-zinc-600 dark:text-zinc-400 dark:text-zinc-500'}`}>{task.title}</span>
+      {task.dueDate && <span className="text-xs text-zinc-300 dark:text-zinc-500 shrink-0">{relativeDay(task.dueDate)}</span>}
+      <button onClick={() => void removeLink(link.id)} aria-label={`Unlink ${task.title}`} className="ml-auto shrink-0 text-zinc-200 dark:text-zinc-600 hover:text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 opacity-0 group-hover:opacity-100"><X size={13} /></button>
     </div>
   );
 }
@@ -295,10 +295,10 @@ function LinkedHabitRow({ link }: { link: PageLink }) {
   const streak = computeStreaks(habit.completions, isoToday()).current;
   return (
     <div className="group flex items-center gap-2 text-sm">
-      <ListChecks size={14} className="text-zinc-300 shrink-0" />
-      <span className="min-w-0 truncate text-zinc-600">{habit.name}</span>
-      {streak > 0 && <span className="flex items-center gap-1 text-xs text-zinc-400 shrink-0"><Flame size={11} />{streak}</span>}
-      <button onClick={() => void removeLink(link.id)} aria-label={`Unlink ${habit.name}`} className="ml-auto shrink-0 text-zinc-200 hover:text-zinc-500 opacity-0 group-hover:opacity-100"><X size={13} /></button>
+      <ListChecks size={14} className="text-zinc-300 dark:text-zinc-500 shrink-0" />
+      <span className="min-w-0 truncate text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">{habit.name}</span>
+      {streak > 0 && <span className="flex items-center gap-1 text-xs text-zinc-400 dark:text-zinc-500 shrink-0"><Flame size={11} />{streak}</span>}
+      <button onClick={() => void removeLink(link.id)} aria-label={`Unlink ${habit.name}`} className="ml-auto shrink-0 text-zinc-200 dark:text-zinc-600 hover:text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 opacity-0 group-hover:opacity-100"><X size={13} /></button>
     </div>
   );
 }
@@ -311,12 +311,12 @@ function LinkedGoalRow({ link }: { link: PageLink }) {
   const pct = Math.min(100, Math.max(0, (goal.currentValue / goal.targetValue) * 100));
   return (
     <div className="group flex items-center gap-2 text-sm">
-      <Target size={14} className="text-zinc-300 shrink-0" />
-      <span className="min-w-0 truncate text-zinc-600 dark:text-zinc-300">{goal.title}</span>
-      <span className="flex items-center gap-1 text-xs text-zinc-400 shrink-0 tabular-nums ml-1">
+      <Target size={14} className="text-zinc-300 dark:text-zinc-500 shrink-0" />
+      <span className="min-w-0 truncate text-zinc-600 dark:text-zinc-400 dark:text-zinc-300 dark:text-zinc-500">{goal.title}</span>
+      <span className="flex items-center gap-1 text-xs text-zinc-400 dark:text-zinc-500 shrink-0 tabular-nums ml-1">
         {Math.round(pct)}%
       </span>
-      <button onClick={() => void removeLink(link.id)} aria-label={`Unlink ${goal.title}`} className="ml-auto shrink-0 text-zinc-200 hover:text-zinc-500 opacity-0 group-hover:opacity-100"><X size={13} /></button>
+      <button onClick={() => void removeLink(link.id)} aria-label={`Unlink ${goal.title}`} className="ml-auto shrink-0 text-zinc-200 dark:text-zinc-600 hover:text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 opacity-0 group-hover:opacity-100"><X size={13} /></button>
     </div>
   );
 }

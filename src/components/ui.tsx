@@ -5,9 +5,9 @@ import type { LucideIcon } from 'lucide-react';
 export function EmptyState({ icon: Icon, title, text, action, compact }: { icon: LucideIcon; title: string; text?: string; action?: ReactNode; compact?: boolean }) {
   return (
     <div className={`flex flex-col items-center text-center px-6 ${compact ? 'py-6' : 'py-12'}`}>
-      <div className="size-11 rounded-xl border border-zinc-100 bg-zinc-50/70 grid place-items-center text-zinc-400 mb-3"><Icon size={19} /></div>
-      <div className="text-sm font-medium text-zinc-700">{title}</div>
-      {text && <p className="text-sm text-zinc-400 mt-1 max-w-xs">{text}</p>}
+      <div className="size-11 rounded-xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/50/70 grid place-items-center text-zinc-400 dark:text-zinc-500 mb-3"><Icon size={19} /></div>
+      <div className="text-sm font-medium text-zinc-700 dark:text-zinc-200 dark:text-zinc-600">{title}</div>
+      {text && <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-1 max-w-xs">{text}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
@@ -46,10 +46,10 @@ export class ErrorBoundary extends Component<{ children: ReactNode; onReset?: ()
     return (
       <div className="p-8 max-w-md mx-auto text-center pt-24" role="alert">
         <h1 className="text-lg font-semibold">This view ran into a problem</h1>
-        <p className="text-sm text-zinc-400 mt-2">Your tasks and settings are safe in local storage. Try again, or head back to Home.</p>
-        <p className="text-xs text-zinc-300 mt-3 break-words">{this.state.error.message}</p>
+        <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-2">Your tasks and settings are safe in local storage. Try again, or head back to Home.</p>
+        <p className="text-xs text-zinc-300 dark:text-zinc-500 mt-3 break-words">{this.state.error.message}</p>
         <div className="mt-5 flex justify-center gap-2">
-          <button onClick={() => this.setState({ error: null })} className="h-8 px-3 rounded-md border border-zinc-200 bg-zinc-50 text-sm hover:bg-zinc-100">Try again</button>
+          <button onClick={() => this.setState({ error: null })} className="h-8 px-3 rounded-md border border-zinc-200/60 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/50 text-sm hover:bg-zinc-100 dark:bg-zinc-800">Try again</button>
           <button onClick={() => { this.setState({ error: null }); this.props.onReset?.(); }} className="h-8 px-3 rounded-md bg-[var(--accent)] text-[#121214] text-sm font-medium">Go to Home</button>
         </div>
       </div>
@@ -68,11 +68,11 @@ export function ConfirmDialog({ title, text, confirmLabel, cancelLabel = 'Cancel
   }, [onCancel]);
   return (
     <div className="fade-in fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm grid place-items-center p-4" onMouseDown={onCancel}>
-      <div role="dialog" aria-modal="true" aria-label={title} onMouseDown={e => e.stopPropagation()} className="pop-in w-full max-w-sm rounded-2xl border border-zinc-200 bg-white dark:bg-zinc-100 dark:border-zinc-300 shadow-2xl p-5">
+      <div role="dialog" aria-modal="true" aria-label={title} onMouseDown={e => e.stopPropagation()} className="pop-in w-full max-w-sm rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60 bg-white dark:bg-zinc-100 dark:border-zinc-300 shadow-2xl p-5">
         <h2 className="font-semibold">{title}</h2>
-        {text && <p className="text-sm text-zinc-400 mt-2">{text}</p>}
+        {text && <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-2">{text}</p>}
         <div className="mt-5 flex justify-end gap-2">
-          <button autoFocus onClick={onCancel} className="h-8 px-3 rounded-md text-sm text-zinc-500 hover:bg-zinc-50">{cancelLabel}</button>
+          <button autoFocus onClick={onCancel} className="h-8 px-3 rounded-md text-sm text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 hover:bg-zinc-50 dark:bg-zinc-900/50">{cancelLabel}</button>
           <button onClick={onConfirm} className={`h-8 px-3 rounded-md text-sm font-medium ${danger ? 'bg-rose-500 text-white hover:bg-rose-600' : 'bg-[var(--accent)] text-[#121214] hover:bg-[#d97706]'}`}>{confirmLabel}</button>
         </div>
       </div>

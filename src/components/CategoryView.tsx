@@ -15,11 +15,11 @@ function Tabs({ categoryId, tab, onTab }: { categoryId: string; tab: CategoryTab
       {items.map(item => (
         <button
           key={item.id} role="tab" aria-selected={tab === item.id} onClick={() => onTab(item.id)}
-          className={`relative px-3 h-10 text-sm font-medium transition-colors ${tab === item.id ? 'text-zinc-950 dark:text-zinc-50' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
+          className={`relative px-3 h-10 text-sm font-medium transition-colors ${tab === item.id ? 'text-zinc-950 dark:text-zinc-50' : 'text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 dark:text-zinc-600'}`}
         >
           {item.label}
-          {item.count !== undefined && <span className="ml-2 text-xs text-zinc-400 dark:text-zinc-500 tabular-nums">{item.count}</span>}
-          {tab === item.id && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-zinc-900 dark:bg-zinc-100" />}
+          {item.count !== undefined && <span className="ml-2 text-xs text-zinc-400 dark:text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 tabular-nums">{item.count}</span>}
+          {tab === item.id && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-zinc-900 dark:bg-zinc-100 dark:bg-zinc-800" />}
         </button>
       ))}
     </div>

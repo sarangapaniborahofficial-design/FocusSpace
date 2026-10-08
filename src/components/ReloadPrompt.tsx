@@ -33,11 +33,11 @@ export function ReloadPrompt() {
       </div>
       <div className="flex gap-2 shrink-0">
         {needRefresh && (
-          <button onClick={() => updateServiceWorker(true)} className="h-8 px-3 rounded-md bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-semibold flex items-center gap-1.5 hover:opacity-90">
+          <button onClick={() => updateServiceWorker(true)} className="h-8 px-3 rounded-md bg-zinc-900 dark:bg-zinc-100 dark:bg-zinc-800 text-white dark:text-zinc-900 dark:text-zinc-100 text-xs font-semibold flex items-center gap-1.5 hover:opacity-90">
             <RefreshCw size={14} /> Reload
           </button>
         )}
-        <button onClick={close} className="size-8 grid place-items-center rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800">
+        <button onClick={close} className="size-8 grid place-items-center rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800">
           <X size={16} />
         </button>
       </div>

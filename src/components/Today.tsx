@@ -36,15 +36,15 @@ export function Today({ onQuickAdd }: { onQuickAdd: () => void }) {
   return (
     <div className="p-5 lg:p-7 max-w-[1500px] mx-auto">
       <div className="mb-6">
-        <div className="text-xs uppercase tracking-[.18em] text-zinc-300 mb-1">Today / Focus</div>
+        <div className="text-xs uppercase tracking-[.18em] text-zinc-300 dark:text-zinc-500 mb-1">Today / Focus</div>
         <div className="flex items-end justify-between gap-6">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Make today count.</h1>
-            <p className="text-sm text-zinc-400 mt-1">{new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date())}</p>
+            <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-1">{new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date())}</p>
           </div>
           <div className="text-right shrink-0">
-            {openCount + plan.done.length > 0 ? <div className="text-2xl font-semibold tabular-nums">{plan.done.length}<span className="text-zinc-400">/{openCount + plan.done.length}</span></div> : <div className="text-2xl font-semibold text-zinc-300">-</div>}
-            <div className="text-[10px] uppercase tracking-[.15em] text-zinc-300">completed</div>
+            {openCount + plan.done.length > 0 ? <div className="text-2xl font-semibold tabular-nums">{plan.done.length}<span className="text-zinc-400 dark:text-zinc-500">/{openCount + plan.done.length}</span></div> : <div className="text-2xl font-semibold text-zinc-300 dark:text-zinc-500">-</div>}
+            <div className="text-[10px] uppercase tracking-[.15em] text-zinc-300 dark:text-zinc-500">completed</div>
           </div>
         </div>
       </div>
@@ -52,21 +52,21 @@ export function Today({ onQuickAdd }: { onQuickAdd: () => void }) {
       <div className="grid xl:grid-cols-[1fr_360px] gap-6">
         <div className="space-y-4">
           {tasks !== undefined && plan.next && (
-            <section className="rounded-3xl border border-black/5 dark:border-white/5 bg-white dark:bg-zinc-900 shadow-sm p-4 flex items-center gap-3">
+            <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-[var(--card-bg)] shadow-sm p-4 flex items-center gap-3">
               <span className="size-9 rounded-lg bg-[var(--accent)] text-[#121214] grid place-items-center shrink-0"><Sparkles size={16} /></span>
               <div className="min-w-0 flex-1">
-                <div className="text-[10px] uppercase tracking-[.15em] text-zinc-400">Do this next</div>
-                <button onClick={() => openTaskEditor(plan.next!.task.id)} className="font-medium text-zinc-900 hover:underline underline-offset-2 truncate block text-left">{plan.next.task.title}</button>
-                <div className="text-xs text-zinc-400 mt-0.5">{plan.next.reason}</div>
+                <div className="text-[10px] uppercase tracking-[.15em] text-zinc-400 dark:text-zinc-500">Do this next</div>
+                <button onClick={() => openTaskEditor(plan.next!.task.id)} className="font-medium text-zinc-900 dark:text-zinc-100 hover:underline underline-offset-2 truncate block text-left">{plan.next.task.title}</button>
+                <div className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{plan.next.reason}</div>
               </div>
               <button onClick={() => focusOnTask(plan.next!.task)} className="shrink-0 h-8 px-3 rounded-xl bg-[var(--accent)] text-[#121214] text-sm font-medium">Focus</button>
             </section>
           )}
 
-          <section className="rounded-3xl border border-black/5 dark:border-white/5 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-zinc-100 flex justify-between items-center">
-              <div className="font-medium flex items-center gap-2"><Zap size={16} /> Today's queue</div>
-              <span className="text-xs text-zinc-300 tabular-nums">{openCount ? `${formatDuration(plan.plannedMinutes)} planned` : `${plan.done.length} done`}</span>
+          <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-[var(--card-bg)] shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 flex justify-between items-center">
+              <div className="font-medium flex items-center gap-2">Today's Focus Tasks</div>
+              <span className="text-xs text-zinc-300 dark:text-zinc-500 tabular-nums">{openCount ? `${formatDuration(plan.plannedMinutes)} planned` : `${plan.done.length} done`}</span>
             </div>
             <div className="p-3 space-y-4">
               {tasks === undefined ? (
@@ -88,13 +88,13 @@ export function Today({ onQuickAdd }: { onQuickAdd: () => void }) {
                   )}
                   {plan.today.length > 0 && (
                     <div>
-                      {plan.overdue.length > 0 && <div className="text-xs font-medium text-zinc-400 mb-2 mt-1">Due today</div>}
+                      {plan.overdue.length > 0 && <div className="text-xs font-medium text-zinc-400 dark:text-zinc-500 mb-2 mt-1">Due today</div>}
                       <div className="space-y-2">{plan.today.map(card)}</div>
                     </div>
                   )}
                   {plan.done.length > 0 && (
                     <div>
-                      <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-300 mb-2 mt-1"><CheckCircle2 size={13} /> Done today · {plan.done.length}</div>
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-300 dark:text-zinc-500 mb-2 mt-1"><CheckCircle2 size={13} /> Done today · {plan.done.length}</div>
                       <div className="space-y-2">{plan.done.map(card)}</div>
                     </div>
                   )}
@@ -104,17 +104,17 @@ export function Today({ onQuickAdd }: { onQuickAdd: () => void }) {
           </section>
 
           {plan.upcoming.length > 0 && (
-            <section className="rounded-3xl border border-black/5 dark:border-white/5 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden">
-              <div className="p-4 border-b border-zinc-100 font-medium text-sm text-zinc-500">Coming up</div>
+            <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-[var(--card-bg)] shadow-sm overflow-hidden">
+              <div className="p-4 border-b border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 font-medium text-sm text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">Coming up</div>
               <div className="p-3 space-y-2">{plan.upcoming.map(card)}</div>
             </section>
           )}
 
-          <section className="rounded-3xl border border-black/5 dark:border-white/5 bg-white dark:bg-zinc-900 shadow-sm p-5">
+          <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-[var(--card-bg)] shadow-sm p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2 font-medium"><Target size={16} /> Daily habits</div>
               {habits.length > 0 && (
-                <div className="flex items-center gap-2 text-xs text-zinc-400">
+                <div className="flex items-center gap-2 text-xs text-zinc-400 dark:text-zinc-500">
                   <span className="tabular-nums">{habitsDone} of {habits.length}</span>
                   <Ring value={habitsDone / habits.length} size={24} stroke={3} />
                 </div>
@@ -132,16 +132,16 @@ export function Today({ onQuickAdd }: { onQuickAdd: () => void }) {
                       key={h.id}
                       onClick={() => void toggleHabitDay(h.id, today)}
                       aria-pressed={done}
-                      className={`text-left p-4 rounded-xl border transition ${done ? 'border-zinc-300 bg-zinc-100/70' : 'border-zinc-100 bg-white/40 hover:bg-zinc-50'}`}
+                      className={`text-left p-4 rounded-xl border transition ${done ? 'border-zinc-300 bg-zinc-100 dark:bg-zinc-800/70' : 'border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-white/40 hover:bg-zinc-50 dark:bg-zinc-900/50'}`}
                     >
                       <div className="flex justify-between items-start">
                         <span className="size-9 rounded-lg grid place-items-center" style={{ background: `${h.color}18`, color: h.color }}>{done ? <Check size={17} /> : <Circle size={17} />}</span>
                         {streak > 0 && (
-                          <span className="flex items-center gap-1 text-xs text-zinc-500 tabular-nums" title={`${streak}-day streak`}><Flame size={13} />{streak}</span>
+                          <span className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 tabular-nums" title={`${streak}-day streak`}><Flame size={13} />{streak}</span>
                         )}
                       </div>
-                      <div className="mt-3 text-sm text-zinc-700">{h.name}</div>
-                      <div className="text-xs text-zinc-300 mt-1">{h.targetLabel}</div>
+                      <div className="mt-3 text-sm text-zinc-700 dark:text-zinc-200 dark:text-zinc-600">{h.name}</div>
+                      <div className="text-xs text-zinc-300 dark:text-zinc-500 mt-1">{h.targetLabel}</div>
                     </button>
                   );
                 })}
@@ -160,7 +160,7 @@ function GoalsSection() {
   const goals = useLiveQuery(() => db.goals.toArray(), []) ?? [];
   if (goals.length === 0) return null;
   return (
-    <section className="rounded-3xl border border-black/5 dark:border-white/5 bg-white dark:bg-zinc-900 shadow-sm p-5">
+    <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-[var(--card-bg)] shadow-sm p-5">
       <div className="flex items-center gap-2 font-medium mb-4"><Target size={16} /> Active Goals</div>
       <div className="space-y-4">
         {goals.map(g => {
@@ -168,8 +168,8 @@ function GoalsSection() {
           return (
             <div key={g.id}>
               <div className="flex justify-between items-end mb-1.5">
-                <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{g.title}</span>
-                <span className="text-xs text-zinc-500 tabular-nums">{g.currentValue} / {g.targetValue} {g.metricLabel}</span>
+                <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 dark:text-zinc-200 dark:text-zinc-600">{g.title}</span>
+                <span className="text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 tabular-nums">{g.currentValue} / {g.targetValue} {g.metricLabel}</span>
               </div>
               <div className="h-1.5 rounded-full bg-[var(--ring-track)] overflow-hidden">
                 <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />

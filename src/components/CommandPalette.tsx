@@ -88,9 +88,9 @@ export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onO
 
   return (
     <div className="fade-in fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex justify-center items-start pt-[10vh] p-4" onMouseDown={onClose}>
-      <div role="dialog" aria-modal="true" aria-label="Search and commands" className="pop-in w-full max-w-xl rounded-2xl border border-zinc-200 bg-white shadow-2xl overflow-hidden" onMouseDown={e => e.stopPropagation()}>
-        <div className="p-4 flex items-center gap-3 border-b border-zinc-100">
-          <Search size={17} className="text-zinc-300" />
+      <div role="dialog" aria-modal="true" aria-label="Search and commands" className="pop-in w-full max-w-xl rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60 bg-white shadow-2xl overflow-hidden" onMouseDown={e => e.stopPropagation()}>
+        <div className="p-4 flex items-center gap-3 border-b border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60">
+          <Search size={17} className="text-zinc-300 dark:text-zinc-500" />
           <input
             autoFocus
             value={query}
@@ -103,33 +103,33 @@ export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onO
             aria-controls="palette-list"
             className="flex-1 bg-transparent outline-none text-sm"
           />
-          <button onClick={onClose} aria-label="Close"><X size={17} className="text-zinc-300" /></button>
+          <button onClick={onClose} aria-label="Close"><X size={17} className="text-zinc-300 dark:text-zinc-500" /></button>
         </div>
         <div ref={listRef} id="palette-list" role="listbox" className="p-2 max-h-[52vh] overflow-y-auto">
-          {items.length === 0 && <div className="px-3 py-8 text-center text-sm text-zinc-300">Nothing matches “{query.trim()}”.</div>}
+          {items.length === 0 && <div className="px-3 py-8 text-center text-sm text-zinc-300 dark:text-zinc-500">Nothing matches “{query.trim()}”.</div>}
           {items.map((item, i) => {
             const Icon = item.icon;
             const heading = i === 0 || items[i - 1].group !== item.group;
             return (
               <div key={item.id}>
-                {heading && <div className="px-3 pt-3 pb-1 text-[11px] text-zinc-300">{item.group}</div>}
+                {heading && <div className="px-3 pt-3 pb-1 text-[11px] text-zinc-300 dark:text-zinc-500">{item.group}</div>}
                 <button
                   role="option"
                   aria-selected={i === selected}
                   data-selected={i === selected}
                   onMouseMove={() => setSelected(i)}
                   onClick={() => run(item)}
-                  className={`w-full flex items-center gap-3 text-left px-3 py-2 rounded-lg text-sm ${i === selected ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'text-zinc-600 hover:bg-zinc-50'}`}
+                  className={`w-full flex items-center gap-3 text-left px-3 py-2 rounded-lg text-sm ${i === selected ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-300 dark:text-zinc-500 hover:bg-zinc-50 dark:bg-zinc-900/50'}`}
                 >
-                  {item.dot ? <span className="size-2 rounded-full shrink-0 mx-[3px]" style={{ background: item.dot }} /> : <Icon size={15} className="shrink-0 text-zinc-400" />}
+                  {item.dot ? <span className="size-2 rounded-full shrink-0 mx-[3px]" style={{ background: item.dot }} /> : <Icon size={15} className="shrink-0 text-zinc-400 dark:text-zinc-500" />}
                   <span className="flex-1 truncate">{item.label}</span>
-                  {item.hint && <span className="text-xs text-zinc-300 shrink-0">{item.hint}</span>}
+                  {item.hint && <span className="text-xs text-zinc-300 dark:text-zinc-500 shrink-0">{item.hint}</span>}
                 </button>
               </div>
             );
           })}
         </div>
-        <div className="px-4 py-2.5 border-t border-zinc-100 text-[11px] text-zinc-300 flex gap-4">
+        <div className="px-4 py-2.5 border-t border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 text-[11px] text-zinc-300 dark:text-zinc-500 flex gap-4">
           <span>↑↓ to move</span><span>Enter to select</span><span>Esc to close</span>
         </div>
       </div>

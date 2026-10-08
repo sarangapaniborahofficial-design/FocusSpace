@@ -57,14 +57,14 @@ export function RichTextEditor({ content, onChange, placeholder = 'Write today�
   if (!editor) return null;
 
   return (
-    <div className="rounded-xl border border-zinc-100 bg-zinc-50/50 focus-within:border-zinc-300">
+    <div className="rounded-xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/50/50 focus-within:border-zinc-300">
       <Toolbar editor={editor} />
       <EditorContent editor={editor} placeholder={placeholder} />
     </div>
   );
 }
 
-const btn = (active: boolean) => `h-8 min-w-8 px-2 rounded-md text-sm grid place-items-center ${active ? 'bg-zinc-200 text-white' : 'text-zinc-500 hover:text-white hover:bg-zinc-100'}`;
+const btn = (active: boolean) => `h-8 min-w-8 px-2 rounded-md text-sm grid place-items-center ${active ? 'bg-zinc-200 text-white' : 'text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 hover:text-white hover:bg-zinc-100 dark:bg-zinc-800'}`;
 
 function Toolbar({ editor }: { editor: Editor }) {
   const setLink = () => {
@@ -76,17 +76,17 @@ function Toolbar({ editor }: { editor: Editor }) {
   };
 
   return (
-    <div role="toolbar" aria-label="Formatting" className="flex flex-wrap gap-1 p-2 border-b border-zinc-100">
+    <div role="toolbar" aria-label="Formatting" className="flex flex-wrap gap-1 p-2 border-b border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60">
       <button type="button" title="Bold (Ctrl/⌘ B)" aria-label="Bold" aria-pressed={editor.isActive('bold')} onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleBold().run()} className={btn(editor.isActive('bold'))}><Bold size={14} /></button>
       <button type="button" title="Italic (Ctrl/⌘ I)" aria-label="Italic" aria-pressed={editor.isActive('italic')} onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleItalic().run()} className={btn(editor.isActive('italic'))}><Italic size={14} /></button>
       <button type="button" title="Strikethrough" aria-label="Strikethrough" aria-pressed={editor.isActive('strike')} onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleStrike().run()} className={btn(editor.isActive('strike'))}><Strikethrough size={14} /></button>
-      <span className="w-px bg-zinc-100 mx-1" aria-hidden="true" />
+      <span className="w-px bg-zinc-100 dark:bg-zinc-800 mx-1" aria-hidden="true" />
       <button type="button" title="Heading" aria-label="Heading" aria-pressed={editor.isActive('heading', { level: 2 })} onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={`${btn(editor.isActive('heading', { level: 2 }))} font-semibold`}>H</button>
       <button type="button" title="Bulleted list" aria-label="Bulleted list" aria-pressed={editor.isActive('bulletList')} onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleBulletList().run()} className={btn(editor.isActive('bulletList'))}><List size={14} /></button>
       <button type="button" title="Numbered list" aria-label="Numbered list" aria-pressed={editor.isActive('orderedList')} onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleOrderedList().run()} className={btn(editor.isActive('orderedList'))}><ListOrdered size={14} /></button>
       <button type="button" title="Checklist" aria-label="Checklist" aria-pressed={editor.isActive('taskList')} onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleTaskList().run()} className={btn(editor.isActive('taskList'))}><ListChecks size={14} /></button>
       <button type="button" title="Quote" aria-label="Quote" aria-pressed={editor.isActive('blockquote')} onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleBlockquote().run()} className={btn(editor.isActive('blockquote'))}><Quote size={14} /></button>
-      <span className="w-px bg-zinc-100 mx-1" aria-hidden="true" />
+      <span className="w-px bg-zinc-100 dark:bg-zinc-800 mx-1" aria-hidden="true" />
       <button type="button" title="Link" aria-label="Link" aria-pressed={editor.isActive('link')} onMouseDown={e => e.preventDefault()} onClick={setLink} className={btn(editor.isActive('link'))}><Link2 size={14} /></button>
     </div>
   );

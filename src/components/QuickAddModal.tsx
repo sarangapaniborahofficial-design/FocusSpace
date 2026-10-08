@@ -7,7 +7,7 @@ import { isoToday, uid } from '../lib/utils';
 import type { Priority, Task } from '../types';
 
 const PRIORITIES: Priority[] = ['Low', 'Medium', 'High', 'Urgent'];
-const field = 'mt-1 w-full h-10 rounded-lg bg-zinc-50 border border-zinc-100 px-3 text-sm text-zinc-600';
+const field = 'mt-1 w-full h-10 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 px-3 text-sm text-zinc-600 dark:text-zinc-300 dark:text-zinc-500';
 
 export function QuickAddModal({ open, onClose, defaultCategory }: { open: boolean; onClose: () => void; defaultCategory?: string }) {
   const categories = useLiveQuery(() => db.categories.toArray(), []) ?? [];
@@ -62,40 +62,40 @@ export function QuickAddModal({ open, onClose, defaultCategory }: { open: boolea
 
   return (
     <div className="fade-in fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4" onMouseDown={onClose}>
-      <form onSubmit={submit} onMouseDown={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="quick-add-title" className="pop-in w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-zinc-200 bg-white shadow-2xl">
-        <div className="p-5 border-b border-zinc-100 flex justify-between items-center">
+      <form onSubmit={submit} onMouseDown={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="quick-add-title" className="pop-in w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60 bg-white shadow-2xl">
+        <div className="p-5 border-b border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 flex justify-between items-center">
           <div>
             <h2 id="quick-add-title" className="font-semibold">Quick add task</h2>
-            <p className="text-xs text-zinc-300 mt-1">Fast capture. Details can be refined later.</p>
+            <p className="text-xs text-zinc-300 dark:text-zinc-500 mt-1">Fast capture. Details can be refined later.</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="text-zinc-400 hover:text-white"><X size={18} /></button>
+          <button type="button" onClick={onClose} aria-label="Close" className="text-zinc-400 dark:text-zinc-500 hover:text-white"><X size={18} /></button>
         </div>
         <div className="p-5 space-y-4">
-          <input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="What needs to get done?" aria-label="Task title" className="w-full h-12 rounded-xl bg-zinc-50 border border-zinc-100 px-4 outline-none focus:border-zinc-300" />
+          <input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="What needs to get done?" aria-label="Task title" className="w-full h-12 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 px-4 outline-none focus:border-zinc-300" />
           <div className="grid grid-cols-2 gap-3">
-            <label className="text-xs text-zinc-400">Category
+            <label className="text-xs text-zinc-400 dark:text-zinc-500">Category
               <select value={selected?.id ?? ''} onChange={e => setCategoryId(e.target.value)} className={field}>
                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </label>
-            <label className="text-xs text-zinc-400">Priority
+            <label className="text-xs text-zinc-400 dark:text-zinc-500">Priority
               <select value={priority} onChange={e => setPriority(e.target.value as Priority)} className={field}>
                 {PRIORITIES.map(p => <option key={p}>{p}</option>)}
               </select>
             </label>
-            <label className="text-xs text-zinc-400">Due date
+            <label className="text-xs text-zinc-400 dark:text-zinc-500">Due date
               <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className={field} />
             </label>
-            <label className="text-xs text-zinc-400">Time
+            <label className="text-xs text-zinc-400 dark:text-zinc-500">Time
               <input type="time" value={dueTime} onChange={e => setDueTime(e.target.value)} disabled={!dueDate} className={`${field} disabled:opacity-40`} />
             </label>
           </div>
-          <label className="text-xs text-zinc-400 block">Estimated minutes
+          <label className="text-xs text-zinc-400 dark:text-zinc-500 block">Estimated minutes
             <input type="number" min="5" step="5" value={duration} onChange={e => setDuration(Number(e.target.value))} className={field} />
           </label>
         </div>
         <div className="p-5 pt-0 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="h-8 px-3 rounded-md text-sm text-zinc-500 hover:bg-zinc-50">Cancel</button>
+          <button type="button" onClick={onClose} className="h-8 px-3 rounded-md text-sm text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 hover:bg-zinc-50 dark:bg-zinc-900/50">Cancel</button>
           <button disabled={!title.trim() || !selected} className="h-8 px-3 rounded-md bg-[var(--accent)] text-[#121214] font-medium text-sm disabled:opacity-40">Create task</button>
         </div>
       </form>

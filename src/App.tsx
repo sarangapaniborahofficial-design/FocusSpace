@@ -136,9 +136,10 @@ export default function App() {
   const title = VIEW_TITLES[active] ?? categories.find(c => c.id === active)?.name ?? 'Home';
 
   return (
-    <div className="h-screen overflow-hidden bg-[var(--app-bg)] text-zinc-900 flex p-4 gap-4">
+    <div className="h-screen overflow-hidden flex items-center justify-center p-2 sm:p-6">
+      <div className="w-full h-full max-w-[1440px] mx-auto bg-[var(--app-bg)] text-zinc-900 dark:text-zinc-100 rounded-[32px] shadow-2xl flex overflow-hidden border border-black/5 dark:border-white/5 relative">
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} active={active} setActive={go} categories={categories} mobileOpen={drawer} onCloseMobile={() => setDrawer(false)} activePageId={nav.pageId} onOpenPage={openPageIn} />
-      <main className="flex-1 min-w-0 flex flex-col overflow-hidden bg-transparent">
+      <main className="flex-1 min-w-0 flex flex-col overflow-hidden bg-transparent p-2 sm:p-6">
         <Header title={title} onMenu={() => setDrawer(true)} onQuickAdd={openQuick} onSearch={openSearch} theme={theme} setTheme={setTheme} />
         <div className="flex-1 overflow-y-auto pb-20">
           <div key={nav.n} className="view-in">
