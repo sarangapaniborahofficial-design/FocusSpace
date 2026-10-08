@@ -317,7 +317,6 @@ function HabitsCard() {
 }
 
 
-import { Target } from 'lucide-react';
 function GoalsCard() {
   const goals = useLiveQuery(() => db.goals.toArray(), []) ?? [];
   const [creating, setCreating] = useState(false);
