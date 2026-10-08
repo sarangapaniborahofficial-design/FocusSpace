@@ -56,7 +56,7 @@ export function PagesList({ categoryId, tabs, onOpenPage }: { categoryId?: strin
   };
 
   const createButton = (
-    <button onClick={() => void newPage()} disabled={creating} className="h-8 px-3 rounded-xl bg-[var(--accent)] text-[#121214] font-medium text-sm flex items-center gap-2 hover:bg-[#d97706] disabled:opacity-60"><Plus size={16} /> New page</button>
+    <button onClick={() => void newPage()} disabled={creating} className="h-8 px-3 rounded-xl bg-accent text-accent-fg font-medium text-sm flex items-center gap-2 hover:bg-accent-hover disabled:opacity-60"><Plus size={16} /> New page</button>
   );
   const loading = pages === undefined;
   const count = pages?.length ?? 0;
@@ -66,9 +66,9 @@ export function PagesList({ categoryId, tabs, onOpenPage }: { categoryId?: strin
     <div className="p-5 lg:p-7 max-w-[1500px] mx-auto">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
         <div>
-          <div className="text-xs uppercase tracking-[.18em] text-zinc-300 dark:text-zinc-500 mb-1">{categoryId ? 'Pages' : 'Context & journal'}</div>
+          <div className="text-xs uppercase tracking-[.18em] text-fg-subtle mb-1">{categoryId ? 'Pages' : 'Context & journal'}</div>
           <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-          <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-1">{loading ? 'Loading…' : count ? `${count} ${count === 1 ? 'page' : 'pages'}` : 'A permanent place to write about a topic and track its related tasks and habits.'}</p>
+          <p className="text-sm text-fg-muted mt-1">{loading ? 'Loading…' : count ? `${count}${count === 1 ? 'page' : 'pages'}` : 'A permanent place to write about a topic and track its related tasks and habits.'}</p>
         </div>
         <div className="self-start md:self-auto">{createButton}</div>
       </header>
@@ -78,25 +78,25 @@ export function PagesList({ categoryId, tabs, onOpenPage }: { categoryId?: strin
       {loading ? (
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3" aria-busy="true"><div className="skeleton h-36" /><div className="skeleton h-36" /><div className="skeleton h-36" /></div>
       ) : count === 0 ? (
-        <div className="rounded-2xl border border-dashed border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60">
+        <div className="rounded-2xl border border-dashed border-line">
           <EmptyState icon={FileText} title={categoryId ? `No pages in ${category?.name ?? 'this category'} yet` : 'No pages yet'} text="Create a page to write about a topic and keep its related tasks, habits and files together." action={createButton} />
         </div>
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-2 mb-4">
             <div className="relative flex-1 min-w-[200px] max-w-md">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-500" />
-              <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search titles and notes…" aria-label="Search pages" className="w-full h-9 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 pl-9 pr-3 text-sm outline-none focus:border-zinc-300" />
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
+              <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search titles and notes…" aria-label="Search pages" className="w-full h-9 rounded-lg bg-surface-2 border border-line pl-9 pr-3 text-sm outline-none focus:border-accent" />
             </div>
-            <select value={sort} onChange={e => setSort(e.target.value as 'updated' | 'title')} aria-label="Sort pages" className="h-9 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 px-3 text-sm text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 outline-none">
+            <select value={sort} onChange={e => setSort(e.target.value as 'updated' | 'title')} aria-label="Sort pages" className="h-9 rounded-lg bg-surface-2 border border-line px-3 text-sm text-fg-muted outline-none">
               <option value="updated">Sort: recently edited</option>
               <option value="title">Sort: title</option>
             </select>
           </div>
 
           {visible.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60">
-              <EmptyState icon={Search} title="No pages match your search" text={`Nothing matches “${q.trim()}”.`} action={<button onClick={() => setQ('')} className="h-8 px-3 rounded-xl border border-zinc-200/60 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/50 text-sm hover:bg-zinc-100 dark:bg-zinc-800">Clear search</button>} />
+            <div className="rounded-2xl border border-dashed border-line">
+              <EmptyState icon={Search} title="No pages match your search" text={`Nothing matches “${q.trim()}”.`} action={<button onClick={() => setQ('')} className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-sm hover:bg-hover">Clear search</button>} />
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -105,13 +105,13 @@ export function PagesList({ categoryId, tabs, onOpenPage }: { categoryId?: strin
                 const snippet = summary(page);
                 const cat = !categoryId ? categories.find(c => c.id === page.categoryId) : undefined;
                 return (
-                  <button key={page.id} onClick={() => onOpenPage(page.id)} className="text-left rounded-xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/50/50 hover:bg-zinc-50 dark:bg-zinc-900/50/80 hover:border-zinc-200/60 dark:border-zinc-800/60 transition p-4 flex flex-col min-h-[144px]">
+                  <button key={page.id} onClick={() => onOpenPage(page.id)} className="text-left rounded-xl border border-line bg-surface hover:bg-hover hover:border-line transition p-4 flex flex-col min-h-[144px] shadow-card">
                     <div className="flex items-start gap-3">
-                      <span className="size-8 shrink-0 rounded-lg border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-white/60 grid place-items-center text-zinc-400 dark:text-zinc-500"><FileText size={15} /></span>
-                      <span className="font-medium text-zinc-900 dark:text-zinc-100 break-words min-w-0 pt-1">{page.title.trim() || 'Untitled'}</span>
+                      <span className="size-8 shrink-0 rounded-lg border border-line bg-surface/60 grid place-items-center text-fg-muted"><FileText size={15} /></span>
+                      <span className="font-medium text-fg break-words min-w-0 pt-1">{page.title.trim() || 'Untitled'}</span>
                     </div>
-                    <p className={`mt-3 text-sm leading-relaxed line-clamp-3 break-words ${snippet ? 'text-zinc-400 dark:text-zinc-500' : 'text-zinc-200 dark:text-zinc-600 italic'}`}>{snippet || 'Nothing written yet'}</p>
-                    <div className="mt-auto pt-3 flex items-center gap-3 text-xs text-zinc-300 dark:text-zinc-500">
+                    <p className={`mt-3 text-sm leading-relaxed line-clamp-3 break-words ${snippet ? 'text-fg-muted' : 'text-fg-subtle italic'}`}>{snippet || 'Nothing written yet'}</p>
+                    <div className="mt-auto pt-3 flex items-center gap-3 text-xs text-fg-subtle">
                       {cat && <span style={{ color: cat.color }}>{cat.name}</span>}
                       <span>Edited {stamp(page.updatedAt)}</span>
                       {attached > 0 && <span className="flex items-center gap-1"><Paperclip size={12} />{attached} {attached === 1 ? 'file' : 'files'}</span>}

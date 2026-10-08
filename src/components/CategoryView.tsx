@@ -11,15 +11,15 @@ function Tabs({ categoryId, tab, onTab }: { categoryId: string; tab: CategoryTab
   const pages = useLiveQuery(() => db.pages.where('categoryId').equals(categoryId).count(), [categoryId]);
   const items: { id: CategoryTab; label: string; count?: number }[] = [{ id: 'tasks', label: 'Tasks', count: tasks }, { id: 'pages', label: 'Pages', count: pages }];
   return (
-    <div className="flex gap-1 mb-5 border-b border-zinc-200 dark:border-zinc-800" role="tablist" aria-label="Category sections">
+    <div className="flex gap-1 mb-5 border-b border-line" role="tablist" aria-label="Category sections">
       {items.map(item => (
         <button
           key={item.id} role="tab" aria-selected={tab === item.id} onClick={() => onTab(item.id)}
-          className={`relative px-3 h-10 text-sm font-medium transition-colors ${tab === item.id ? 'text-zinc-950 dark:text-zinc-50' : 'text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 dark:text-zinc-600'}`}
+          className={`relative px-3 h-10 text-sm font-medium transition-colors ${tab === item.id ? 'text-fg' : 'text-fg-muted hover:text-fg'}`}
         >
           {item.label}
-          {item.count !== undefined && <span className="ml-2 text-xs text-zinc-400 dark:text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 tabular-nums">{item.count}</span>}
-          {tab === item.id && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-zinc-900 dark:bg-zinc-100 dark:bg-zinc-800" />}
+          {item.count !== undefined && <span className="ml-2 text-xs text-fg-muted tabular-nums">{item.count}</span>}
+          {tab === item.id && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-inv" />}
         </button>
       ))}
     </div>

@@ -78,7 +78,7 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', theme === 'light' ? '#f5f2eb' : '#121214');
+    if (meta) meta.setAttribute('content', theme === 'light' ? '#f2f4f6' : theme === 'oled' ? '#000000' : '#0e1013');
     document.documentElement.style.colorScheme = theme === 'light' ? 'light' : 'dark';
     storage.set('focusspace-theme', theme);
   }, [theme]);
@@ -119,25 +119,25 @@ export default function App() {
 
   if (dbError) {
     return (
-      <div className="min-h-screen white grid place-items-center p-6">
+      <div className="min-h-screen bg-canvas text-fg grid place-items-center p-6">
         <div className="max-w-sm text-center" role="alert">
-          <div className="size-10 rounded-xl bg-[var(--accent)] text-[#121214] grid place-items-center mx-auto mb-4"><Command size={18} /></div>
+          <div className="size-10 rounded-xl bg-accent text-accent-fg grid place-items-center mx-auto mb-4"><Command size={18} /></div>
           <h1 className="text-lg font-semibold">FocusSpace can't open its local database</h1>
-          <p className="text-sm text-zinc-500 mt-2">This usually happens in private browsing, or when the browser blocks site storage. Allow storage for this site (or use a normal window) and try again.</p>
-          <p className="text-xs text-zinc-600 mt-3 break-words">{dbError}</p>
-          <button onClick={boot} className="mt-5 h-10 px-4 rounded-lg bg-[var(--accent)] text-[#121214] text-sm font-medium">Try again</button>
+          <p className="text-sm text-fg-muted mt-2">This usually happens in private browsing, or when the browser blocks site storage. Allow storage for this site (or use a normal window) and try again.</p>
+          <p className="text-xs text-fg-soft mt-3 break-words">{dbError}</p>
+          <button onClick={boot} className="mt-5 h-10 px-4 rounded-lg bg-accent text-accent-fg text-sm font-medium">Try again</button>
         </div>
       </div>
     );
   }
 
-  if (!ready) return <div className="min-h-screen white grid place-items-center"><div className="text-center"><div className="size-10 rounded-xl bg-[var(--accent)] text-[#121214] grid place-items-center mx-auto mb-3"><Command size={18} /></div><div className="text-sm text-zinc-500">Initializing local workspace…</div></div></div>;
+  if (!ready) return <div className="min-h-screen bg-canvas text-fg grid place-items-center"><div className="text-center"><div className="size-10 rounded-xl bg-accent text-accent-fg grid place-items-center mx-auto mb-3"><Command size={18} /></div><div className="text-sm text-fg-muted">Initializing local workspace…</div></div></div>;
 
   const title = VIEW_TITLES[active] ?? categories.find(c => c.id === active)?.name ?? 'Home';
 
   return (
     <div className="h-screen overflow-hidden flex items-center justify-center p-2 sm:p-6">
-      <div className="w-full h-full max-w-[1440px] mx-auto bg-[var(--app-bg)] text-zinc-900 dark:text-zinc-100 rounded-[32px] shadow-2xl flex overflow-hidden border border-black/5 dark:border-white/5 relative">
+      <div className="w-full h-full max-w-[1440px] mx-auto bg-[var(--app-bg)] text-fg rounded-[32px] shadow-2xl flex overflow-hidden border border-line relative">
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} active={active} setActive={go} categories={categories} mobileOpen={drawer} onCloseMobile={() => setDrawer(false)} activePageId={nav.pageId} onOpenPage={openPageIn} />
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden bg-transparent p-2 sm:p-6">
         <Header title={title} onMenu={() => setDrawer(true)} onQuickAdd={openQuick} onSearch={openSearch} theme={theme} setTheme={setTheme} />

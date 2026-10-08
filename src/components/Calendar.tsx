@@ -150,36 +150,36 @@ export function Calendar() {
     <div className="p-4 lg:p-6 max-w-[1600px] mx-auto h-full min-h-[calc(100vh-64px)] flex flex-col">
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-4 shrink-0">
         <div>
-          <div className="text-xs uppercase tracking-[.18em] text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 mb-1">Schedule</div>
+          <div className="text-xs uppercase tracking-[.18em] text-fg-soft mb-1">Schedule</div>
           <h1 className="text-2xl font-semibold tracking-tight">Calendar & Time Blocking</h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 mt-1">Drag unscheduled tasks onto the grid. Move or resize blocks to update them.</p>
+          <p className="text-sm text-fg-muted mt-1">Drag unscheduled tasks onto the grid. Move or resize blocks to update them.</p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">
+        <div className="flex items-center gap-2 text-xs text-fg-muted">
           <CalendarDays size={15} />
           <span>{scheduled.length} scheduled · {unscheduled.length} unscheduled</span>
         </div>
       </div>
 
       <div className="flex-1 min-h-[620px] grid xl:grid-cols-[290px_minmax(0,1fr)] gap-4">
-        <aside ref={externalRef} className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-[var(--card-bg)] shadow-sm overflow-hidden flex flex-col min-h-[280px]">
-          <div className="p-4 border-b border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60">
+        <aside ref={externalRef} className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden flex flex-col min-h-[280px]">
+          <div className="p-4 border-b border-line">
             <div className="font-medium">Unscheduled</div>
-            <div className="text-xs text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 mt-1">Drag a task to a date/time.</div>
+            <div className="text-xs text-fg-soft mt-1">Drag a task to a date/time.</div>
             <div className="relative mt-3">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 dark:text-zinc-400 dark:text-zinc-500" />
-              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Find a task…" className="w-full h-9 rounded-lg bg-white border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 pl-9 pr-3 text-sm outline-none focus:border-zinc-600" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-soft" />
+              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Find a task…" className="w-full h-9 rounded-lg bg-surface border border-line pl-9 pr-3 text-sm outline-none focus:border-accent" />
             </div>
           </div>
           <div className="p-2 overflow-y-auto space-y-2">
             {unscheduled.length === 0 ? (
-              <div className="p-8 text-center text-xs text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">Everything is scheduled.</div>
+              <div className="p-8 text-center text-xs text-fg-soft">Everything is scheduled.</div>
             ) : unscheduled.map(task => {
               const color = categoryColor(task, categories);
               const category = categories.find(c => c.id === task.categoryId);
               return (
                 <div
                   key={task.id}
-                  className="fc-external-task rounded-xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-white/70 hover:bg-zinc-50 dark:bg-zinc-900/50 cursor-grab active:cursor-grabbing p-3"
+                  className="fc-external-task rounded-xl border border-line bg-surface/70 hover:bg-hover cursor-grab active:cursor-grabbing p-3"
                   data-task-id={task.id}
                   data-title={task.title}
                   data-duration={durationString(task.estimatedDuration)}
@@ -189,8 +189,8 @@ export function Calendar() {
                   <div className="flex items-start gap-2">
                     <span className="mt-1 size-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm text-zinc-200 dark:text-zinc-600 leading-5">{task.title}</div>
-                      <div className="mt-1 flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">
+                      <div className="text-sm text-fg leading-5">{task.title}</div>
+                      <div className="mt-1 flex items-center gap-2 text-[11px] text-fg-soft">
                         <span>{category?.name ?? 'Uncategorized'}</span>
                         <span>•</span>
                         <span className="flex items-center gap-1"><Clock3 size={11} />{task.estimatedDuration || 30}m</span>
@@ -203,7 +203,7 @@ export function Calendar() {
           </div>
         </aside>
 
-        <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-white/70 overflow-hidden min-h-[620px] flex flex-col">
+        <section className="rounded-2xl border border-line bg-surface/70 overflow-hidden min-h-[620px] flex flex-col">
           <div className="calendar-shell flex-1 min-h-[620px] p-2 sm:p-3">
             <FullCalendar
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -242,23 +242,23 @@ export function Calendar() {
 
       {selectedTask && (
         <div className="fade-in fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4" onMouseDown={() => setSelectedTask(null)}>
-          <div role="dialog" aria-modal="true" aria-label="Scheduled task" className="pop-in w-full max-w-md rounded-2xl border border-zinc-700 bg-white shadow-2xl" onMouseDown={e => e.stopPropagation()}>
-            <div className="p-5 border-b border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 flex items-start justify-between gap-4">
+          <div role="dialog" aria-modal="true" aria-label="Scheduled task" className="pop-in w-full max-w-md rounded-2xl border border-line bg-surface shadow-2xl" onMouseDown={e => e.stopPropagation()}>
+            <div className="p-5 border-b border-line flex items-start justify-between gap-4">
               <div>
-                <div className="text-xs uppercase tracking-[.16em] text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">Scheduled task</div>
+                <div className="text-xs uppercase tracking-[.16em] text-fg-soft">Scheduled task</div>
                 <h2 className="font-semibold mt-1">{selectedTask.title}</h2>
               </div>
-              <button onClick={() => setSelectedTask(null)} className="text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 hover:text-zinc-200 dark:text-zinc-600"><X size={18} /></button>
+              <button onClick={() => setSelectedTask(null)} className="text-fg-soft hover:text-fg"><X size={18} /></button>
             </div>
             <div className="p-5 space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">Date</span><span>{selectedTask.dueDate || '—'}</span></div>
-              <div className="flex justify-between"><span className="text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">Time</span><span>{selectedTask.dueTime || '—'}</span></div>
-              <div className="flex justify-between"><span className="text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">Duration</span><span>{selectedTask.estimatedDuration || 30} min</span></div>
-              <div className="flex justify-between"><span className="text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">Status</span><span>{selectedTask.status}</span></div>
-              <div className="pt-2 text-xs text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">Move or resize the event on the calendar to change its schedule.</div>
+              <div className="flex justify-between"><span className="text-fg-soft">Date</span><span>{selectedTask.dueDate || '—'}</span></div>
+              <div className="flex justify-between"><span className="text-fg-soft">Time</span><span>{selectedTask.dueTime || '—'}</span></div>
+              <div className="flex justify-between"><span className="text-fg-soft">Duration</span><span>{selectedTask.estimatedDuration || 30} min</span></div>
+              <div className="flex justify-between"><span className="text-fg-soft">Status</span><span>{selectedTask.status}</span></div>
+              <div className="pt-2 text-xs text-fg-soft">Move or resize the event on the calendar to change its schedule.</div>
             </div>
             <div className="px-5 pb-5">
-              <button onClick={() => { openTaskEditor(selectedTask.id); setSelectedTask(null); }} className="w-full h-10 rounded-lg bg-[var(--accent)] text-[#121214] text-sm font-medium hover:bg-[#d97706]">Edit details</button>
+              <button onClick={() => { openTaskEditor(selectedTask.id); setSelectedTask(null); }} className="w-full h-10 rounded-lg bg-accent text-accent-fg text-sm font-medium hover:bg-accent-hover">Edit details</button>
             </div>
           </div>
         </div>

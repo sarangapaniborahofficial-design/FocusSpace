@@ -8,11 +8,11 @@ function renderMarks(text: string, marks: RichMark[] | undefined, key: number): 
   if (!marks?.length) return <Fragment key={key}>{text}</Fragment>;
   return marks.reduce<ReactNode>((child, mark, i) => {
     switch (mark.type) {
-      case 'bold': return <strong key={i} className="font-semibold text-zinc-900 dark:text-zinc-100">{child}</strong>;
+      case 'bold': return <strong key={i} className="font-semibold text-fg">{child}</strong>;
       case 'italic': return <em key={i}>{child}</em>;
-      case 'strike': return <del key={i} className="text-zinc-400 dark:text-zinc-500">{child}</del>;
+      case 'strike': return <del key={i} className="text-fg-muted">{child}</del>;
       case 'code': return <code key={i} className="md-code-inline">{child}</code>;
-      case 'link': return <a key={i} href={mark.attrs?.href} target="_blank" rel="noopener noreferrer" className="text-sky-600 dark:text-sky-400 underline underline-offset-2 hover:text-sky-200 break-words">{child}</a>;
+      case 'link': return <a key={i} href={mark.attrs?.href} target="_blank" rel="noopener noreferrer" className="text-sky-600 underline underline-offset-2 hover:text-sky-200 break-words">{child}</a>;
       default: return child;
     }
   }, <Fragment key={key}>{text}</Fragment>);
@@ -33,9 +33,9 @@ function renderNode(node: RichTextNode, i: number, onToggleTask?: (path: [number
     case 'paragraph':
       return node.content?.length ? <p key={i} className="my-2 leading-relaxed break-words">{renderInline(node.content)}</p> : <p key={i} className="my-2 h-[1lh]" aria-hidden="true" />;
     case 'blockquote':
-      return <blockquote key={i} className="my-3 border-l-2 border-zinc-200/60 dark:border-zinc-800/60 pl-4 text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 leading-relaxed">{node.content?.map((c, j) => renderNode(c, j))}</blockquote>;
+      return <blockquote key={i} className="my-3 border-l-2 border-line pl-4 text-fg-muted leading-relaxed">{node.content?.map((c, j) => renderNode(c, j))}</blockquote>;
     case 'horizontalRule':
-      return <hr key={i} className="my-5 border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60" />;
+      return <hr key={i} className="my-5 border-line" />;
     case 'codeBlock':
       return <pre key={i} className="md-code-block my-3"><code>{node.content?.map(c => c.text).join('') ?? ''}</code></pre>;
     case 'bulletList':
@@ -44,7 +44,7 @@ function renderNode(node: RichTextNode, i: number, onToggleTask?: (path: [number
         <div key={i} className="my-2 space-y-1" role="list">
           {node.content?.map((item, j) => (
             <div key={j} className="flex items-start gap-2 leading-relaxed">
-              <span className="shrink-0 w-4 text-right text-zinc-400 dark:text-zinc-500 select-none">{node.type === 'orderedList' ? `${j + 1}.` : '•'}</span>
+              <span className="shrink-0 w-4 text-right text-fg-muted select-none">{node.type === 'orderedList' ? `${j + 1}.` : '•'}</span>
               <span className="min-w-0 break-words">{item.content?.map((c, k) => renderNode(c, k))}</span>
             </div>
           ))}
@@ -60,9 +60,9 @@ function renderNode(node: RichTextNode, i: number, onToggleTask?: (path: [number
                 <button
                   type="button" onClick={() => onToggleTask?.([i, j])} disabled={!onToggleTask}
                   aria-label={checked ? 'Mark as not done' : 'Mark as done'} aria-pressed={checked}
-                  className={`mt-[5px] size-4 shrink-0 rounded border grid place-items-center text-[10px] leading-none ${checked ? 'bg-zinc-600 border-zinc-600 text-white' : 'border-zinc-300 hover:border-zinc-500'}`}
+                  className={`mt-[5px] size-4 shrink-0 rounded border grid place-items-center text-[10px] leading-none ${checked ? 'bg-accent border-accent text-accent-fg' : 'border-line-strong hover:border-fg-muted'}`}
                 >{checked ? '✓' : ''}</button>
-                <span className={`min-w-0 break-words ${checked ? 'line-through text-zinc-400 dark:text-zinc-500' : ''}`}>{item.content?.map((c, k) => renderNode(c, k))}</span>
+                <span className={`min-w-0 break-words ${checked ? 'line-through text-fg-muted' : ''}`}>{item.content?.map((c, k) => renderNode(c, k))}</span>
               </div>
             );
           })}
@@ -77,6 +77,6 @@ function renderNode(node: RichTextNode, i: number, onToggleTask?: (path: [number
 export { toggleTaskAtPath };
 
 export function RichTextView({ doc, onToggleTask }: { doc: RichTextDoc; onToggleTask?: (path: [number, number]) => void }) {
-  return <div className="text-[15px] text-zinc-600 dark:text-zinc-300 dark:text-zinc-500">{doc.content.map((node, i) => renderNode(node, i, onToggleTask))}</div>;
+  return <div className="text-[15px] text-fg-soft">{doc.content.map((node, i) => renderNode(node, i, onToggleTask))}</div>;
 }
 

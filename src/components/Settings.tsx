@@ -138,43 +138,43 @@ export function Settings({ theme, setTheme }: { theme: string; setTheme: (theme:
   };
 
   return <div className="p-5 lg:p-7 max-w-5xl mx-auto space-y-5">
-    <div><div className="text-xs uppercase tracking-[.18em] text-zinc-300 dark:text-zinc-500">System</div><h1 className="text-2xl font-semibold mt-1">Settings</h1><p className="text-sm text-zinc-400 dark:text-zinc-500 mt-1">Own the workspace. Everything stays local unless you export it.</p></div>
+    <div><div className="text-xs uppercase tracking-[.18em] text-fg-subtle">System</div><h1 className="text-2xl font-semibold mt-1">Settings</h1><p className="text-sm text-fg-muted mt-1">Own the workspace. Everything stays local unless you export it.</p></div>
     <BackupReminder onExport={() => void exportData()} />
-    <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-[var(--card-bg)] shadow-sm overflow-hidden">
-      <div className="p-5 border-b border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60"><div className="flex items-center gap-2 font-medium"><Palette size={16}/> Appearance</div><p className="text-xs text-zinc-300 dark:text-zinc-500 mt-1">Choose how FocusSpace looks on this device.</p></div>
-      <div className="p-5 grid md:grid-cols-3 gap-3">{themes.map(t => <button key={t.id} onClick={()=>{setTheme(t.id);localStorage.setItem('focusspace-theme',t.id)}} className={`text-left rounded-xl border p-4 transition ${theme===t.id?'border-zinc-400 bg-zinc-100 dark:bg-zinc-800/80':'border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-white/30 hover:bg-zinc-50 dark:bg-zinc-900/50'}`}><div className="text-sm font-medium">{t.name}</div><div className="text-xs text-zinc-300 dark:text-zinc-500 mt-1">{t.description}</div></button>)}</div>
+    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
+      <div className="p-5 border-b border-line"><div className="flex items-center gap-2 font-medium"><Palette size={16}/> Appearance</div><p className="text-xs text-fg-subtle mt-1">Choose how FocusSpace looks on this device.</p></div>
+      <div className="p-5 grid md:grid-cols-3 gap-3">{themes.map(t => <button key={t.id} onClick={()=>{setTheme(t.id);localStorage.setItem('focusspace-theme',t.id)}} className={`text-left rounded-xl border p-4 transition ${theme===t.id?'border-line-strong bg-surface-2':'border-line bg-surface/30 hover:bg-hover'}`}><div className="text-sm font-medium">{t.name}</div><div className="text-xs text-fg-subtle mt-1">{t.description}</div></button>)}</div>
     </section>
 
-    <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-[var(--card-bg)] shadow-sm overflow-hidden">
+    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
       <div className="p-5 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 font-medium"><Smartphone size={16}/> Install App</div>
-          <p className="text-xs text-zinc-300 dark:text-zinc-500 mt-1">Install FocusSpace to your device for native offline access.</p>
+          <p className="text-xs text-fg-subtle mt-1">Install FocusSpace to your device for native offline access.</p>
         </div>
-        <button onClick={install} className="h-8 px-3 rounded-xl bg-[var(--accent)] text-[#121214] text-sm font-medium flex items-center gap-2 hover:bg-zinc-800 transition">
+        <button onClick={install} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium flex items-center gap-2 hover:bg-hover transition">
           <Download size={15}/> Install
         </button>
       </div>
     </section>
 
-    <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-[var(--card-bg)] shadow-sm overflow-hidden">
-      <div className="p-5 border-b border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 flex items-center justify-between"><div><div className="font-medium">Categories</div><p className="text-xs text-zinc-300 dark:text-zinc-500 mt-1">Create, rename and recolor your workspaces.</p></div><button onClick={startCreate} className="h-8 px-3 rounded-xl bg-[var(--accent)] text-[#121214] text-sm font-medium flex items-center gap-1.5"><Plus size={15}/> Add category</button></div>
-      <div className="p-4 space-y-2">{categories.map(c => <div key={c.id} className="flex items-center gap-3 rounded-2xl border border-black/5 dark:border-white/5 bg-zinc-50 dark:bg-zinc-900/50 p-3"><span className="size-3 rounded-full" style={{background:c.color}}/><div className="flex-1 min-w-0"><div className="text-sm truncate">{c.name}</div><div className="text-[11px] text-zinc-300 dark:text-zinc-500">{c.id}</div></div><button onClick={()=>openEdit(c)} className="text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:text-zinc-200 dark:text-zinc-600 px-2 py-1.5 rounded-xl hover:bg-zinc-100 dark:bg-zinc-800">Edit</button><button onClick={()=>{setDeleteTarget(c);setMoveTo(categories.find(x=>x.id!==c.id)?.id??'')}} className="text-zinc-300 dark:text-zinc-500 hover:text-red-300 p-2 rounded-xl hover:bg-zinc-50 dark:bg-zinc-900/50" title="Delete"><Trash2 size={15}/></button></div>)}</div>
-      {(editing || creating) && <div className="p-4 border-t border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-white/30"><div className="grid sm:grid-cols-[1fr_110px_auto] gap-2 items-end"><label className="text-xs text-zinc-400 dark:text-zinc-500">Name<input ref={inputRef} value={newName} onChange={e=>setNewName(e.target.value)} placeholder="e.g. Valorant" className="mt-1 w-full h-10 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 px-3 text-sm outline-none"/></label><label className="text-xs text-zinc-400 dark:text-zinc-500">Color<input type="color" value={newColor} onChange={e=>setNewColor(e.target.value)} className="mt-1 w-full h-10 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 p-1"/></label><div className="flex gap-2"><button onClick={()=>{setEditing(null);setCreating(false);setNewName('')}} className="h-8 px-2 rounded-xl text-sm text-zinc-400 dark:text-zinc-500 hover:bg-zinc-50 dark:bg-zinc-900/50">Cancel</button><button onClick={saveCategory} className="h-8 px-3 rounded-xl bg-[var(--accent)] text-[#121214] text-sm font-medium">Save</button></div></div></div>}
+    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
+      <div className="p-5 border-b border-line flex items-center justify-between"><div><div className="font-medium">Categories</div><p className="text-xs text-fg-subtle mt-1">Create, rename and recolor your workspaces.</p></div><button onClick={startCreate} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium flex items-center gap-1.5"><Plus size={15}/> Add category</button></div>
+      <div className="p-4 space-y-2">{categories.map(c => <div key={c.id} className="flex items-center gap-3 rounded-2xl border border-line bg-surface-2 p-3"><span className="size-3 rounded-full" style={{background:c.color}}/><div className="flex-1 min-w-0"><div className="text-sm truncate">{c.name}</div><div className="text-[11px] text-fg-subtle">{c.id}</div></div><button onClick={()=>openEdit(c)} className="text-xs text-fg-muted hover:text-fg px-2 py-1.5 rounded-xl hover:bg-hover">Edit</button><button onClick={()=>{setDeleteTarget(c);setMoveTo(categories.find(x=>x.id!==c.id)?.id??'')}} className="text-fg-subtle hover:text-red-300 p-2 rounded-xl hover:bg-hover" title="Delete"><Trash2 size={15}/></button></div>)}</div>
+      {(editing || creating) && <div className="p-4 border-t border-line bg-surface/30"><div className="grid sm:grid-cols-[1fr_110px_auto] gap-2 items-end"><label className="text-xs text-fg-muted">Name<input ref={inputRef} value={newName} onChange={e=>setNewName(e.target.value)} placeholder="e.g. Valorant" className="mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line px-3 text-sm outline-none"/></label><label className="text-xs text-fg-muted">Color<input type="color" value={newColor} onChange={e=>setNewColor(e.target.value)} className="mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line p-1"/></label><div className="flex gap-2"><button onClick={()=>{setEditing(null);setCreating(false);setNewName('')}} className="h-8 px-2 rounded-xl text-sm text-fg-muted hover:bg-hover">Cancel</button><button onClick={saveCategory} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium">Save</button></div></div></div>}
     </section>
 
-    <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-[var(--card-bg)] shadow-sm overflow-hidden"><div className="p-5 border-b border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60"><div className="font-medium">Data ownership</div><p className="text-xs text-zinc-300 dark:text-zinc-500 mt-1">Export everything or restore a previous FocusSpace backup.</p></div><div className="p-5 flex flex-wrap gap-3"><button onClick={()=>void exportData()} disabled={busy} className="h-8 px-3 rounded-xl border border-zinc-200/60 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/50 text-sm flex items-center gap-2 hover:bg-zinc-100 dark:bg-zinc-800 disabled:opacity-50"><Download size={15}/> Export JSON</button><label className="h-8 px-3 rounded-xl border border-zinc-200/60 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/50 text-sm flex items-center gap-2 hover:bg-zinc-100 dark:bg-zinc-800 cursor-pointer"><Upload size={15}/> Import JSON<input type="file" accept="application/json,.json" className="hidden" disabled={busy} onChange={e=>{void importData(e.target.files?.[0]);e.currentTarget.value=''}}/></label><button onClick={()=>{storage.remove(DURATIONS_KEY);timer.reloadDurations();toast('Timer durations reset to 25 / 5 / 15.','success')}} className="h-8 px-3 rounded-xl text-sm text-zinc-300 dark:text-zinc-500 hover:text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 flex items-center gap-2"><RefreshCw size={14}/> Reset timer defaults</button></div><div className="px-5 pb-5 space-y-3"><label className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 cursor-pointer w-fit"><input type="checkbox" checked={includeFiles} onChange={e=>setIncludeFiles(e.target.checked)} className="accent-zinc-500"/> Include attached files in the export (they are embedded, so the file gets larger)</label><StorageInfo/></div></section>
+    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden"><div className="p-5 border-b border-line"><div className="font-medium">Data ownership</div><p className="text-xs text-fg-subtle mt-1">Export everything or restore a previous FocusSpace backup.</p></div><div className="p-5 flex flex-wrap gap-3"><button onClick={()=>void exportData()} disabled={busy} className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-sm flex items-center gap-2 hover:bg-hover disabled:opacity-50"><Download size={15}/> Export JSON</button><label className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-sm flex items-center gap-2 hover:bg-hover cursor-pointer"><Upload size={15}/> Import JSON<input type="file" accept="application/json,.json" className="hidden" disabled={busy} onChange={e=>{void importData(e.target.files?.[0]);e.currentTarget.value=''}}/></label><button onClick={()=>{storage.remove(DURATIONS_KEY);timer.reloadDurations();toast('Timer durations reset to 25 / 5 / 15.','success')}} className="h-8 px-3 rounded-xl text-sm text-fg-subtle hover:text-fg flex items-center gap-2"><RefreshCw size={14}/> Reset timer defaults</button></div><div className="px-5 pb-5 space-y-3"><label className="flex items-center gap-2 text-xs text-fg-muted cursor-pointer w-fit"><input type="checkbox" checked={includeFiles} onChange={e=>setIncludeFiles(e.target.checked)} className="accent-accent"/> Include attached files in the export (they are embedded, so the file gets larger)</label><StorageInfo/></div></section>
 
     <IcsExportCard />
     <HabitsCard />
       <GoalsCard />
 
-    <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-[var(--card-bg)] shadow-sm overflow-hidden">
-      <div className="p-5 border-b border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60"><div className="flex items-center gap-2 font-medium"><Keyboard size={16}/> Keyboard shortcuts</div><p className="text-xs text-zinc-300 dark:text-zinc-500 mt-1">Available from any view. Use ⌘ instead of Ctrl on a Mac.</p></div>
-      <dl className="p-5 grid sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">{[['Ctrl K','Search tasks and run commands'],['Ctrl N','Quick add a task'],['Space','Start or pause the timer'],['Esc','Close a dialog']].map(([keys,what])=><div key={keys} className="flex items-center justify-between gap-4"><dt className="text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{what}</dt><dd><kbd className="text-[11px] border border-zinc-200/60 dark:border-zinc-800/60 rounded px-1.5 py-0.5 text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">{keys}</kbd></dd></div>)}</dl>
+    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
+      <div className="p-5 border-b border-line"><div className="flex items-center gap-2 font-medium"><Keyboard size={16}/> Keyboard shortcuts</div><p className="text-xs text-fg-subtle mt-1">Available from any view. Use ⌘ instead of Ctrl on a Mac.</p></div>
+      <dl className="p-5 grid sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">{[['Ctrl K','Search tasks and run commands'],['Ctrl N','Quick add a task'],['Space','Start or pause the timer'],['Esc','Close a dialog']].map(([keys,what])=><div key={keys} className="flex items-center justify-between gap-4"><dt className="text-fg-muted">{what}</dt><dd><kbd className="text-[11px] border border-line rounded px-1.5 py-0.5 text-fg-soft">{keys}</kbd></dd></div>)}</dl>
     </section>
 
-    {deleteTarget && <div className="fade-in fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4" onMouseDown={()=>setDeleteTarget(null)}><div role="dialog" aria-modal="true" aria-label={`Delete ${deleteTarget.name}`} onMouseDown={e=>e.stopPropagation()} className="pop-in w-full max-w-md rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60 bg-white shadow-2xl p-5"><div className="flex items-start justify-between"><div><h2 className="font-semibold">Delete {deleteTarget.name}?</h2><p className="text-xs text-zinc-300 dark:text-zinc-500 mt-1">Tasks and pages in this category must be moved before it is deleted.</p></div><button onClick={()=>setDeleteTarget(null)}><X size={17} className="text-zinc-300 dark:text-zinc-500"/></button></div><label className="block text-xs text-zinc-400 dark:text-zinc-500 mt-5">Move tasks and pages to<select value={moveTo} onChange={e=>setMoveTo(e.target.value)} className="mt-1 w-full h-10 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 px-3 text-sm">{categories.filter(c=>c.id!==deleteTarget.id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><div className="flex justify-end gap-2 mt-5"><button onClick={()=>setDeleteTarget(null)} className="h-8 px-3 rounded-xl text-sm text-zinc-400 dark:text-zinc-500">Cancel</button><button disabled={!moveTo||busy} onClick={()=>void removeCategory()} className="h-8 px-3 rounded-xl bg-red-400 text-white text-sm font-medium disabled:opacity-40">Move & delete</button></div></div></div>}
+    {deleteTarget && <div className="fade-in fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4" onMouseDown={()=>setDeleteTarget(null)}><div role="dialog" aria-modal="true" aria-label={`Delete ${deleteTarget.name}`} onMouseDown={e=>e.stopPropagation()} className="pop-in w-full max-w-md rounded-2xl border border-line bg-surface shadow-2xl p-5"><div className="flex items-start justify-between"><div><h2 className="font-semibold">Delete {deleteTarget.name}?</h2><p className="text-xs text-fg-subtle mt-1">Tasks and pages in this category must be moved before it is deleted.</p></div><button onClick={()=>setDeleteTarget(null)}><X size={17} className="text-fg-subtle"/></button></div><label className="block text-xs text-fg-muted mt-5">Move tasks and pages to<select value={moveTo} onChange={e=>setMoveTo(e.target.value)} className="mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line px-3 text-sm">{categories.filter(c=>c.id!==deleteTarget.id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><div className="flex justify-end gap-2 mt-5"><button onClick={()=>setDeleteTarget(null)} className="h-8 px-3 rounded-xl text-sm text-fg-muted">Cancel</button><button disabled={!moveTo||busy} onClick={()=>void removeCategory()} className="h-8 px-3 rounded-xl bg-red-400 text-white text-sm font-medium disabled:opacity-40">Move & delete</button></div></div></div>}
   </div>;
 }
 
@@ -190,7 +190,7 @@ function StorageInfo() {
   const count = files?.length ?? 0;
   const bytes = (files ?? []).reduce((sum, f) => sum + f.size, 0);
   return (
-    <p className="text-xs text-zinc-300 dark:text-zinc-500">
+    <p className="text-xs text-fg-subtle">
       {count ? `${count} attached ${count === 1 ? 'file' : 'files'} · ${formatBytes(bytes)}` : 'No attached files'}
       {estimate ? ` · this site uses ${formatBytes(estimate.usage)} of roughly ${formatBytes(estimate.quota)} available in this browser` : ''}
     </p>
@@ -236,12 +236,12 @@ function IcsExportCard() {
   };
 
   return (
-    <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-[var(--card-bg)] shadow-sm overflow-hidden">
-      <div className="p-5 border-b border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60"><div className="flex items-center gap-2 font-medium"><Calendar size={16} /> Calendar export</div><p className="text-xs text-zinc-300 dark:text-zinc-500 mt-1">Download a .ics file of tasks that have a due date and time, to import into Google Calendar, Apple Calendar or Outlook.</p></div>
+    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
+      <div className="p-5 border-b border-line"><div className="flex items-center gap-2 font-medium"><Calendar size={16} /> Calendar export</div><p className="text-xs text-fg-subtle mt-1">Download a .ics file of tasks that have a due date and time, to import into Google Calendar, Apple Calendar or Outlook.</p></div>
       <div className="p-5 flex flex-wrap items-center gap-3">
-        <button onClick={download} disabled={!tasks} className="h-8 px-3 rounded-xl border border-zinc-200/60 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/50 text-sm flex items-center gap-2 hover:bg-zinc-100 dark:bg-zinc-800 disabled:opacity-50"><Download size={15} /> Export .ics{tasks ? ` (${count})` : ''}</button>
-        <label className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 cursor-pointer">
-          <input type="checkbox" checked={includeDone} onChange={e => setIncludeDone(e.target.checked)} className="accent-zinc-500" /> Include completed tasks
+        <button onClick={download} disabled={!tasks} className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-sm flex items-center gap-2 hover:bg-hover disabled:opacity-50"><Download size={15} /> Export .ics{tasks ? ` (${count})` : ''}</button>
+        <label className="flex items-center gap-2 text-xs text-fg-muted cursor-pointer">
+          <input type="checkbox" checked={includeDone} onChange={e => setIncludeDone(e.target.checked)} className="accent-accent" /> Include completed tasks
         </label>
       </div>
     </section>
@@ -268,47 +268,47 @@ function HabitsCard() {
   };
 
   return (
-    <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-[var(--card-bg)] shadow-sm overflow-hidden">
-      <div className="p-5 border-b border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 flex items-center justify-between">
-        <div><div className="font-medium">Habits</div><p className="text-xs text-zinc-300 dark:text-zinc-500 mt-1">Active habits show up on Today as one-tap check-ins.</p></div>
-        <button onClick={() => { setCreating(true); setName(''); }} className="h-8 px-3 rounded-xl bg-[var(--accent)] text-[#121214] text-sm font-medium flex items-center gap-1.5"><Plus size={15} /> Add habit</button>
+    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
+      <div className="p-5 border-b border-line flex items-center justify-between">
+        <div><div className="font-medium">Habits</div><p className="text-xs text-fg-subtle mt-1">Active habits show up on Today as one-tap check-ins.</p></div>
+        <button onClick={() => { setCreating(true); setName(''); }} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium flex items-center gap-1.5"><Plus size={15} /> Add habit</button>
       </div>
       <div className="p-4 space-y-2">
-        {habits.length === 0 && !creating && <p className="text-sm text-zinc-300 dark:text-zinc-500 px-1 py-2">No habits yet. Add one to start tracking daily streaks.</p>}
+        {habits.length === 0 && !creating && <p className="text-sm text-fg-subtle px-1 py-2">No habits yet. Add one to start tracking daily streaks.</p>}
         {habits.map(h => {
           const streak = computeStreaks(h.completions, today).current;
           const editingThis = editingId === h.id;
           return (
-            <div key={h.id} className={`flex items-center gap-3 rounded-xl border p-3 ${h.active ? 'border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-white/40' : 'border-zinc-50 bg-white/20 opacity-60'}`}>
+            <div key={h.id} className={`flex items-center gap-3 rounded-xl border p-3 ${h.active ? 'border-line bg-surface/40' : 'border-line bg-surface/20 opacity-60'}`}>
               <span className="size-3 rounded-full shrink-0" style={{ background: h.color }} />
               {editingThis ? (
-                <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') void saveEdit(); if (e.key === 'Escape') setEditingId(null); }} className="flex-1 min-w-0 h-8 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60 px-2 text-sm outline-none" />
+                <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') void saveEdit(); if (e.key === 'Escape') setEditingId(null); }} className="flex-1 min-w-0 h-8 rounded-xl bg-surface-2 border border-line px-2 text-sm outline-none" />
               ) : (
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm truncate">{h.name}{!h.active && <span className="text-zinc-300 dark:text-zinc-500"> · archived</span>}</div>
-                  {streak > 0 && <div className="text-[11px] text-zinc-300 dark:text-zinc-500 flex items-center gap-1"><Flame size={11} />{streak}-day streak</div>}
+                  <div className="text-sm truncate">{h.name}{!h.active && <span className="text-fg-subtle"> · archived</span>}</div>
+                  {streak > 0 && <div className="text-[11px] text-fg-subtle flex items-center gap-1"><Flame size={11} />{streak}-day streak</div>}
                 </div>
               )}
               {editingThis ? (
-                <button onClick={() => void saveEdit()} className="text-xs text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 hover:text-white px-2 py-1.5 rounded-xl hover:bg-zinc-100 dark:bg-zinc-800"><Check size={14} /></button>
+                <button onClick={() => void saveEdit()} className="text-xs text-fg-soft hover:text-fg px-2 py-1.5 rounded-xl hover:bg-hover"><Check size={14} /></button>
               ) : (
-                <button onClick={() => startEdit(h)} aria-label={`Rename ${h.name}`} className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:text-zinc-200 dark:text-zinc-600 p-2 rounded-xl hover:bg-zinc-50 dark:bg-zinc-900/50"><Pencil size={14} /></button>
+                <button onClick={() => startEdit(h)} aria-label={`Rename ${h.name}`} className="text-fg-muted hover:text-fg p-2 rounded-xl hover:bg-hover"><Pencil size={14} /></button>
               )}
-              <button onClick={() => void updateHabit(h.id, { active: !h.active })} className="text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:text-zinc-200 dark:text-zinc-600 px-2 py-1.5 rounded-xl hover:bg-zinc-100 dark:bg-zinc-800">{h.active ? 'Archive' : 'Restore'}</button>
-              <button onClick={() => void deleteHabit(h.id)} aria-label={`Delete ${h.name}`} className="text-zinc-300 dark:text-zinc-500 hover:text-red-300 p-2 rounded-xl hover:bg-zinc-50 dark:bg-zinc-900/50" title="Delete"><Trash2 size={15} /></button>
+              <button onClick={() => void updateHabit(h.id, { active: !h.active })} className="text-xs text-fg-muted hover:text-fg px-2 py-1.5 rounded-xl hover:bg-hover">{h.active ? 'Archive' : 'Restore'}</button>
+              <button onClick={() => void deleteHabit(h.id)} aria-label={`Delete ${h.name}`} className="text-fg-subtle hover:text-red-300 p-2 rounded-xl hover:bg-hover" title="Delete"><Trash2 size={15} /></button>
             </div>
           );
         })}
       </div>
       {creating && (
-        <div className="p-4 border-t border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-white/30">
+        <div className="p-4 border-t border-line bg-surface/30">
           <div className="flex gap-2">
-            <input autoFocus value={name} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') void create(); }} placeholder="e.g. Read 20 minutes" className="flex-1 h-10 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 px-3 text-sm outline-none" />
+            <input autoFocus value={name} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') void create(); }} placeholder="e.g. Read 20 minutes" className="flex-1 h-10 rounded-lg bg-surface-2 border border-line px-3 text-sm outline-none" />
             <div className="flex gap-1">
               {HABIT_COLORS.slice(0, 5).map(c => <span key={c} className="size-6 rounded-full self-center" style={{ background: c }} />)}
             </div>
-            <button onClick={() => setCreating(false)} className="h-8 px-2 rounded-xl text-sm text-zinc-400 dark:text-zinc-500 hover:bg-zinc-50 dark:bg-zinc-900/50">Cancel</button>
-            <button onClick={() => void create()} className="h-8 px-3 rounded-xl bg-[var(--accent)] text-[#121214] text-sm font-medium">Save</button>
+            <button onClick={() => setCreating(false)} className="h-8 px-2 rounded-xl text-sm text-fg-muted hover:bg-hover">Cancel</button>
+            <button onClick={() => void create()} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium">Save</button>
           </div>
         </div>
       )}
@@ -350,24 +350,24 @@ function GoalsCard() {
   };
 
   return (
-    <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-[var(--card-bg)] shadow-sm overflow-hidden">
-      <div className="p-5 border-b border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 flex items-center justify-between">
+    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
+      <div className="p-5 border-b border-line flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 font-medium"><Target size={16}/> Goals</div>
-          <p className="text-xs text-zinc-300 dark:text-zinc-500 mt-1">Track larger milestones and measurable targets.</p>
+          <p className="text-xs text-fg-subtle mt-1">Track larger milestones and measurable targets.</p>
         </div>
-        <button onClick={() => setCreating(true)} className="h-8 px-3 rounded-xl bg-[var(--accent)] text-[#121214] text-sm font-medium flex items-center gap-1.5 hover:bg-[#d97706]"><Plus size={15} /> Add goal</button>
+        <button onClick={() => setCreating(true)} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium flex items-center gap-1.5 hover:bg-accent-hover"><Plus size={15} /> Add goal</button>
       </div>
       <div className="p-4 space-y-2">
-        {goals.length === 0 && !creating && <p className="text-sm text-zinc-300 dark:text-zinc-500 px-1 py-2">No goals yet. Add a big milestone to track.</p>}
+        {goals.length === 0 && !creating && <p className="text-sm text-fg-subtle px-1 py-2">No goals yet. Add a big milestone to track.</p>}
         {goals.map(g => {
           const pct = Math.min(100, Math.max(0, (g.currentValue / g.targetValue) * 100));
           return (
-            <div key={g.id} className="rounded-2xl border border-black/5 dark:border-white/5 bg-zinc-50 dark:bg-zinc-900/50 p-4">
+            <div key={g.id} className="rounded-2xl border border-line bg-surface p-4 shadow-card">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate text-zinc-800 dark:text-zinc-200 dark:text-zinc-200 dark:text-zinc-600">{g.title}</div>
-                  <div className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{g.currentValue} / {g.targetValue} {g.metricLabel}{g.deadline ? ` · Target: ${g.deadline}` : ''}</div>
+                  <div className="font-medium text-sm truncate text-fg">{g.title}</div>
+                  <div className="text-xs text-fg-muted mt-0.5">{g.currentValue} / {g.targetValue} {g.metricLabel}{g.deadline ? ` · Target: ${g.deadline}` : ''}</div>
                 </div>
                 <div className="flex gap-1">
                   <button onClick={() => {
@@ -377,39 +377,39 @@ function GoalsCard() {
                     if (!isNaN(next)) {
                       db.goals.update(g.id, { currentValue: next, updatedAt: new Date().toISOString() });
                     }
-                  }} className="text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:text-zinc-200 dark:text-zinc-600 px-2 py-1.5 rounded-xl hover:bg-zinc-100 dark:bg-zinc-800">Update</button>
-                  <button onClick={() => deleteGoal(g.id)} className="text-zinc-300 dark:text-zinc-500 hover:text-red-300 p-2 rounded-xl hover:bg-zinc-50 dark:bg-zinc-900/50" title="Delete"><Trash2 size={15} /></button>
+                  }} className="text-xs text-fg-muted hover:text-fg px-2 py-1.5 rounded-xl hover:bg-hover">Update</button>
+                  <button onClick={() => deleteGoal(g.id)} className="text-fg-subtle hover:text-red-300 p-2 rounded-xl hover:bg-hover" title="Delete"><Trash2 size={15} /></button>
                 </div>
               </div>
               <div className="mt-3 h-1.5 rounded-full bg-[var(--ring-track)] overflow-hidden">
-                <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
+                <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
               </div>
             </div>
           );
         })}
         {creating && (
-          <div className="rounded-xl border border-zinc-200/60 dark:border-zinc-800/60 bg-white p-4 shadow-sm space-y-3">
+          <div className="rounded-xl border border-line bg-surface p-4 shadow-card space-y-3">
             <div>
-              <label className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block mb-1">Goal title</label>
-              <input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Run a marathon" className="w-full h-8 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60 px-2 text-sm outline-none" />
+              <label className="text-[11px] font-medium text-fg-muted uppercase tracking-widest block mb-1">Goal title</label>
+              <input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Run a marathon" className="w-full h-8 rounded-xl bg-surface-2 border border-line px-2 text-sm outline-none" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block mb-1">Target value</label>
-                <input type="number" min="1" value={targetValue} onChange={e => setTargetValue(e.target.value)} className="w-full h-8 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60 px-2 text-sm outline-none" />
+                <label className="text-[11px] font-medium text-fg-muted uppercase tracking-widest block mb-1">Target value</label>
+                <input type="number" min="1" value={targetValue} onChange={e => setTargetValue(e.target.value)} className="w-full h-8 rounded-xl bg-surface-2 border border-line px-2 text-sm outline-none" />
               </div>
               <div>
-                <label className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block mb-1">Metric label</label>
-                <input value={metricLabel} onChange={e => setMetricLabel(e.target.value)} placeholder="e.g. km, books, $" className="w-full h-8 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60 px-2 text-sm outline-none" />
+                <label className="text-[11px] font-medium text-fg-muted uppercase tracking-widest block mb-1">Metric label</label>
+                <input value={metricLabel} onChange={e => setMetricLabel(e.target.value)} placeholder="e.g. km, books, $" className="w-full h-8 rounded-xl bg-surface-2 border border-line px-2 text-sm outline-none" />
               </div>
             </div>
             <div>
-              <label className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block mb-1">Deadline (Optional)</label>
-              <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} className="w-full h-8 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60 px-2 text-sm outline-none text-zinc-600 dark:text-zinc-400 dark:text-zinc-300 dark:text-zinc-500" />
+              <label className="text-[11px] font-medium text-fg-muted uppercase tracking-widest block mb-1">Deadline (Optional)</label>
+              <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} className="w-full h-8 rounded-xl bg-surface-2 border border-line px-2 text-sm outline-none text-fg-soft" />
             </div>
             <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => setCreating(false)} className="h-8 px-3 rounded-xl text-sm text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 hover:bg-zinc-50 dark:bg-zinc-900/50">Cancel</button>
-              <button onClick={create} disabled={!title.trim() || !metricLabel.trim()} className="h-8 px-3 rounded-xl bg-[var(--accent)] text-[#121214] text-sm font-medium hover:bg-[#d97706] disabled:opacity-40">Save goal</button>
+              <button onClick={() => setCreating(false)} className="h-8 px-3 rounded-xl text-sm text-fg-muted hover:bg-hover">Cancel</button>
+              <button onClick={create} disabled={!title.trim() || !metricLabel.trim()} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium hover:bg-accent-hover disabled:opacity-40">Save goal</button>
             </div>
           </div>
         )}

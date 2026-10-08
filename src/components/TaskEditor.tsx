@@ -13,7 +13,7 @@ import { ConfirmDialog } from './ui';
 
 const PRIORITIES: Priority[] = ['Low', 'Medium', 'High', 'Urgent'];
 const STATUSES: { id: Status; label: string }[] = [{ id: 'To Do', label: 'To do' }, { id: 'In Progress', label: 'In progress' }, { id: 'Submitted/Done', label: 'Done' }];
-const field = 'mt-1 w-full h-10 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 px-3 text-sm text-zinc-700 dark:text-zinc-200 dark:text-zinc-600 outline-none';
+const field = 'mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line px-3 text-sm text-fg-soft outline-none';
 
 interface Draft {
   title: string; categoryId: string; projectTag: string; priority: Priority; status: Status;
@@ -128,72 +128,72 @@ function Panel({ task, categories }: { task: Task; categories: Category[] }) {
         onSubmit={save}
         onMouseDown={e => e.stopPropagation()}
         role="dialog" aria-modal="true" aria-labelledby="task-editor-title"
-        className="slide-in w-full sm:w-[480px] h-full bg-white border-l border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 flex flex-col shadow-2xl"
+        className="slide-in w-full sm:w-[480px] h-full bg-surface border-l border-line flex flex-col shadow-2xl"
       >
-        <div className="h-16 shrink-0 px-5 border-b border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 flex items-center justify-between">
+        <div className="h-16 shrink-0 px-5 border-b border-line flex items-center justify-between">
           <h2 id="task-editor-title" className="font-semibold">Edit task</h2>
-          <button type="button" onClick={requestClose} aria-label="Close editor" className="size-9 grid place-items-center rounded-lg text-zinc-400 dark:text-zinc-500 hover:text-white hover:bg-zinc-50 dark:bg-zinc-900/50"><X size={18} /></button>
+          <button type="button" onClick={requestClose} aria-label="Close editor" className="size-9 grid place-items-center rounded-lg text-fg-muted hover:text-fg hover:bg-hover"><X size={18} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
           <div>
             <input
               autoFocus value={draft.title} onChange={e => set('title', e.target.value)} placeholder="Task title" aria-label="Title" aria-invalid={!valid}
-              className={`w-full h-12 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border px-4 text-base outline-none ${valid ? 'border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60' : 'border-zinc-400/60'}`}
+              className={`w-full h-12 rounded-xl bg-surface-2 border px-4 text-base outline-none ${valid ? 'border-line' : 'border-line-strong'}`}
             />
-            {!valid && <p className="text-xs text-zinc-600 dark:text-zinc-300 dark:text-zinc-500 mt-1.5">A task needs a title.</p>}
+            {!valid && <p className="text-xs text-fg-soft mt-1.5">A task needs a title.</p>}
           </div>
 
-          <div className="flex gap-1 p-1 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 w-fit" role="group" aria-label="Status">
+          <div className="flex gap-1 p-1 rounded-lg bg-surface-2 border border-line w-fit" role="group" aria-label="Status">
             {STATUSES.map(s => (
-              <button key={s.id} type="button" onClick={() => set('status', s.id)} aria-pressed={draft.status === s.id} className={`px-3 py-1.5 rounded-xl text-xs transition-colors ${draft.status === s.id ? 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900 dark:text-zinc-100' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:text-zinc-200 dark:text-zinc-600'}`}>{s.label}</button>
+              <button key={s.id} type="button" onClick={() => set('status', s.id)} aria-pressed={draft.status === s.id} className={`px-3 py-1.5 rounded-xl text-xs transition-colors ${draft.status === s.id ? 'bg-inv text-on-inv' : 'text-fg-muted hover:text-fg'}`}>{s.label}</button>
             ))}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <label className="text-xs text-zinc-400 dark:text-zinc-500">Category
+            <label className="text-xs text-fg-muted">Category
               <select value={draft.categoryId} onChange={e => set('categoryId', e.target.value)} className={field}>
                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </label>
-            <label className="text-xs text-zinc-400 dark:text-zinc-500">Priority
+            <label className="text-xs text-fg-muted">Priority
               <select value={draft.priority} onChange={e => set('priority', e.target.value as Priority)} className={field}>
                 {PRIORITIES.map(p => <option key={p}>{p}</option>)}
               </select>
             </label>
-            <label className="text-xs text-zinc-400 dark:text-zinc-500">Due date
+            <label className="text-xs text-fg-muted">Due date
               <input type="date" value={draft.dueDate} onChange={e => set('dueDate', e.target.value)} className={field} />
             </label>
-            <label className="text-xs text-zinc-400 dark:text-zinc-500">Time
+            <label className="text-xs text-fg-muted">Time
               <input type="time" value={draft.dueTime} onChange={e => set('dueTime', e.target.value)} disabled={!draft.dueDate} className={`${field} disabled:opacity-40`} />
             </label>
-            <label className="text-xs text-zinc-400 dark:text-zinc-500">Estimate (minutes)
+            <label className="text-xs text-fg-muted">Estimate (minutes)
               <input type="number" min={5} max={1440} step={5} value={draft.estimate} onChange={e => set('estimate', e.target.value)} className={field} />
             </label>
-            <label className="text-xs text-zinc-400 dark:text-zinc-500">Project tag
+            <label className="text-xs text-fg-muted">Project tag
               <input list="task-editor-tags" value={draft.projectTag} onChange={e => set('projectTag', e.target.value)} placeholder="e.g. CS101" className={field} />
               <datalist id="task-editor-tags">{tagOptions.map(tag => <option key={tag} value={tag} />)}</datalist>
             </label>
-            <label className="text-xs text-zinc-400 dark:text-zinc-500 col-span-2">Repeat
+            <label className="text-xs text-fg-muted col-span-2">Repeat
               <select value={draft.dueDate ? draft.repeat : 'none'} onChange={e => set('repeat', e.target.value as RepeatPreset)} disabled={!draft.dueDate} className={`${field} disabled:opacity-40`}>
                 {REPEAT_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
               </select>
             </label>
           </div>
-          {!draft.dueDate && <p className="text-xs text-zinc-300 dark:text-zinc-500 -mt-2">Without a due date the task stays out of Today and sits in the calendar's unscheduled list, and it can't repeat.</p>}
-          {draft.dueDate && draft.repeat !== 'none' && <p className="text-xs text-zinc-300 dark:text-zinc-500 -mt-2">Completing this task creates the next occurrence automatically.</p>}
+          {!draft.dueDate && <p className="text-xs text-fg-subtle -mt-2">Without a due date the task stays out of Today and sits in the calendar's unscheduled list, and it can't repeat.</p>}
+          {draft.dueDate && draft.repeat !== 'none' && <p className="text-xs text-fg-subtle -mt-2">Completing this task creates the next occurrence automatically.</p>}
 
           <section aria-labelledby="subtasks-heading">
             <div className="flex items-center justify-between mb-2">
               <h3 id="subtasks-heading" className="text-sm font-medium">Subtasks</h3>
-              {totalSubtasks > 0 && <span className="text-xs text-zinc-300 dark:text-zinc-500 tabular-nums">{doneSubtasks}/{totalSubtasks} done</span>}
+              {totalSubtasks > 0 && <span className="text-xs text-fg-subtle tabular-nums">{doneSubtasks}/{totalSubtasks} done</span>}
             </div>
             <div className="space-y-1.5">
               {draft.subtasks.map(s => (
                 <div key={s.id} className="flex items-center gap-2 group">
-                  <button type="button" onClick={() => patchSubtask(s.id, { completed: !s.completed })} aria-label={s.completed ? 'Mark subtask as not done' : 'Mark subtask as done'} aria-pressed={s.completed} className={`size-4 shrink-0 rounded border grid place-items-center text-[10px] leading-none ${s.completed ? 'bg-zinc-600 border-zinc-600 text-white' : 'border-zinc-300 hover:border-zinc-500'}`}>{s.completed ? '✓' : ''}</button>
-                  <input value={s.title} onChange={e => patchSubtask(s.id, { title: e.target.value })} aria-label="Subtask title" className={`flex-1 min-w-0 h-9 rounded-xl bg-transparent border border-transparent hover:border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 focus:border-zinc-300 px-2 text-sm outline-none ${s.completed ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-700 dark:text-zinc-200 dark:text-zinc-600'}`} />
-                  <button type="button" onClick={() => removeSubtask(s.id)} aria-label="Remove subtask" className="size-8 grid place-items-center rounded-xl text-zinc-300 dark:text-zinc-500 hover:text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100"><X size={14} /></button>
+                  <button type="button" onClick={() => patchSubtask(s.id, { completed: !s.completed })} aria-label={s.completed ? 'Mark subtask as not done' : 'Mark subtask as done'} aria-pressed={s.completed} className={`size-4 shrink-0 rounded border grid place-items-center text-[10px] leading-none ${s.completed ? 'bg-accent border-accent text-accent-fg' : 'border-line-strong hover:border-fg-muted'}`}>{s.completed ? '✓' : ''}</button>
+                  <input value={s.title} onChange={e => patchSubtask(s.id, { title: e.target.value })} aria-label="Subtask title" className={`flex-1 min-w-0 h-9 rounded-xl bg-transparent border border-transparent hover:border-line focus:border-accent px-2 text-sm outline-none ${s.completed ? 'line-through text-fg-muted' : 'text-fg-soft'}`} />
+                  <button type="button" onClick={() => removeSubtask(s.id)} aria-label="Remove subtask" className="size-8 grid place-items-center rounded-xl text-fg-subtle hover:text-fg-soft md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100"><X size={14} /></button>
                 </div>
               ))}
             </div>
@@ -202,31 +202,31 @@ function Panel({ task, categories }: { task: Task; categories: Category[] }) {
                 value={newSubtask} onChange={e => setNewSubtask(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); addSubtask(); } }}
                 placeholder="Add a subtask and press Enter" aria-label="New subtask"
-                className="flex-1 min-w-0 h-10 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 px-3 text-sm outline-none"
+                className="flex-1 min-w-0 h-10 rounded-lg bg-surface-2 border border-line px-3 text-sm outline-none"
               />
-              <button type="button" onClick={addSubtask} disabled={!newSubtask.trim()} aria-label="Add subtask" className="size-10 grid place-items-center rounded-lg border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 hover:text-white hover:bg-zinc-50 dark:bg-zinc-900/50 disabled:opacity-40"><Plus size={16} /></button>
+              <button type="button" onClick={addSubtask} disabled={!newSubtask.trim()} aria-label="Add subtask" className="size-10 grid place-items-center rounded-lg border border-line text-fg-muted hover:text-fg hover:bg-hover disabled:opacity-40"><Plus size={16} /></button>
             </div>
           </section>
 
           <label className="block">
             <span className="text-sm font-medium">Notes</span>
-            <textarea value={draft.notes} onChange={e => set('notes', e.target.value)} rows={6} placeholder="Context, links, what done looks like…" className="mt-2 w-full rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 px-3 py-2.5 text-sm leading-relaxed outline-none resize-y min-h-[120px]" />
+            <textarea value={draft.notes} onChange={e => set('notes', e.target.value)} rows={6} placeholder="Context, links, what done looks like…" className="mt-2 w-full rounded-lg bg-surface-2 border border-line px-3 py-2.5 text-sm leading-relaxed outline-none resize-y min-h-[120px]" />
           </label>
 
-          <div className="rounded-xl border border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/50/40 p-4 text-xs text-zinc-400 dark:text-zinc-500 space-y-1.5">
-            <div className="flex justify-between"><span>Focus time logged</span><span className="text-zinc-600 dark:text-zinc-300 dark:text-zinc-500 tabular-nums">{focusMinutes ? `${formatDuration(focusMinutes)} of ${formatDuration(current.estimatedDuration)} estimated` : 'None yet'}</span></div>
+          <div className="rounded-xl border border-line bg-surface p-4 text-xs text-fg-muted space-y-1.5 shadow-card">
+            <div className="flex justify-between"><span>Focus time logged</span><span className="text-fg-soft tabular-nums">{focusMinutes ? `${formatDuration(focusMinutes)} of ${formatDuration(current.estimatedDuration)} estimated` : 'None yet'}</span></div>
             <div className="flex justify-between"><span>Created</span><span>{stamp(task.createdAt)}</span></div>
             <div className="flex justify-between"><span>Last edited</span><span>{stamp(task.updatedAt)}</span></div>
             {task.completedAt && <div className="flex justify-between"><span>Completed</span><span>{stamp(task.completedAt)}</span></div>}
-            <button type="button" onClick={() => { focusOnTask(task); closeTaskEditor(); }} className="mt-2 flex items-center gap-1.5 text-zinc-600 dark:text-zinc-300 dark:text-zinc-500 hover:text-white"><Play size={13} /> Start a focus session on this task</button>
+            <button type="button" onClick={() => { focusOnTask(task); closeTaskEditor(); }} className="mt-2 flex items-center gap-1.5 text-fg-soft hover:text-fg"><Play size={13} /> Start a focus session on this task</button>
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-zinc-200/60 dark:border-zinc-800/60/60 dark:border-zinc-800/60 px-5 py-4 flex items-center justify-between gap-3">
-          <button type="button" onClick={() => { closeTaskEditor(); void deleteTask(task); }} className="h-8 px-2 rounded-xl text-sm text-rose-500 hover:bg-rose-500/10 dark:text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 flex items-center gap-1.5"><Trash2 size={15} /> Delete</button>
+        <div className="shrink-0 border-t border-line px-5 py-4 flex items-center justify-between gap-3">
+          <button type="button" onClick={() => { closeTaskEditor(); void deleteTask(task); }} className="h-8 px-2 rounded-xl text-sm text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 flex items-center gap-1.5"><Trash2 size={15} /> Delete</button>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={requestClose} className="h-8 px-3 rounded-xl text-sm text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 hover:bg-zinc-50 dark:bg-zinc-900/50">Cancel</button>
-            <button type="submit" disabled={!valid || !dirty || saving} title="Ctrl/⌘ + Enter" className="h-8 px-3 rounded-xl bg-[var(--accent)] text-[#121214] font-medium text-sm hover:bg-[#d97706] disabled:opacity-40">Save</button>
+            <button type="button" onClick={requestClose} className="h-8 px-3 rounded-xl text-sm text-fg-muted hover:bg-hover">Cancel</button>
+            <button type="submit" disabled={!valid || !dirty || saving} title="Ctrl/⌘ + Enter" className="h-8 px-3 rounded-xl bg-accent text-accent-fg font-medium text-sm hover:bg-accent-hover disabled:opacity-40">Save</button>
           </div>
         </div>
       </form>

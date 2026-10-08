@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Pause, Play, RotateCcw, Settings2, TimerReset, X, MoreHorizontal } from 'lucide-react';
+import { Pause, Play, RotateCcw, Settings2, TimerReset, X } from 'lucide-react';
 import { useState } from 'react';
 import { db } from '../db/db';
 import { useToday } from '../lib/hooks';
@@ -43,42 +43,100 @@ export function Pomodoro() {
   };
 
   return (
-    <section className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60 bg-[var(--card-bg)] shadow-sm p-5 relative">
-      <div className="absolute top-4 right-4 text-zinc-400 cursor-pointer hover:text-zinc-600"><MoreHorizontal size={18}/></div>
-      
-      <div className="flex">
-        {/* Left Side */}
-        <div className="flex-1 flex flex-col justify-between">
-          <h2 className="font-semibold text-lg mb-6">Pomodoro Timer</h2>
-          
-          <div className="text-4xl font-bold tracking-tight mb-6 text-zinc-800 dark:text-zinc-100">{formatClock(s.remainingMs)}</div>
-          
-          <div className="flex gap-2">
-            <button onClick={() => timer.toggle()} className="h-8 px-4 rounded-lg bg-[var(--accent)]/30 text-[var(--text-primary)] dark:text-zinc-100 text-sm font-medium flex items-center gap-2">
-              {s.running ? <Pause size={14}/> : <Play size={14}/>} {s.running ? 'Pause' : 'Play'}
-            </button>
-            <button onClick={() => timer.reset()} className="h-8 px-4 rounded-lg border border-zinc-200 dark:border-zinc-700 text-sm text-zinc-600 dark:text-zinc-300 flex items-center gap-2">
-              <RotateCcw size={14} /> Stop
-            </button>
+    <div className="rounded-2xl border border-line bg-surface shadow-card p-5">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="min-w-0">
+          <div className="text-xs uppercase tracking-[.18em] text-fg-muted">Pomodoro</div>
+          <div className="text-sm text-fg-muted mt-1">
+            {taskId ? <>Working on <span className="text-fg-soft">{task?.title ?? s.taskTitle}</span></> : 'Pick “Focus” on a task to attach time to it.'}
           </div>
         </div>
-        
-        {/* Right Side */}
-        <div className="w-[120px] flex flex-col items-center shrink-0 border-l border-zinc-100 dark:border-zinc-800 pl-5">
-           <div className="relative size-20 mb-3">
-              <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                 <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="12" className="text-zinc-100 dark:text-zinc-800" />
-                 <circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent-peach)" strokeWidth="12" strokeDasharray={`${progress * 251} 251`} className="transition-all duration-1000" strokeLinecap="round" />
-              </svg>
-              {/* Inner square */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                 <div className="size-4 rounded-sm bg-[var(--accent)]/50 border border-[var(--accent)]"></div>
-              </div>
-           </div>
-           <div className="text-xs font-medium text-center text-zinc-800 dark:text-zinc-200 whitespace-nowrap">Focus Session #{s.cycle}</div>
-           <div className="text-[10px] text-zinc-500 mt-1 whitespace-nowrap">Status: <span className="text-emerald-600 dark:text-emerald-400 font-medium capitalize">{s.mode}</span></div>
+        <div className="flex items-center gap-1 shrink-0">
+          <button onClick={openCustomize} aria-label="Customize timer durations" aria-expanded={customizing} title="Customize timer durations" className="size-8 rounded-lg grid place-items-center text-fg-muted hover:text-fg hover:bg-hover">
+            <Settings2 size={15} />
+          </button>
+          {taskId && <button onClick={() => timer.setTask(undefined)} className="text-xs text-fg-muted hover:text-fg px-1">Clear</button>}
         </div>
       </div>
-    </section>
+
+      {taskId && estimate > 0 && (
+        <div className="mb-4">
+          <div className="flex justify-between text-[11px] text-fg-muted mb-1">
+            <span>{formatDuration(taskActual)} focused</span>
+            <span>{formatDuration(estimate)} estimated</span>
+          </div>
+          <div className="h-1 bg-surface-2 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full transition-[width] duration-500 ${taskActual > estimate ? 'bg-amber-400' : 'bg-surface-2'}`} style={{ width: `${Math.min(100, (taskActual / estimate) * 100)}%` }} />
+          </div>
+        </div>
+      )}
+
+      {customizing && (
+        <div className="pop-in mb-5 rounded-xl border border-line bg-surface p-4 shadow-card">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="text-sm font-medium text-fg-soft">Timer settings</div>
+              <div className="text-xs text-fg-muted mt-0.5">Durations can be 1–240 minutes. Applying resets the current timer.</div>
+            </div>
+            <button onClick={() => setCustomizing(false)} aria-label="Close timer settings" className="text-fg-muted hover:text-fg"><X size={15} /></button>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {MODES.map(mode => (
+              <label key={mode} className="text-xs text-fg-muted">
+                <span className="block mb-1">{MODE_LABELS[mode]}</span>
+                <div className="flex items-center rounded-lg border border-line bg-surface-2 px-2">
+                  <input type="number" min={1} max={240} value={draft[mode]} onChange={e => setDraft(d => ({ ...d, [mode]: Number(e.target.value) }))} className="w-full bg-transparent py-2 text-sm text-fg-soft outline-none" />
+                  <span className="text-[10px] text-fg-subtle">min</span>
+                </div>
+              </label>
+            ))}
+          </div>
+          <label className="mt-3 flex items-center gap-2 text-xs text-fg-muted cursor-pointer">
+            <input type="checkbox" checked={sound} onChange={e => setSound(e.target.checked)} className="accent-accent" />
+            Play a chime when a timer ends
+          </label>
+          <div className="flex justify-between items-center mt-3">
+            <button onClick={() => setDraft({ ...DEFAULT_DURATIONS })} className="text-xs text-fg-muted hover:text-fg">Restore 25 / 5 / 15</button>
+            <button onClick={apply} className="rounded-lg bg-accent text-accent-fg px-3 py-2 text-xs font-medium hover:bg-accent-hover">Apply</button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-1 p-1 bg-surface rounded-lg mb-5" role="tablist" aria-label="Timer mode">
+        {MODES.map(mode => (
+          <button key={mode} role="tab" aria-selected={s.mode === mode} onClick={() => timer.setMode(mode)} className={`flex-1 py-1.5 rounded-xl text-xs transition-colors ${s.mode === mode ? 'bg-surface-2 text-fg' : 'text-fg-muted hover:text-fg'}`}>
+            {MODE_LABELS[mode]} · {s.durations[mode]}m
+          </button>
+        ))}
+      </div>
+
+      <div className="relative mx-auto size-48 rounded-full grid place-items-center" style={{ background: `conic-gradient(var(--ring-fill) ${progress * 360}deg, var(--ring-track) 0deg)` }}>
+        <div className="size-44 rounded-full bg-surface grid place-items-center">
+          <div className="text-center">
+            <div role="timer" aria-label={`${MODE_LABELS[s.mode]} time remaining`} className="font-mono text-4xl tracking-tight tabular-nums">{formatClock(s.remainingMs)}</div>
+            <div className="text-[10px] uppercase tracking-[.18em] text-fg-muted mt-1">{s.running ? MODE_LABELS[s.mode] : s.startedAt ? 'Paused' : MODE_LABELS[s.mode]}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-center gap-2 mt-5">
+        <button onClick={() => timer.reset()} aria-label="Reset timer" title="Reset" className="size-10 rounded-full border border-line grid place-items-center text-fg-muted hover:text-fg">
+          <RotateCcw size={16} />
+        </button>
+        <button onClick={() => timer.toggle()} aria-label={s.running ? 'Pause timer' : 'Start timer'} title={s.running ? 'Pause (Space)' : 'Start (Space)'} className="size-12 rounded-full bg-accent text-accent-fg grid place-items-center hover:bg-accent-hover">
+          {s.running ? <Pause size={19} /> : <Play size={19} fill="currentColor" />}
+        </button>
+        <button onClick={() => timer.nextMode()} aria-label="Skip to next timer" title="Next timer" className="size-10 rounded-full border border-line grid place-items-center text-fg-muted hover:text-fg">
+          <TimerReset size={16} />
+        </button>
+      </div>
+
+      <div className="mt-5 flex items-center justify-between text-xs text-fg-muted">
+        <div className="flex items-center gap-1.5" title={`${Math.min(s.cycle, SESSIONS_PER_CYCLE)} of ${SESSIONS_PER_CYCLE} sessions before a long break`}>
+          {Array.from({ length: SESSIONS_PER_CYCLE }, (_, i) => <span key={i} className={`size-1.5 rounded-full ${i < s.cycle ? 'dot-on' : 'dot-off'}`} />)}
+        </div>
+        <span>{focusToday > 0 ? `${formatDuration(focusToday)} focused today` : 'No focus time logged today'}</span>
+      </div>
+    </div>
   );
 }
