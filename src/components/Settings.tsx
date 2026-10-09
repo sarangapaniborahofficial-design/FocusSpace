@@ -17,7 +17,6 @@ import type { Category, Habit } from '../types';
 
 const themes = [
   { id: 'dark', name: 'Dark', description: 'zinc workspace with soft contrast' },
-  { id: 'oled', name: 'OLED Black', description: 'Pure black for low-light setups' },
   { id: 'light', name: 'Light', description: 'Bright neutral workspace' },
 ];
 

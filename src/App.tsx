@@ -25,7 +25,7 @@ import type { Page, Task } from './types';
 
 const STATIC_VIEWS = ['home', 'calendar', 'analytics', 'pages', 'settings'];
 const VIEW_TITLES: Record<string, string> = { home: 'Home', calendar: 'Calendar', analytics: 'Analytics', pages: 'Pages', settings: 'Settings' };
-const THEMES = ['dark', 'oled', 'light'];
+const THEMES = ['light', 'dark'];
 const nextTheme = (theme: string) => THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
 
 interface Nav {
@@ -78,7 +78,7 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', theme === 'light' ? '#f2f4f6' : theme === 'oled' ? '#000000' : '#0e1013');
+    if (meta) meta.setAttribute('content', theme === 'light' ? '#f2f4f6' : '#000000');
     document.documentElement.style.colorScheme = theme === 'light' ? 'light' : 'dark';
     storage.set('focusspace-theme', theme);
   }, [theme]);

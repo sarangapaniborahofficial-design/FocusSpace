@@ -27,7 +27,7 @@ export function Sidebar({ collapsed, setCollapsed, active, setActive, categories
         aria-label="Sidebar"
         className={`fixed inset-y-0 left-0 z-50 w-[260px] md:static md:z-auto ${compact ? 'md:w-[60px]' : 'md:w-[260px]'} shrink-0 bg-surface shadow-sm border border-line md:rounded-3xl text-fg-soft transition-[transform,width] duration-200 flex flex-col ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
       >
-        <div className="h-16 flex items-center px-6 pb-6 mb-2">
+        <div className="h-24 flex items-center pl-8 pr-6 pt-8 pb-4 mb-2">
           <button onClick={() => setActive('home')} className="flex items-center gap-3 min-w-0">
             <div className="size-8 rounded-lg bg-accent text-fg grid place-items-center"><Sparkles size={19} /></div>
             {!compact && <div className="text-left"><div className="font-semibold tracking-tight">FocusSpace</div><div className="text-[10px] uppercase tracking-[.18em] text-fg-muted">Local workspace</div></div>}

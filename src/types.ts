@@ -1,6 +1,6 @@
 export type Priority = 'Low' | 'Medium' | 'High' | 'Urgent';
 export type Status = 'To Do' | 'In Progress' | 'Submitted/Done';
-export type Theme = 'dark' | 'light' | 'oled';
+export type Theme = 'light' | 'dark';
 
 export type RecurrenceFreq = 'daily' | 'weekdays' | 'weekly' | 'monthly';
 /** Completing a recurring task creates the next occurrence. `interval` = every N days/weeks/months. */

@@ -3,7 +3,7 @@
 /* Theme switch lives on <html data-theme="light|dark|oled">. Components never use
    `dark:` colour classes any more: they use the semantic roles below, and each theme
    just redefines the role values. */
-@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *, [data-theme=oled], [data-theme=oled] *));
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *, [data-theme=dark], [data-theme=dark] *));
 
 @theme {
   --font-sans: "Geist", system-ui, sans-serif;
@@ -54,8 +54,8 @@
   --c-fg-soft: #39414c;
   --c-fg-muted: #505a67;
   --c-fg-subtle: #5e6877;
-  --c-accent: #a8c9b0;
-  --c-accent-hover: #98bea2;
+  --c-accent: #7ea38b;
+  --c-accent-hover: #70937c;
   --c-accent-soft: #e4f0e7;
   --c-accent-fg: #10241a;
   --c-accent-text: #2c6a43;
@@ -88,7 +88,7 @@
 }
 
 /* ---------- Dark ---------- */
-:root[data-theme="dark"], :root[data-theme="oled"] {
+:root[data-theme="dark"] {
   --c-canvas: #0e1013;
   --c-surface: #171a1f;
   --c-surface-2: #1d2127;
@@ -100,8 +100,8 @@
   --c-fg-soft: #d3d8e0;
   --c-fg-muted: #a8b0bc;
   --c-fg-subtle: #8e97a5;
-  --c-accent: #b6d2be;
-  --c-accent-hover: #c7e0ce;
+  --c-accent: #86b497;
+  --c-accent-hover: #79a68a;
   --c-accent-soft: rgb(182 210 190 / .14);
   --c-accent-fg: #0f1f16;
   --c-accent-text: #a9d3b5;
