@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState, type ReactNode } from 'react';
-import { BarChart3, Clock3, Flame, Target } from 'lucide-react';
+import { BarChart3, Clock3, Flame, Target, Trophy } from 'lucide-react';
 import { db } from '../db/db';
 import {
   RANGE_OPTIONS, habitStats, computeAnalytics, weekProgress,
@@ -20,7 +20,7 @@ const readRange = (): RangeId => {
 const oneDecimal = (n: number) => (Math.round(n * 10) / 10).toString();
 const card = 'rounded-2xl border border-line bg-surface shadow-card';
 
-export function Analytics() {
+export function Analytics({ onNavigate }: { onNavigate?: (view: string) => void } = {}) {
   const today = useToday();
   const tasks = useLiveQuery(() => db.tasks.toArray(), []);
   const categories = useLiveQuery(() => db.categories.toArray(), []);
@@ -57,6 +57,15 @@ export function Analytics() {
           <p className="text-sm text-fg-muted mt-1">What you finished and how long you focused, across every workspace.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {onNavigate && (
+            <button
+              onClick={() => onNavigate('review')}
+              className="h-9 px-3 rounded-lg border border-line bg-surface-2 hover:bg-hover text-sm font-medium text-fg-soft hover:text-fg flex items-center gap-1.5 transition shadow-sm"
+              title="Open Weekly Review & Reflection"
+            >
+              <Trophy size={14} className="text-accent" /> Weekly Review
+            </button>
+          )}
           <div className="flex h-9 rounded-lg border border-line overflow-hidden" role="group" aria-label="Time range">
             {RANGE_OPTIONS.map(o => (
               <button key={o.id} onClick={() => setRange(o.id)} aria-pressed={range === o.id} className={`px-3 text-sm transition-colors ${range === o.id ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]' : 'text-fg-muted hover:bg-surface/5 hover:text-fg'}`}>{o.label}</button>

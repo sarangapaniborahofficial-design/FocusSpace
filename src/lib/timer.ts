@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { db } from '../db/db';
 import type { FocusLog, Task } from '../types';
 import { toast } from './toast';
+import { sendNotification } from './notifications';
 import { formatDuration, storage, uid } from './utils';
 
 /**
@@ -196,6 +197,10 @@ function complete() {
   commit({ ...fresh(state, next), cycle });
   playChime();
   toast(message, 'success', { duration: 6500 });
+  sendNotification('FocusSpace Timer', {
+    body: message,
+    tag: 'focusspace-timer',
+  });
 }
 
 export const timer = {

@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Calendar, Check, Download, Flame, Keyboard, Palette, Pencil, Plus, RefreshCw, Smartphone, Target, Trash2, Upload, X } from 'lucide-react';
+import { Bell, Calendar, Check, Download, Flame, Keyboard, Palette, Pencil, Plus, RefreshCw, Smartphone, Target, Trash2, Upload, X } from 'lucide-react';
+import { isNotificationSupported, getNotificationPermission, requestNotificationPermission, sendNotification } from '../lib/notifications';
 import { useEffect, useRef, useState } from 'react';
 import { db } from '../db/db';
 import { exportBackup, currentReminderState, daysSince, shouldRemindBackup, snoozeBackupReminder } from '../lib/backupExport';
@@ -166,7 +167,8 @@ export function Settings({ theme, setTheme }: { theme: string; setTheme: (theme:
 
     <IcsExportCard />
     <HabitsCard />
-      <GoalsCard />
+    <NotificationsCard />
+    <GoalsCard />
 
     <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
       <div className="p-5 border-b border-line"><div className="flex items-center gap-2 font-medium"><Keyboard size={16}/> Keyboard shortcuts</div><p className="text-xs text-fg-subtle mt-1">Available from any view. Use ⌘ instead of Ctrl on a Mac.</p></div>
@@ -416,3 +418,93 @@ function GoalsCard() {
     </section>
   );
 }
+
+function NotificationsCard() {
+  const supported = isNotificationSupported();
+  const [permission, setPermission] = useState<NotificationPermission>(() => getNotificationPermission());
+  const [notifyOverdue, setNotifyOverdue] = useState<boolean>(() => (storage.get('focusspace-notify-overdue') ?? 'true') === 'true');
+
+  const enable = async () => {
+    const granted = await requestNotificationPermission();
+    setPermission(getNotificationPermission());
+    if (granted) {
+      toast('Notifications enabled!', 'success');
+      sendNotification('FocusSpace Notifications', {
+        body: 'Native notifications are now active for timers and reminders.',
+      });
+    } else {
+      toast('Notification permission was not granted.', 'info');
+    }
+  };
+
+  const testNotif = () => {
+    const n = sendNotification('FocusSpace Test', {
+      body: 'This is a test alert. Your timer alerts will appear like this!',
+    });
+    if (!n) {
+      toast('Please enable notifications first.', 'error');
+    }
+  };
+
+  const toggleOverdue = (checked: boolean) => {
+    setNotifyOverdue(checked);
+    storage.set('focusspace-notify-overdue', checked ? 'true' : 'false');
+  };
+
+  return (
+    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
+      <div className="p-5 border-b border-line flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2 font-medium"><Bell size={16} /> Native Notifications</div>
+          <p className="text-xs text-fg-subtle mt-1">Get alerts when Pomodoro timers finish or when tasks are overdue.</p>
+        </div>
+        {supported && permission !== 'granted' && (
+          <button onClick={enable} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium hover:bg-accent-hover">
+            Enable
+          </button>
+        )}
+      </div>
+      <div className="p-5 space-y-4">
+        {!supported ? (
+          <p className="text-sm text-fg-muted">Native notifications are not supported in this browser.</p>
+        ) : (
+          <>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-fg-soft">Browser permission status:</span>
+              <span className={`px-2 py-0.5 rounded-md text-xs font-medium uppercase tracking-wider ${permission === 'granted' ? 'bg-accent/20 text-accent-text' : permission === 'denied' ? 'bg-red-500/20 text-red-500' : 'bg-surface-3 text-fg-muted'}`}>
+                {permission}
+              </span>
+            </div>
+
+            {permission === 'granted' && (
+              <div className="pt-1 flex flex-wrap gap-4 items-center justify-between">
+                <label className="flex items-center gap-2 text-xs text-fg-muted cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={notifyOverdue}
+                    onChange={e => toggleOverdue(e.target.checked)}
+                    className="accent-accent"
+                  />
+                  Remind me about overdue tasks once per day
+                </label>
+                <button
+                  onClick={testNotif}
+                  className="h-7 px-3 rounded-lg border border-line bg-surface-2 text-xs text-fg-soft hover:bg-hover"
+                >
+                  Send test notification
+                </button>
+              </div>
+            )}
+
+            {permission === 'denied' && (
+              <p className="text-xs text-fg-muted">
+                Notifications are blocked by your browser settings. You can re-enable them in your browser site permissions.
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+

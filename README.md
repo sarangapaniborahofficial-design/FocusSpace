@@ -1,135 +1,120 @@
 # FocusSpace
 
-Local-first productivity hub built with React + Vite, Tailwind CSS, Dexie/IndexedDB, Lucide, and FullCalendar.
-Everything lives in your browser; nothing is sent anywhere.
+A modern, local-first productivity hub and focus workspace built with **React, Vite, Tailwind CSS, Dexie (IndexedDB), and FullCalendar**. 
 
-## Current build
+FocusSpace runs 100% inside your browser. All data stays strictly on your local device—no remote servers, no tracking, zero telemetry, and full offline capability.
 
-- Phase 1: dashboard shell, navigation, themes, quick add/search foundation
-- Phase 2: Dexie-backed tasks, categories, list/kanban, subtasks
-- Phase 3: Today/Focus, habits, task-linked Pomodoro and focus logs
-- Phase 4: FullCalendar month/week/day views and drag/resize time blocking
-- Phase 5: category manager, JSON backup/import, settings, global keyboard actions
-- Phase 6: analytics and polish (below)
-- After Phase 6: task editor (below)
-- Phase 7: daily-driver hardening (done, below)
-- Phase 7.5 (in progress): Pages foundation — rich-text journal, live references (below)
+---
 
-### Phase 6 — analytics
+## ✨ Features & Architecture
 
-The **Analytics** tab (sidebar) shows, for 7 days / 30 days / 12 weeks and for all categories or one:
+### 🍱 Bento Grid UI & Design System
+- **Floating Bento Window:** Floating workspace layout with refined pastel accents and flush sidebar navigation.
+- **Dual High-Contrast Themes:**
+  - **Light Theme:** Clean, crisp daylight palette.
+  - **Dark Theme (Pure Black / OLED):** Ultra-high contrast true-black theme engineered for night sessions and zero glare.
+- **Fluid Micro-Interactions:** Subtle hover states, smooth CSS transitions, and keyboard focus outlines.
 
-- tasks completed (stacked by category), focus time, on-time completion, best habit streak, each compared with the previous period
-- weekly goals with editable targets (tasks, focus hours, habit check-ins), stored in `localStorage` and included in backups
-- focus time per day/week, focus time and completions by category
-- estimated vs actual time for tasks you focused on
-- per-habit streaks, 30-day rate and a 14-day strip
+---
 
-Tasks now record `completedAt` when they move to Done, so completions land on the day they were finished, not the day
-they were last edited. Tasks finished before this change fall back to their last-edit date.
+### 🚀 Phase 4: Advanced Power Features
 
-### Phase 6 — polish and fixes
+#### 1. 🔔 Native Browser Notifications
+- **Pomodoro Session Alerts:** Native browser notifications trigger whenever a focus block or break concludes, even when working in another tab or with the browser minimized.
+- **Daily Overdue Reminders:** Non-intrusive daily notification reminding you if tasks have slipped past their deadlines.
+- **Permission & Test Controls:** Configurable in *Settings → Native Notifications* with one-click test alert dispatch.
 
-- **Timer** lives outside React: it keeps running across views, has a docked mini timer, counts from a wall-clock deadline
-  (no drift in background tabs), shows the countdown in the tab title, moves to the next break automatically
-  (long break after 4 focus sessions), can play a chime, and warns before a reload throws away a running session.
-  Focus time is logged once per session, including partial sessions when you reset, skip or switch task.
-- **Command palette** (Ctrl/⌘ K) now searches tasks and runs navigation/actions with the keyboard.
-- **Tasks**: due dates and overdue state on cards, status control and drag-and-drop between board columns, "hide completed",
-  undo after delete, empty states and loading skeletons.
-- **Responsive**: sidebar becomes a drawer on phones, calendar opens on the day view on narrow screens, toolbars wrap.
-- **Themes**: charts/rings follow the theme; calendar and status colours fixed for the light theme; the header theme
-  switch is now remembered.
-- **Accessibility**: labelled controls, dialog semantics, visible keyboard focus, reduced-motion support, screen-reader
-  tables for charts.
-- **Edge cases fixed**: "today" used the UTC date (wrong before 05:30 in India), deleting the category you're viewing,
-  quick-add remembering a stale category, calendar drops overwriting a task's estimate, first-run seeding under React
-  StrictMode, and backup import now repairs or skips malformed records instead of crashing later.
+#### 2. 🤏 Drag-and-Drop Task Reordering
+- **Custom Sort Order:** Grab any task card in the Tasks list view or Today queue to manually reposition it.
+- **"Sort: Custom Drag Order":** New sorting option that locks in your bespoke sequence.
+- **Atomic Dexie Persistence:** Order indices are saved transactionally to IndexedDB, surviving reloads.
 
-### Task editor
+#### 3. 🏆 Weekly & Monthly Review Dashboard
+- **Flexible Timeframes:** Toggle between **This Week**, **Last Week**, **This Month**, and **Last Month**.
+- **Hero Performance Metrics:** Completed task count, total focus time, session averages, and habit consistency scores.
+- **Accomplishments Showcase:** Categorized feed of finished tasks with priority badges and category color tags.
+- **Category & Habit Breakdown:** Visual progress distributions of where your energy and time went.
+- **Guided Reflection Canvas:** Auto-saved prompts per period:
+  - 🌟 *Wins & Breakthroughs*
+  - 🧗 *Friction & Bottlenecks*
+  - 💡 *Adjustments & Lessons*
+  - 🎯 *Top 3 Upcoming Priorities*
+- **One-Click Export:** Instant copy of your review into a beautifully formatted Markdown report.
 
-Click a task title or its pencil (or use "Edit details" in the calendar dialog, or search for it with Ctrl/⌘ K) to open the
-editor drawer: title, status, category, priority, due date/time, estimate, project tag, subtasks (add, rename, tick, remove)
-and notes. Ctrl/⌘ Enter saves, Escape asks before discarding unsaved edits, and delete can be undone.
+#### 4. 📱 Mobile Touch Gestures
+- **Swipe-to-Complete:** Swiping right reveals an emerald action layer to mark a task as done (or reopen it) with full undo support.
+- **Swipe-to-Delete:** Swiping left reveals a rose action layer to delete the task with an instant undo toast.
+- **Scroll Disambiguation:** Direction vector tracker prevents accidental triggers during normal vertical scrolling.
 
-### Pages
+#### 5. ⚡ AI Smart Scheduling & Plan Optimizer
+- **Local Cognitive-Load Pacing:** Algorithmic schedule builder based on chronobiology and focus momentum:
+  - Slots a ≤15m *Quick Win* first to beat procrastination and establish flow state.
+  - Places intensive *Deep Work* during peak focus hours.
+  - Schedules standard and administrative tasks in the afternoon.
+- **Fixed Anchor Respect:** Fixed-time appointments act as immovable pins; the optimizer slots tasks into gaps and adds decompression buffers after meetings.
+- **Capacity & Overload Guard:** Detects when tasks exceed reasonable working hours and suggests low-priority items to push to tomorrow.
+- **One-Click Time-Blocking:** Option to stamp start times onto all tasks, instantly populating your day in FullCalendar.
 
-See "Phase 7.5 — Pages foundation" below for the current design (this replaced an earlier single-Markdown-note
-version of Pages built during Phase 6/7).
+---
 
-### Phase 7 — daily-driver hardening (done)
+### ⏱️ Core Productivity Suite
 
-- **Today** now answers "what should I do today?" directly: a single "Do this next" suggestion (picks something
-  scheduled for right now, otherwise the most important overdue/due-today task), then Overdue, Due today, Done today
-  and a "Coming up" (next 3 days) section.
-- **Recurring tasks**: set a repeat (daily, weekdays, every week, every 2 weeks, every month) in the task editor.
-  Completing a recurring task creates the next occurrence automatically, correctly across short months and if it was
-  finished late or early. Undoing the completion removes an untouched next occurrence again.
-- **Task duplication**: the copy icon on a task card duplicates it as a fresh "To Do" with unticked subtasks.
-- **Filters, sorting and bulk actions** in the task list: filter by status/priority/due date/tag, sort by date,
-  priority, title or last edited, and a "Select" mode for marking several tasks done, setting their priority, or
-  deleting them together (with undo).
-- **Habit management** (Settings → Habits): add, rename, archive/restore and delete habits — no longer limited to the
-  three seeded ones.
-- **ICS calendar export** (Settings → Calendar export): downloads a standards-compliant `.ics` file of scheduled
-  tasks (those with a due date and time) for Google Calendar, Apple Calendar or Outlook. Optionally include completed
-  tasks.
-- **Backup reminder**: a dismissible banner in Settings once there's real data and it's been a while (or never) since
-  your last export.
+- **Pomodoro Timer Engine:**
+  - Wall-clock deadline driven (`endsAt`), impervious to background tab throttling or laptop sleep.
+  - Docked mini-timer when navigating away from the dashboard.
+  - Auto-logs focus time and flushes partial sessions on reset or task switch.
+- **Task Management (List & Kanban):**
+  - Subtask checklists with live progress indicators.
+  - Recurring tasks with anchor-day clamping (daily, weekdays, weekly, monthly).
+  - Bulk select mode for multi-complete, priority batching, and bulk deletion.
+- **FullCalendar Integration:**
+  - Month, week, and day views with drag-and-drop scheduling.
+- **Habits & Streak Tracking:**
+  - Interactive daily check-ins, multi-day streak calculation, and custom habit colors.
+- **Rich-Text Pages & Chronological Journal:**
+  - Powered by TipTap: formatted notes, live task/habit references, and daily journal entries.
+- **Command Palette (`Ctrl+K` / `⌘K`):**
+  - Instant spotlight search across tasks, pages, commands, and views.
+- **Backup & Restore:**
+  - Full JSON database export/import with embedded file support and standard `.ics` calendar export.
 
-Note: the database schema is still version 2 — recurring tasks and duplication add fields but reuse the existing
-`tasks` table, so no migration is needed. Older backups import cleanly (recurrence is simply absent).
+---
 
-### Phase 7.5 — Pages foundation
+## 🛠️ Tech Stack
 
-Pages moved from a single Markdown note per category to what the roadmap calls a "dashboard + journal":
-a permanent place for a topic, with **true rich-text writing** (via TipTap), **live references** to your
-tasks and habits, and a **chronological journal** underneath.
+- **Framework:** React 19 + TypeScript + Vite
+- **Styling:** Tailwind CSS v4
+- **Database:** Dexie.js (IndexedDB wrapper)
+- **Calendar:** FullCalendar
+- **Rich Text:** TipTap (ProseMirror)
+- **Icons:** Lucide React
+- **PWA:** Vite PWA + Workbox Service Worker
 
-- **Pages are top-level now.** There's a "Pages" item in the sidebar (all pages, across categories), and a
-  category's "Pages" tab is just a filtered view of the same list. A page's category is optional.
-- **Title and description** sit at the top of a page, autosaved as you type.
-- **Related** section: link a page to any task or habit. These are live references, not copies — a linked
-  task shows its real, current status, and a linked habit shows its real streak. Unlinking removes the
-  reference only, never the task or habit itself. If a linked task or habit is deleted, the stale reference
-  is cleaned up automatically.
-- **Journal**: "Write today's entry" starts (or continues) one entry per page per day, written in a real
-  rich-text editor — headings, paragraphs, bulleted/numbered/checklist lists, bold/italic/strikethrough,
-  links. Past entries are read-only by default (click the pencil to reopen one), and checklist items in a
-  read-only entry can still be ticked directly. An entry left completely empty is dropped rather than kept
-  as a blank row.
-- **Files** stay exactly as before: attach, preview, download.
-- **Existing pages were migrated, not discarded.** Each category note from the old format became a page
-  whose Markdown text is now its first journal entry (dated to when it was last edited). The original
-  Markdown is kept as `legacyMarkdown` and shown in a small banner ("this page was converted…") until you
-  confirm the conversion looks right; a "View original text" link is always there if you want to check.
-  This is a **database schema v3 upgrade** — it runs once, automatically, the first time you open the app
-  after updating, and existing data is transformed in place rather than deleted.
-- **Backups**: JSON export/import now include journal entries and page links (backup format v3). Restoring
-  an older (v1/v2) backup still works — it just won't have pages/journal data to restore, which the import
-  confirmation tells you plainly.
+---
 
-**Known limitation, please read:** the rich-text editor is built on TipTap (`@tiptap/react` + friends,
-newly added to `package.json`). Unlike everything else in this app, it could not be installed or run in the
-sandbox this was built in — there's no network access there to fetch the package — so it has **not been
-hands-on tested**. Everything around it (the schema, migration, journal saving, link management, the
-read-only renderer, the Markdown-to-rich-text converter for migrated pages) has full automated test
-coverage and has been run in a real headless browser; the editor itself is written carefully against
-TipTap's documented v2 API, but needs your own first-run check: open a page, write something with a few
-different formats (heading, list, checklist, bold, a link), reload, and confirm it looks right and survives
-a page reload.
+## 💻 Local Development
 
-## Run
+Clone the repository and install dependencies:
 
 ```bash
 npm install
 npm run dev
 ```
 
-`npm run build` type-checks first; `@types/react` and `@types/react-dom` are now listed as dev dependencies for that.
+To create a production build:
 
-## Known backlog
+```bash
+npm run build
+```
 
-- Reordering subtasks; linking a task directly from the task editor (currently only from the page side); images inline in journal entries
-- Timer state is not restored after a page reload
-- Responsive check on a real phone has not been done
+Preview the production build locally:
+
+```bash
+npm run preview
+```
+
+---
+
+## 🔒 Privacy & Data Ownership
+
+FocusSpace stores everything locally in your browser's IndexedDB. Your data never touches any remote servers or third-party cloud services. You can export complete backups at any time via **Settings → Export JSON**.

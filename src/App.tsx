@@ -16,15 +16,17 @@ import { Sidebar } from './components/Sidebar';
 import { TaskEditor } from './components/TaskEditor';
 import { Toaster } from './components/Toaster';
 import { ReloadPrompt } from './components/ReloadPrompt';
+import { Review } from './components/Review';
 import { Today } from './components/Today';
 import { ErrorBoundary } from './components/ui';
 import { openTaskEditor } from './lib/taskEditor';
 import { timer } from './lib/timer';
+import { checkAndNotifyOverdue } from './lib/notifications';
 import { storage } from './lib/utils';
 import type { Page, Task } from './types';
 
-const STATIC_VIEWS = ['home', 'calendar', 'analytics', 'pages', 'settings'];
-const VIEW_TITLES: Record<string, string> = { home: 'Home', calendar: 'Calendar', analytics: 'Analytics', pages: 'Pages', settings: 'Settings' };
+const STATIC_VIEWS = ['home', 'calendar', 'review', 'analytics', 'pages', 'settings'];
+const VIEW_TITLES: Record<string, string> = { home: 'Home', calendar: 'Calendar', review: 'Review & Reflection', analytics: 'Analytics', pages: 'Pages', settings: 'Settings' };
 const THEMES = ['light', 'dark'];
 const nextTheme = (theme: string) => THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
 
@@ -90,6 +92,18 @@ export default function App() {
     if (categoryList && !STATIC_VIEWS.includes(active) && !categoryList.some(c => c.id === active)) go('home');
   }, [categoryList, active, go]);
 
+  // Check for overdue tasks once per session or day
+  useEffect(() => {
+    const run = async () => {
+      const enabled = (storage.get('focusspace-notify-overdue') ?? 'true') === 'true';
+      if (!enabled) return;
+      const today = new Date().toISOString().slice(0, 10);
+      const overdue = await db.tasks.filter(t => t.status !== 'Submitted/Done' && !!t.dueDate && t.dueDate < today).count();
+      void checkAndNotifyOverdue(overdue, today);
+    };
+    void run();
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
@@ -144,7 +158,7 @@ export default function App() {
         <div className="flex-1 overflow-y-auto pb-20">
           <div key={nav.n} className="view-in">
             <ErrorBoundary onReset={goHome}>
-              {active === 'home' ? <Today onQuickAdd={openQuick} />
+              {active === 'home' ? <Today onQuickAdd={openQuick} onNavigate={go} />
                 : isCategory ? (
                   <CategoryView
                     categoryId={active} tab={nav.tab} pageId={nav.pageId} query={nav.query} onQuickAdd={openQuick}
@@ -152,7 +166,8 @@ export default function App() {
                   />
                 )
                 : active === 'calendar' ? <Calendar />
-                : active === 'analytics' ? <Analytics />
+                : active === 'review' ? <Review onNavigate={go} onQuickAdd={openQuick} />
+                : active === 'analytics' ? <Analytics onNavigate={go} />
                 : active === 'pages' ? (
                   nav.pageId ? <PageView pageId={nav.pageId} onBack={() => go('pages')} /> : <PagesList onOpenPage={pageId => go('pages', { pageId })} />
                 )

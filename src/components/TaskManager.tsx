@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } 
 import { db } from '../db/db';
 import { useToday } from '../lib/hooks';
 import { applyFilters, countActiveFilters, NO_FILTERS, sortTasks, type TaskFilters } from '../lib/taskFilters';
-import { bulkComplete, bulkDelete, bulkSetPriority, changeStatus, deleteTask } from '../lib/tasks';
+import { bulkComplete, bulkDelete, bulkSetPriority, changeStatus, deleteTask, reorderTasks } from '../lib/tasks';
 import { focusOnTask } from '../lib/timer';
 import { storage } from '../lib/utils';
 import type { Priority, Status, Task } from '../types';
@@ -22,12 +22,13 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
 
   const [view, setView] = useState<'list' | 'board'>(() => (storage.get(VIEW_KEY) === 'board' ? 'board' : 'list'));
   const [q, setQ] = useState(initialQuery);
-  const [sort, setSort] = useState<'dueDate' | 'priority' | 'title' | 'updated'>('dueDate');
+  const [sort, setSort] = useState<'manual' | 'dueDate' | 'priority' | 'title' | 'updated'>('manual');
   const [filters, setFilters] = useState<TaskFilters>(NO_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [hideDone, setHideDone] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overColumn, setOverColumn] = useState<Status | null>(null);
+  const [overTaskId, setOverTaskId] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const filterPopover = useRef<HTMLDivElement>(null);
@@ -76,6 +77,21 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
     if (task && task.status !== status) void changeStatus(task, status);
     setDragId(null);
     setOverColumn(null);
+  };
+
+  const handleListDrop = async (targetId: string) => {
+    if (!dragId || dragId === targetId) return;
+    const currentIds = listItems.map(t => t.id);
+    const fromIdx = currentIds.indexOf(dragId);
+    const toIdx = currentIds.indexOf(targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const updated = [...currentIds];
+    updated.splice(fromIdx, 1);
+    updated.splice(toIdx, 0, dragId);
+    setSort('manual');
+    await reorderTasks(updated);
+    setDragId(null);
+    setOverTaskId(null);
   };
 
   const emptyAction = (
@@ -131,6 +147,7 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
             <input value={q} onChange={e => setQ(e.target.value)} placeholder="Filter tasks…" aria-label="Filter tasks" className="w-full h-9 rounded-lg bg-surface-2 border border-line pl-9 pr-3 text-sm outline-none focus:border-accent" />
           </div>
           <select value={sort} onChange={e => setSort(e.target.value as typeof sort)} aria-label="Sort tasks" className="h-9 rounded-lg bg-surface-2 border border-line px-3 text-sm text-fg-muted outline-none">
+            <option value="manual">Sort: custom drag order</option>
             <option value="dueDate">Sort: date</option>
             <option value="priority">Sort: priority</option>
             <option value="title">Sort: title</option>
@@ -179,7 +196,40 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
             {q.trim() || activeFilterCount ? noMatches : <EmptyState icon={CheckSquare2} title="All caught up" text="Every task here is done. Show completed tasks to review them, or add something new." action={emptyAction} />}
           </div>
         ) : (
-          <div className="space-y-2">{listItems.map(t => card(t))}</div>
+          <div className="space-y-2">
+            {listItems.map(t => (
+              <div
+                key={t.id}
+                onDragOver={e => {
+                  if (dragId && dragId !== t.id) {
+                    e.preventDefault();
+                    if (overTaskId !== t.id) setOverTaskId(t.id);
+                  }
+                }}
+                onDragLeave={e => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOverTaskId(null);
+                }}
+                onDrop={e => {
+                  e.preventDefault();
+                  void handleListDrop(t.id);
+                }}
+                className={`transition-all rounded-lg ${overTaskId === t.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-surface' : ''}`}
+              >
+                {card(t, {
+                  dragging: dragId === t.id,
+                  onDragStart: e => {
+                    e.dataTransfer.setData('text/plain', t.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                    setDragId(t.id);
+                  },
+                  onDragEnd: () => {
+                    setDragId(null);
+                    setOverTaskId(null);
+                  },
+                })}
+              </div>
+            ))}
+          </div>
         )
       ) : (
         <div className="grid md:grid-cols-3 gap-3">

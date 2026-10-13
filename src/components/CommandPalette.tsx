@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { BarChart3, CalendarDays, CheckSquare2, FolderKanban, Home, Moon, Plus, Search, Settings, Timer, X, FileText, type LucideIcon } from 'lucide-react';
+import { BarChart3, CalendarDays, CheckSquare2, FolderKanban, Home, Moon, Plus, Search, Settings, Timer, Trophy, X, FileText, type LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { db } from '../db/db';
 import { timer } from '../lib/timer';
@@ -42,6 +42,7 @@ export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onO
       { id: 'theme', group: 'Actions', label: 'Switch theme', icon: Moon, run: onCycleTheme },
       { id: 'home', group: 'Go to', label: 'Home / Master', icon: Home, run: () => onNavigate('home') },
       { id: 'calendar', group: 'Go to', label: 'Calendar', icon: CalendarDays, run: () => onNavigate('calendar') },
+      { id: 'review', group: 'Go to', label: 'Weekly Review', icon: Trophy, run: () => onNavigate('review') },
       { id: 'analytics', group: 'Go to', label: 'Analytics', icon: BarChart3, run: () => onNavigate('analytics') },
       { id: 'pages-home', group: 'Go to', label: 'Pages', icon: FileText, run: () => onNavigate('pages') },
       { id: 'settings', group: 'Go to', label: 'Settings', icon: Settings, run: () => onNavigate('settings') },

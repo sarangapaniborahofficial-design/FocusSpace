@@ -97,3 +97,20 @@ export async function bulkDelete(tasks: Task[]) {
   await Promise.all(dangling.map(l => removeLink(l.id)));
   toast(`Deleted ${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'}`, 'info', { action: { label: 'Undo', run: () => { void db.tasks.bulkPut(tasks); } }, duration: 8000 });
 }
+
+/**
+ * Persists a new manual order for an array of tasks.
+ */
+export async function reorderTasks(taskIds: string[]): Promise<void> {
+  const now = new Date().toISOString();
+  await db.transaction('rw', db.tasks, async () => {
+    for (let index = 0; index < taskIds.length; index++) {
+      const id = taskIds[index];
+      const task = await db.tasks.get(id);
+      if (task && task.order !== index) {
+        await db.tasks.put({ ...task, order: index, updatedAt: now });
+      }
+    }
+  });
+}
+

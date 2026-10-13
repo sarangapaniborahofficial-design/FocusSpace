@@ -17,6 +17,8 @@ export interface Task {
   recurrence?: Recurrence;
   /** Id of the next occurrence created when this recurring task was completed. */
   spawnedNextId?: string;
+  /** Custom sort index for manual drag-and-drop reordering. */
+  order?: number;
 }
 export interface Goal { id: string; categoryId?: string; title: string; metricLabel: string; currentValue: number; targetValue: number; deadline?: string; createdAt: string; updatedAt: string; }
 export interface Habit { id: string; name: string; color: string; active: boolean; completions: string[]; targetLabel?: string; }

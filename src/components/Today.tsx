@@ -1,24 +1,25 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { AlarmClock, Check, CheckCircle2, Circle, Flame, Inbox, Plus, Sparkles, Target, Zap } from 'lucide-react';
-import { useMemo } from 'react';
+import { AlarmClock, Check, CheckCircle2, Circle, Flame, Inbox, Plus, Sparkles, Target, Trophy, Zap } from 'lucide-react';
+import { useMemo, useState, type DragEvent } from 'react';
 import { db } from '../db/db';
 import { computeStreaks } from '../lib/analytics';
 import { toggleHabitDay } from '../lib/habitActions';
 import { useToday } from '../lib/hooks';
 import { openTaskEditor } from '../lib/taskEditor';
-import { deleteTask } from '../lib/tasks';
+import { deleteTask, reorderTasks } from '../lib/tasks';
 import { buildTodayPlan } from '../lib/todayPlan';
 import { focusOnTask } from '../lib/timer';
 import { formatDuration } from '../lib/utils';
 import type { Task } from '../types';
 import { Pomodoro } from './Pomodoro';
+import { SmartScheduleModal } from './SmartScheduleModal';
 import { TaskCard } from './TaskCard';
 import { EmptyState, Ring } from './ui';
 
 const nowTime = () => { const d = new Date(); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
 /** Home. Answers "what should I do today?" directly: a single suggestion, then overdue, due-today and done. */
-export function Today({ onQuickAdd }: { onQuickAdd: () => void }) {
+export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNavigate?: (view: string) => void }) {
   const today = useToday();
   const tasks = useLiveQuery(() => db.tasks.toArray(), []);
   const habits = useLiveQuery(() => db.habits.filter(h => h.active).toArray(), []) ?? [];
@@ -28,10 +29,71 @@ export function Today({ onQuickAdd }: { onQuickAdd: () => void }) {
   const openCount = plan.overdue.length + plan.today.length;
   const habitsDone = habits.filter(h => h.completions.includes(today)).length;
 
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+
+  const handleTodayDrop = async (targetId: string) => {
+    if (!dragId || dragId === targetId) return;
+    const currentIds = plan.today.map(t => t.id);
+    const fromIdx = currentIds.indexOf(dragId);
+    const toIdx = currentIds.indexOf(targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const updated = [...currentIds];
+    updated.splice(fromIdx, 1);
+    updated.splice(toIdx, 0, dragId);
+    await reorderTasks(updated);
+    setDragId(null);
+    setOverId(null);
+  };
+
   const update = (task: Task) => db.tasks.put(task);
-  const card = (t: Task) => (
-    <TaskCard key={t.id} task={t} category={cats.find(c => c.id === t.categoryId)} onUpdate={update} onDelete={() => void deleteTask(t)} onStart={() => focusOnTask(t)} />
-  );
+  const card = (t: Task, isReorderable = false) => {
+    const cardEl = (
+      <TaskCard
+        key={t.id}
+        task={t}
+        category={cats.find(c => c.id === t.categoryId)}
+        onUpdate={update}
+        onDelete={() => void deleteTask(t)}
+        onStart={() => focusOnTask(t)}
+        dragging={dragId === t.id}
+        onDragStart={isReorderable ? e => {
+          e.dataTransfer.setData('text/plain', t.id);
+          e.dataTransfer.effectAllowed = 'move';
+          setDragId(t.id);
+        } : undefined}
+        onDragEnd={isReorderable ? () => {
+          setDragId(null);
+          setOverId(null);
+        } : undefined}
+      />
+    );
+
+    if (!isReorderable) return cardEl;
+
+    return (
+      <div
+        key={t.id}
+        onDragOver={e => {
+          if (dragId && dragId !== t.id) {
+            e.preventDefault();
+            if (overId !== t.id) setOverId(t.id);
+          }
+        }}
+        onDragLeave={e => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOverId(null);
+        }}
+        onDrop={e => {
+          e.preventDefault();
+          void handleTodayDrop(t.id);
+        }}
+        className={`transition-all rounded-lg ${overId === t.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-surface' : ''}`}
+      >
+        {cardEl}
+      </div>
+    );
+  };
 
   return (
     <div className="p-5 lg:p-7 max-w-[1500px] mx-auto">
@@ -42,9 +104,19 @@ export function Today({ onQuickAdd }: { onQuickAdd: () => void }) {
             <h1 className="text-2xl font-semibold tracking-tight">Make today count.</h1>
             <p className="text-sm text-fg-muted mt-1">{new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date())}</p>
           </div>
-          <div className="text-right shrink-0">
-            {openCount + plan.done.length > 0 ? <div className="text-2xl font-semibold tabular-nums">{plan.done.length}<span className="text-fg-muted">/{openCount + plan.done.length}</span></div> : <div className="text-2xl font-semibold text-fg-subtle">-</div>}
-            <div className="text-[10px] uppercase tracking-[.15em] text-fg-subtle">completed</div>
+          <div className="flex items-center gap-3 shrink-0">
+            {onNavigate && (
+              <button
+                onClick={() => onNavigate('review')}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-line bg-surface hover:bg-hover text-xs font-medium text-fg-soft hover:text-fg transition shadow-sm"
+              >
+                <Trophy size={13} className="text-accent" /> Weekly Review
+              </button>
+            )}
+            <div className="text-right shrink-0">
+              {openCount + plan.done.length > 0 ? <div className="text-2xl font-semibold tabular-nums">{plan.done.length}<span className="text-fg-muted">/{openCount + plan.done.length}</span></div> : <div className="text-2xl font-semibold text-fg-subtle">-</div>}
+              <div className="text-[10px] uppercase tracking-[.15em] text-fg-subtle">completed</div>
+            </div>
           </div>
         </div>
       </div>
@@ -64,9 +136,28 @@ export function Today({ onQuickAdd }: { onQuickAdd: () => void }) {
           )}
 
           <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
-            <div className="p-4 border-b border-line flex justify-between items-center">
-              <div className="font-medium flex items-center gap-2">Today's Focus Tasks</div>
-              <span className="text-xs text-fg-subtle tabular-nums">{openCount ? `${formatDuration(plan.plannedMinutes)} planned` : `${plan.done.length} done`}</span>
+            <div className="p-4 border-b border-line flex flex-wrap justify-between items-center gap-3">
+              <div className="flex items-center gap-3">
+                <div className="font-medium">Today's Focus Tasks</div>
+                <span className="text-xs text-fg-subtle tabular-nums">{openCount ? `${formatDuration(plan.plannedMinutes)} planned` : `${plan.done.length} done`}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {openCount > 0 && (
+                  <button
+                    onClick={() => setScheduleOpen(true)}
+                    className="h-8 px-2.5 rounded-xl border border-line bg-surface-2 hover:bg-hover text-xs font-medium text-fg flex items-center gap-1.5 transition shadow-xs"
+                    title="Generate an AI-optimized schedule"
+                  >
+                    <Zap size={13} className="text-accent" /> Smart Schedule
+                  </button>
+                )}
+                <button
+                  onClick={onQuickAdd}
+                  className="h-8 px-2.5 rounded-xl bg-accent text-accent-fg text-xs font-medium hover:bg-accent-hover flex items-center gap-1.5 transition shadow-xs"
+                >
+                  <Plus size={13} /> Add Task
+                </button>
+              </div>
             </div>
             <div className="p-3 space-y-4">
               {tasks === undefined ? (
@@ -83,19 +174,19 @@ export function Today({ onQuickAdd }: { onQuickAdd: () => void }) {
                   {plan.overdue.length > 0 && (
                     <div>
                       <div className="flex items-center gap-1.5 text-xs font-medium text-rose-500 mb-2"><AlarmClock size={13} /> Overdue · {plan.overdue.length}</div>
-                      <div className="space-y-2">{plan.overdue.map(card)}</div>
+                      <div className="space-y-2">{plan.overdue.map(t => card(t))}</div>
                     </div>
                   )}
                   {plan.today.length > 0 && (
                     <div>
                       {plan.overdue.length > 0 && <div className="text-xs font-medium text-fg-muted mb-2 mt-1">Due today</div>}
-                      <div className="space-y-2">{plan.today.map(card)}</div>
+                      <div className="space-y-2">{plan.today.map(t => card(t, true))}</div>
                     </div>
                   )}
                   {plan.done.length > 0 && (
                     <div>
                       <div className="flex items-center gap-1.5 text-xs font-medium text-fg-subtle mb-2 mt-1"><CheckCircle2 size={13} /> Done today · {plan.done.length}</div>
-                      <div className="space-y-2">{plan.done.map(card)}</div>
+                      <div className="space-y-2">{plan.done.map(t => card(t))}</div>
                     </div>
                   )}
                 </>
@@ -106,7 +197,7 @@ export function Today({ onQuickAdd }: { onQuickAdd: () => void }) {
           {plan.upcoming.length > 0 && (
             <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
               <div className="p-4 border-b border-line font-medium text-sm text-fg-muted">Coming up</div>
-              <div className="p-3 space-y-2">{plan.upcoming.map(card)}</div>
+              <div className="p-3 space-y-2">{plan.upcoming.map(t => card(t))}</div>
             </section>
           )}
 
@@ -151,6 +242,13 @@ export function Today({ onQuickAdd }: { onQuickAdd: () => void }) {
         </div>
         <Pomodoro />
       </div>
+      <SmartScheduleModal
+        open={scheduleOpen}
+        onClose={() => setScheduleOpen(false)}
+        tasks={[...plan.overdue, ...plan.today]}
+        today={today}
+        categories={cats}
+      />
     </div>
   );
 }

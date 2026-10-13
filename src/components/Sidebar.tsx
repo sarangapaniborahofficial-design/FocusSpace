@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
-import { BarChart3, CalendarDays, ChevronLeft, ChevronRight, CircleUserRound, Dumbbell, FileText, FolderKanban, GraduationCap, Home, Plus, Settings, Sparkles, Target, Download, type LucideIcon } from 'lucide-react';
+import { BarChart3, CalendarDays, ChevronLeft, ChevronRight, CircleUserRound, Dumbbell, FileText, FolderKanban, GraduationCap, Home, Plus, Settings, Sparkles, Target, Trophy, Download, type LucideIcon } from 'lucide-react';
 import { db } from '../db/db';
 import { useMediaQuery, usePWAInstall } from '../lib/hooks';
 import { createPage } from '../lib/pages';
@@ -37,6 +37,7 @@ export function Sidebar({ collapsed, setCollapsed, active, setActive, categories
           <div className="text-xs font-medium text-fg-muted px-4 mb-2 mt-4">{compact ? '' : 'Workspace'}</div>
           <NavItem compact={compact} icon={Home} label="Home / Master" active={active === 'home'} onClick={() => setActive('home')} />
           <NavItem compact={compact} icon={CalendarDays} label="Calendar" active={active === 'calendar'} onClick={() => setActive('calendar')} />
+          <NavItem compact={compact} icon={Trophy} label="Weekly Review" active={active === 'review'} onClick={() => setActive('review')} />
           <NavItem compact={compact} icon={BarChart3} label="Analytics" active={active === 'analytics'} onClick={() => setActive('analytics')} />
           <NavItem compact={compact} icon={FileText} label="Pages" active={active === 'pages' && !activePageId} onClick={() => setActive('pages')} />
           <div className="" />

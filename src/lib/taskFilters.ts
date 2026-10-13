@@ -31,17 +31,18 @@ export function applyFilters(tasks: Task[], f: TaskFilters, today: string): Task
   });
 }
 
-export type SortKey = 'dueDate' | 'priority' | 'title' | 'updated';
+export type SortKey = 'manual' | 'dueDate' | 'priority' | 'title' | 'updated';
 const RANK: Record<Priority, number> = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
 
 export function sortTasks(tasks: Task[], key: SortKey): Task[] {
   const dateKey = (t: Task) => `${t.dueDate || '9999-99-99'}${t.dueTime || '99:99'}`;
   return [...tasks].sort((a, b) => {
     switch (key) {
+      case 'manual': return (a.order ?? 999999) - (b.order ?? 999999) || (a.createdAt || '').localeCompare(b.createdAt || '');
       case 'priority': return RANK[a.priority] - RANK[b.priority] || dateKey(a).localeCompare(dateKey(b));
       case 'title': return a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
       case 'updated': return b.updatedAt.localeCompare(a.updatedAt);
-      default: return dateKey(a).localeCompare(dateKey(b)) || RANK[a.priority] - RANK[b.priority];
+      default: return (a.order ?? 999999) - (b.order ?? 999999) || dateKey(a).localeCompare(dateKey(b)) || RANK[a.priority] - RANK[b.priority];
     }
   });
 }

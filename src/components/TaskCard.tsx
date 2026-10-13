@@ -1,5 +1,5 @@
 import { Check, ChevronDown, ChevronRight, Clock3, Copy, Pencil, Play, Repeat, Trash2 } from 'lucide-react';
-import { useState, type DragEvent } from 'react';
+import { useRef, useState, type DragEvent, type TouchEvent } from 'react';
 import { openTaskEditor } from '../lib/taskEditor';
 import { changeStatus, duplicateTask } from '../lib/tasks';
 import { isoToday, priorityTone, relativeDay } from '../lib/utils';
@@ -7,6 +7,8 @@ import type { Category, Status, Task } from '../types';
 
 const STATUSES: Status[] = ['To Do', 'In Progress', 'Submitted/Done'];
 const STATUS_LABEL: Record<Status, string> = { 'To Do': 'To do', 'In Progress': 'In progress', 'Submitted/Done': 'Done' };
+
+const SWIPE_THRESHOLD = 75;
 
 export function TaskCard({ task, category, onUpdate, onDelete, onStart, dragging, onDragStart, onDragEnd, selectable, selected, onToggleSelect }: {
   task: Task;
@@ -24,6 +26,11 @@ export function TaskCard({ task, category, onUpdate, onDelete, onStart, dragging
   onToggleSelect?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [swipeX, setSwipeX] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const isHorizontalSwipeRef = useRef<boolean | null>(null);
+
   const isDone = task.status === 'Submitted/Done';
   const doneCount = task.subtasks.filter(s => s.completed).length;
   const pct = task.subtasks.length ? Math.round((doneCount / task.subtasks.length) * 100) : 0;
@@ -32,15 +39,97 @@ export function TaskCard({ task, category, onUpdate, onDelete, onStart, dragging
   const toggleSubtask = (id: string) =>
     onUpdate({ ...task, subtasks: task.subtasks.map(s => (s.id === id ? { ...s, completed: !s.completed } : s)), updatedAt: new Date().toISOString() });
 
+  const handleTouchStart = (e: TouchEvent) => {
+    if (selectable) return;
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    isHorizontalSwipeRef.current = null;
+    setIsSwiping(false);
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    if (!touchStartRef.current || selectable) return;
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = touch.clientY - touchStartRef.current.y;
+
+    if (isHorizontalSwipeRef.current === null) {
+      if (Math.abs(deltaX) > 8 || Math.abs(deltaY) > 8) {
+        isHorizontalSwipeRef.current = Math.abs(deltaX) > Math.abs(deltaY);
+      }
+    }
+
+    if (isHorizontalSwipeRef.current) {
+      let x = deltaX;
+      if (deltaX > SWIPE_THRESHOLD) {
+        x = SWIPE_THRESHOLD + (deltaX - SWIPE_THRESHOLD) * 0.25;
+      } else if (deltaX < -SWIPE_THRESHOLD) {
+        x = -SWIPE_THRESHOLD + (deltaX + SWIPE_THRESHOLD) * 0.25;
+      }
+      setSwipeX(x);
+      setIsSwiping(true);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartRef.current || selectable) return;
+
+    if (swipeX >= SWIPE_THRESHOLD) {
+      void changeStatus(task, isDone ? 'To Do' : 'Submitted/Done');
+    } else if (swipeX <= -SWIPE_THRESHOLD) {
+      onDelete();
+    }
+
+    setSwipeX(0);
+    setIsSwiping(false);
+    touchStartRef.current = null;
+    isHorizontalSwipeRef.current = null;
+  };
+
   return (
     <div
-      draggable={!!onDragStart}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      className={`group rounded-lg border border-line bg-surface-2 hover:bg-hover transition overflow-hidden ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}${dragging ? 'opacity-40' : ''}`}
+      className="relative rounded-lg overflow-hidden"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
-      <div className="p-3 py-2.5">
-        <div className="flex gap-3">
+      {/* Background action reveal on mobile swipe */}
+      {isSwiping && swipeX !== 0 && (
+        <div
+          className={`absolute inset-0 flex items-center transition-colors pointer-events-none rounded-lg ${
+            swipeX > 0
+              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 justify-start pl-4'
+              : 'bg-rose-500/15 text-rose-500 justify-end pr-4'
+          }`}
+        >
+          {swipeX > 0 ? (
+            <div className={`flex items-center gap-1.5 text-xs transition-transform ${Math.abs(swipeX) >= SWIPE_THRESHOLD ? 'scale-110 font-bold' : 'scale-95 opacity-80'}`}>
+              <Check size={18} strokeWidth={2.5} />
+              <span>{isDone ? 'Mark To-Do' : 'Complete'}</span>
+            </div>
+          ) : (
+            <div className={`flex items-center gap-1.5 text-xs transition-transform ${Math.abs(swipeX) >= SWIPE_THRESHOLD ? 'scale-110 font-bold' : 'scale-95 opacity-80'}`}>
+              <span>Delete</span>
+              <Trash2 size={18} strokeWidth={2.5} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Foreground task card */}
+      <div
+        draggable={!!onDragStart}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        style={{
+          transform: `translateX(${swipeX}px)`,
+          transition: isSwiping ? 'none' : 'transform 0.22s cubic-bezier(0.2, 0, 0, 1)',
+        }}
+        className={`group relative rounded-lg border border-line bg-surface-2 hover:bg-hover transition-colors overflow-hidden ${onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}${dragging ? 'opacity-40' : ''}`}
+      >
+        <div className="p-3 py-2.5">
+          <div className="flex gap-3">
           {selectable ? (
             <button
               onClick={onToggleSelect}
@@ -131,5 +220,6 @@ export function TaskCard({ task, category, onUpdate, onDelete, onStart, dragging
         )}
       </div>
     </div>
-  );
+  </div>
+);
 }
