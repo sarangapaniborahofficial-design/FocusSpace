@@ -1,11 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { BarChart3, CalendarDays, CheckSquare2, ExternalLink, FolderKanban, Home, Keyboard, Moon, Plus, Search, Settings, Timer, Trophy, X, FileText, type LucideIcon } from 'lucide-react';
+import { BarChart3, BookOpen, CalendarDays, CheckSquare2, ExternalLink, FolderKanban, Home, Keyboard, Moon, Plus, Search, Settings, Sparkles, Timer, Trophy, X, FileText, type LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { db } from '../db/db';
 import { timer } from '../lib/timer';
 import { launchTarget } from '../lib/launcher';
 import { storage } from '../lib/utils';
 import { richTextSnippet } from '../lib/richtext';
+import { DAILY_JOURNAL_PAGE_ID } from '../lib/journalAutoSave';
 import type { Category, JournalEntry, LaunchLink, Page, Task } from '../types';
 
 interface Item {
@@ -20,7 +21,7 @@ interface Item {
 
 const rank = (label: string, q: string) => (label.toLowerCase().startsWith(q) ? 0 : 1);
 
-export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onOpenTask, onOpenPage, onCycleTheme, onOpenShortcuts }: {
+export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onOpenTask, onOpenPage, onCycleTheme, onOpenShortcuts, onReplayWelcome }: {
   categories: Category[];
   onClose: () => void;
   onNavigate: (view: string) => void;
@@ -29,6 +30,7 @@ export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onO
   onOpenPage: (page: Page) => void;
   onCycleTheme: () => void;
   onOpenShortcuts?: () => void;
+  onReplayWelcome?: () => void;
 }) {
   const tasks = useLiveQuery(() => db.tasks.toArray(), []) ?? [];
   const pages = useLiveQuery(() => db.pages.toArray(), []) ?? [];
@@ -43,12 +45,14 @@ export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onO
       { id: 'new', group: 'Actions', label: 'New task', hint: 'Ctrl N', icon: Plus, run: onNewTask },
       { id: 'timer', group: 'Actions', label: 'Start or pause timer', hint: 'Space', icon: Timer, run: () => timer.toggle() },
       { id: 'theme', group: 'Actions', label: 'Switch theme', icon: Moon, run: onCycleTheme },
+      ...(onReplayWelcome ? [{ id: 'welcome-tour', group: 'Actions' as const, label: 'Welcome Tour & Philosophy', icon: Sparkles, run: () => { onClose(); onReplayWelcome(); } }] : []),
       ...(onOpenShortcuts ? [{ id: 'shortcuts', group: 'Actions' as const, label: 'Keyboard shortcuts', hint: 'Ctrl /', icon: Keyboard, run: () => { onClose(); onOpenShortcuts(); } }] : []),
       { id: 'home', group: 'Go to', label: 'Home / Master', icon: Home, run: () => onNavigate('home') },
       { id: 'calendar', group: 'Go to', label: 'Calendar', icon: CalendarDays, run: () => onNavigate('calendar') },
+      { id: 'journal', group: 'Go to', label: 'Daily Journal', hint: 'Ctrl J', icon: BookOpen, run: () => onNavigate('journal') },
       { id: 'review', group: 'Go to', label: 'Weekly Review', icon: Trophy, run: () => onNavigate('review') },
       { id: 'analytics', group: 'Go to', label: 'Analytics', icon: BarChart3, run: () => onNavigate('analytics') },
-      { id: 'pages-home', group: 'Go to', label: 'Pages', icon: FileText, run: () => onNavigate('pages') },
+      { id: 'pages-home', group: 'Go to', label: 'Knowledge Pages', icon: FileText, run: () => onNavigate('pages') },
       { id: 'settings', group: 'Go to', label: 'Settings', icon: Settings, run: () => onNavigate('settings') },
       ...categories.map<Item>(c => ({ id: `cat-${c.id}`, group: 'Go to', label: c.name, hint: 'Category', icon: FolderKanban, dot: c.color, run: () => onNavigate(c.id) })),
     ];
@@ -65,7 +69,7 @@ export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onO
     const matchesEntry = (p: Page) => (entriesByPage.get(p.id) ?? []).some(e => e.plainText.toLowerCase().includes(q));
     const pageItems: Item[] = q
       ? pages
-          .filter(p => p.title.toLowerCase().includes(q) || p.description.toLowerCase().includes(q) || matchesEntry(p))
+          .filter(p => p.id !== DAILY_JOURNAL_PAGE_ID && p.title.toLowerCase().trim() !== 'daily journal' && (p.title.toLowerCase().includes(q) || p.description.toLowerCase().includes(q) || matchesEntry(p)))
           .sort((a, b) => rank(a.title, q) - rank(b.title, q) || b.updatedAt.localeCompare(a.updatedAt))
           .slice(0, 6)
           .map(p => ({ id: `page-${p.id}`, group: 'Pages', label: p.title.trim() || 'Untitled', hint: categories.find(c => c.id === p.categoryId)?.name ?? richTextSnippet(entriesByPage.get(p.id)?.[0]?.content ?? { type: 'doc', content: [] }, 24), icon: FileText, run: () => onOpenPage(p) }))

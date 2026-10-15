@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
 import {
   BarChart3,
+  BookOpen,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -151,6 +152,13 @@ export function Sidebar({
                 label="Analytics"
                 active={active === 'analytics'}
                 onClick={() => setActive('analytics')}
+              />
+              <NavItem
+                compact={compact}
+                icon={BookOpen}
+                label="Daily Journal"
+                active={active === 'journal'}
+                onClick={() => setActive('journal')}
               />
               <NavItem
                 compact={compact}

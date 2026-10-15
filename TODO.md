@@ -29,23 +29,28 @@ This document maintains the persistent, prioritized queue of upcoming sprints, f
 
 ---
 
-## ⏳ Sprint 2: Workspace Knowledge Split & Flowy Onboarding (Next Queue)
+## 🎯 Sprint 2: Workspace Knowledge Split & Flowy Onboarding (✅ COMPLETED)
 
-### 2.1 Dedicated Journal Workspace Tab (`Journal.tsx`) & 11:59 PM Auto-Save Engine (`journalAutoSave.ts`)
-- First-class Workspace navigation tab with dedicated keyboard shortcut.
-- Dual-trigger auto-save: Live midnight timer at 23:59:00 + next-morning boot catch-up if computer was asleep.
-- TipTap rich-text editor with live entity check-ins, manual reflection trigger, and chronological date archive.
+### 2.1 Dedicated Journal Workspace Tab (`Journal.tsx`) & 11:59 PM Auto-Save Engine (`journalAutoSave.ts`) (✅ DONE)
+- **Resolved**: First-class Workspace navigation tab with shortcut `Ctrl + J` / `Ctrl + 6`.
+- **Dual-Trigger Auto-Save**: Live midnight timer at `23:59:00` local time + next-morning boot catch-up if computer was asleep.
+- **TipTap Rich-Text Editor**: Live reflection editing, manual "Capture Snapshot Now" trigger, live telemetry strip (focus time, completed tasks, habits), and chronological date archive navigator.
+- **Storage Invariant**: Uses reserved constant `DAILY_JOURNAL_PAGE_ID = '__daily_journal__'` in `db.journalEntries`.
 
-### 2.2 Category-Grouped Pages Tab (`PagesList.tsx`)
-- Strict isolation: Pages tab strictly displays Category knowledge pages (excluding `__daily_journal__` entries).
-- Grouped by Category header with color indicators, sorted chronologically by modification/creation date.
+### 2.2 Category-Grouped Pages Tab (`PagesList.tsx`) (✅ DONE)
+- **Strict Isolation**: Pages tab strictly displays Category knowledge pages (excluding all `__daily_journal__` and legacy daily journal entries).
+- **Category Grouping**: Top-level view groups pages into Category sections with signature color dots, title headers, count pills, and chronological sorting by modification date, plus General Knowledge section for uncategorized pages.
 
-### 2.3 Flowy 3-Slide Welcome Onboarding Journey (`Onboarding.tsx`)
-- Slide 1: Welcome & Local Vault philosophy (with live theme selector).
-- Slide 2: The 3 Core Execution Pillars (NLP Task Capture, Smart Day Scheduler, Workspace Launchpad).
-- Slide 3: Habits, Rotary Pomodoro Dial & Daily Review.
-- Cinematic GPU-accelerated morph transition into `Today.tsx`.
-- Replayable on-demand via Settings or `Ctrl + K`.
+### 2.3 Flowy Welcome Onboarding Journey (`OnboardingWelcome.tsx`) (✅ DONE)
+- **Dual-Mode Daily Flow**:
+  - **1st Login of the Day**: Full 3-slide flowy journey:
+    - Slide 1: Welcome & Local Vault philosophy (with live interactive 4-theme picker & spatial layout selector).
+    - Slide 2: The 3 Core Execution Pillars (live NLP quick-capture input, smart scheduling, app launchpad).
+    - Slide 3: Habits check-in, offline focus soundscape pre-selector & 11:59 PM daily review loop.
+  - **2nd+ Login Same Day**: Shorter 1-slide Quick-Return card with 3-cell pulse strip and 1-click `▶ Focus Now` trigger on the next task up.
+  - **Same-Tab Reload**: Automatically skips modal so refreshes never interrupt work.
+- **Cinematic GPU Morph Transition**: Smooth scale/blur dissolve into `Today.tsx` on completion.
+- **Replayable on-demand**: Replayable from Settings or `Ctrl + K` Command Palette.
 
 ---
 
@@ -86,9 +91,9 @@ This document maintains the persistent, prioritized queue of upcoming sprints, f
 | Swiss Brutal Tab Contrast & WCAG Suite | 10 (Sprint 1) | ✅ Done | Inversion safety in index.css + 28 automated WCAG tests in CI |
 | Always-on-Top Floating HUD (PiP) | 10 (Sprint 1) | ✅ Done | Document PiP floating window, scratchpad, subtasks, Flow Overtime |
 | Bottom-Anchored Homepage App Dock | 10 (Sprint 1) | ✅ Done | Centered floating bottom dock, 60fps Gaussian magnification wave |
-| Dedicated Journal Tab (11:59 PM Auto-Save) | 11 (Sprint 2) | ⏳ Queued | Auto daily snapshot at deadline + catch-up, TipTap editor |
-| Pages Tab Category Grouping & Sorting | 11 (Sprint 2) | ⏳ Queued | Strict category pages only, hierarchical group & date sorting |
-| Flowy 3-Slide Welcome Onboarding | 11 (Sprint 2) | ⏳ Queued | 3-slide journey, cinematic morph, replayable in Settings |
+| Dedicated Journal Tab (11:59 PM Auto-Save) | 11 (Sprint 2) | ✅ Done | Auto daily snapshot at deadline + catch-up, TipTap editor |
+| Pages Tab Category Grouping & Sorting | 11 (Sprint 2) | ✅ Done | Strict category pages only, hierarchical group & date sorting |
+| Flowy 3-Slide Welcome Onboarding | 11 (Sprint 2) | ✅ Done | Dual-mode daily flow, live NLP & theme picker, GPU morph |
 | Native Windows Tauri v2 Wrapper | 12 (Sprint 3) | ⏳ Queued | Tauri v2 desktop shell with tray & global hotkeys |
 | 100% Offline Voice Typing Studio | 12 (Sprint 3) | ⏳ Queued | Client-side transcription, 4-pass disfluency sanitizer, review dock |
 | One-Way Android Capture Feeder | 13 (Sprint 4) | ⏳ Queued | Phone → Laptop capture, local Wi-Fi push, triage tray |

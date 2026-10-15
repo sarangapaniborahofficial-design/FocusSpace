@@ -27,9 +27,10 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     shortcuts: [
       { keys: ['Ctrl', '1'], description: 'Go to Today / Focus dashboard' },
       { keys: ['Ctrl', '2'], description: 'Go to Calendar' },
-      { keys: ['Ctrl', '3'], description: 'Go to Pages & Journal' },
+      { keys: ['Ctrl', '3'], description: 'Go to Knowledge Pages' },
       { keys: ['Ctrl', '4'], description: 'Go to Analytics' },
       { keys: ['Ctrl', '5'], description: 'Go to Weekly Review' },
+      { keys: ['Ctrl', 'J'], description: 'Go to Daily Journal' },
     ],
   },
 ];

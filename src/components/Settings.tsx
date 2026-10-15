@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Bell, Calendar, Check, Download, Flame, Keyboard, Palette, Pencil, Plus, RefreshCw, Smartphone, Target, Trash2, X, Zap } from 'lucide-react';
+import { Bell, BookOpen, Calendar, Check, Download, Flame, Keyboard, Palette, Pencil, Plus, RefreshCw, Smartphone, Sparkles, Target, Trash2, X, Zap } from 'lucide-react';
 import { isNotificationSupported, getNotificationPermission, requestNotificationPermission, sendNotification } from '../lib/notifications';
 import { useEffect, useRef, useState } from 'react';
 import { db } from '../db/db';
@@ -25,7 +25,7 @@ const layouts: { id: 'orbital' | 'cockpit'; name: string; description: string }[
   { id: 'cockpit', name: 'Split View (Docked Timer)', description: 'Full-width workspace with Pomodoro timer docked on the right' },
 ];
 
-export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMode }: { theme: string; setTheme: (theme: string) => void; layoutMode?: 'orbital' | 'cockpit'; setLayoutMode?: (m: 'orbital' | 'cockpit') => void }) {
+export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMode, onReplayWelcome }: { theme: string; setTheme: (theme: string) => void; layoutMode?: 'orbital' | 'cockpit'; setLayoutMode?: (m: 'orbital' | 'cockpit') => void; onReplayWelcome?: () => void }) {
   const categories = useLiveQuery(() => db.categories.toArray(), []) ?? [];
   const { isInstallable, install } = usePWAInstall();
   const [editing, setEditing] = useState<Category | null>(null);
@@ -73,7 +73,22 @@ export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMod
   };
 
   return <div className="p-5 lg:p-7 max-w-5xl mx-auto space-y-5">
-    <div><div className="text-xs uppercase tracking-[.18em] text-fg-subtle">System</div><h1 className="text-2xl font-semibold mt-1">Settings</h1><p className="text-sm text-fg-muted mt-1">Own the workspace. Everything stays local in your browser.</p></div>
+    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      <div>
+        <div className="text-xs uppercase tracking-[.18em] text-fg-subtle">System</div>
+        <h1 className="text-2xl font-semibold mt-1">Settings</h1>
+        <p className="text-sm text-fg-muted mt-1">Own the workspace. Everything stays local in your browser.</p>
+      </div>
+      {onReplayWelcome && (
+        <button
+          onClick={onReplayWelcome}
+          className="h-9 px-3.5 rounded-xl border border-line bg-surface-2 text-xs font-semibold hover:bg-hover keycap flex items-center gap-2 cursor-pointer self-start sm:self-auto"
+        >
+          <Sparkles size={14} className="text-accent" />
+          <span>Replay Welcome Tour</span>
+        </button>
+      )}
+    </div>
     
     <section className="atelier-card rounded-3xl overflow-hidden">
       <div className="p-5 border-b border-line"><div className="flex items-center gap-2 font-semibold"><Palette size={16} className="text-accent-text"/> Appearance & Layout</div><p className="text-xs text-fg-subtle mt-1">Switch between three bespoke aesthetic personas and two spatial layout architectures.</p></div>
@@ -114,6 +129,7 @@ export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMod
     <NotificationsCard />
     <GoalsCard />
     <SchedulingPreferencesCard />
+    <DailyJournalPreferencesCard />
 
     <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
       <div className="p-5 border-b border-line flex items-center justify-between">
@@ -628,4 +644,33 @@ function SchedulingPreferencesCard() {
     </section>
   );
 }
+
+function DailyJournalPreferencesCard() {
+  return (
+    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
+      <div className="p-5 border-b border-line flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2 font-medium">
+            <BookOpen size={16} /> Daily Journal &amp; 11:59 PM Auto-Save
+          </div>
+          <p className="text-xs text-fg-subtle mt-1">
+            Automatic end-of-day reflection synthesis, focus logging, and habit tracking.
+          </p>
+        </div>
+        <span className="px-2.5 py-1 rounded-md text-xs font-mono bg-accent/15 text-accent-text font-semibold">
+          ACTIVE · 23:59:00
+        </span>
+      </div>
+      <div className="p-5 space-y-3 text-xs text-fg-muted">
+        <p>
+          FocusSpace automatically aggregates completed tasks, focus minutes, and habit check-ins at <strong>11:59 PM</strong> every evening directly into your chronological Daily Journal.
+        </p>
+        <p>
+          If your machine was asleep or closed before midnight, our <strong>boot catch-up engine</strong> automatically detects and logs the missed snapshot on your next launch. You can also capture a snapshot manually at any time from the Journal tab.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 

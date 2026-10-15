@@ -22,13 +22,28 @@ This document tracks progress towards the 1.0 release based on the project timel
 | 8 | Production, PWA & Power Tools | ✅ **Completed** | Service worker offline caching, smart schedule preferences, global shortcuts cheatsheet. |
 | 9 | Command Hub & Daily Briefing | ✅ **Completed** | Native & web app launcher, AppDock, morning/midday/evening briefing, rollover & reflection export. |
 | 9.5| Reliability Hardening & Cleanup | ✅ **Completed** | Removed legacy JSON backup/sync, fixed appointment immutability, overdue rescheduling, category deletion goal remap, timezone fix, and shortcut typing guards. |
-| 10 | Polish, Bug Fixes, Native & Voice | 🔄 **In Progress (Sprint 1 Complete)** | Sprint 1 complete: Swiss Brutal contrast fix & automated WCAG test suite, Always-on-Top Floating HUD (PiP), bottom app dock. Next: Sprint 2 Journal & Onboarding. |
+| 10 | Polish, Bug Fixes, Native & Voice | 🔄 **In Progress (Sprint 2 Complete)** | Sprint 1 & Sprint 2 complete: WCAG contrast suite, Always-on-Top Floating HUD, App Dock, Dedicated Journal tab (11:59 PM auto-save + boot catch-up), Category-grouped Pages tab, and Flowy Welcome Onboarding journey. |
 
 ---
 
 ## Recent Work Completed
 
-1. ✅ **Sprint 1 — Contrast Polish, Always-on-Top Floating HUD & Bottom Dock**:
+1. ✅ **Sprint 2 — Workspace Knowledge Split & Flowy Onboarding**:
+   - **Dedicated Journal Workspace Tab (`Journal.tsx`) & 11:59 PM Auto-Save Engine (`journalAutoSave.ts`)**:
+     - Dedicated first-class route `'journal'` in `App.tsx` and `Sidebar.tsx` with dedicated shortcut `Ctrl + J` / `Ctrl + 6`.
+     - Dual-trigger auto-save: Live midnight timer at `23:59:00` local time + next-morning boot catch-up if computer was asleep.
+     - TipTap rich-text editor for reflections & notes, manual "Capture Snapshot Now" trigger, live telemetry strip (focus time, completed tasks, habits), and chronological date archive navigator.
+     - Storage Invariant: Uses reserved constant `DAILY_JOURNAL_PAGE_ID = '__daily_journal__'` in `db.journalEntries`.
+   - **Category-Grouped Pages Tab (`PagesList.tsx`)**:
+     - Strict isolation: Pages tab strictly displays Category knowledge pages (excluding all `__daily_journal__` and legacy daily journal entries).
+     - Category Grouping: Top-level view groups pages into Category sections with signature color dots, title headers, count pills, and chronological sorting by modification date, plus General Knowledge section for uncategorized pages.
+   - **Flowy Welcome Onboarding Journey (`OnboardingWelcome.tsx`)**:
+     - Dual-mode daily flow: Full 3-slide journey on 1st login of the day, compact 1-slide Quick-Return card on subsequent logins the same day, auto-skipping on same-tab refreshes.
+     - Interactive live 4-theme picker & spatial layout selector, live NLP quick-capture input directly in Slide 2, interactive morning habits check-in, and offline Web Audio soundscape selector.
+     - Cinematic GPU-accelerated morph transition into `Today.tsx` on completion; replayable on-demand from Settings or `Ctrl + K`.
+   - **Comprehensive Automated Test Coverage**: Added 12 new unit tests across 2 new test suites (`journalAutoSave.test.ts` & `pagesGrouping.test.ts`), bringing the full test suite to **66 passing unit tests**.
+
+2. ✅ **Sprint 1 — Contrast Polish, Always-on-Top Floating HUD & Bottom Dock**:
    - **Swiss Brutal & Swiss Onyx Contrast Overhaul**: Enforced universal inversion rules in `src/index.css`. In Swiss Brutal, tab buttons render acid citron (`#c8ff29`) on black (`#0d0f0d`) with a **16.3:1** contrast ratio. In Swiss Onyx, active/accent items enforce pure pitch-black (`#000000 !important`) font with a **13.9:1** ratio.
    - **Automated WCAG 2.1 Contrast Suite (`colorContrast.test.ts`)**: 28 automated tests in Vitest calculating W3C relative luminance and contrast ratios, enforcing AA (4.5:1) / AAA (7:1) across all 4 themes (`solaris`, `bauhaus`, `nocturne`, `onyx`).
    - **Always-on-Top Floating HUD (`FloatingHUD.tsx` via Document Picture-in-Picture)**:

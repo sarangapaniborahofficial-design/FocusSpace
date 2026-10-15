@@ -1,12 +1,13 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Command } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { db, seedDatabase } from './db/db';
 import { Analytics } from './components/Analytics';
 import { Calendar } from './components/Calendar';
 import { CategoryView, type CategoryTab } from './components/CategoryView';
 import { CommandPalette } from './components/CommandPalette';
 import { Header } from './components/Header';
+import { Journal } from './components/Journal';
 import { PageView } from './components/PageView';
 import { PagesList } from './components/PagesList';
 import { MiniTimer } from './components/MiniTimer';
@@ -22,19 +23,26 @@ import { ShortcutsModal } from './components/ShortcutsModal';
 import { Today } from './components/Today';
 import { FloatingHUDPortal } from './components/FloatingHUD';
 import { ErrorBoundary } from './components/ui';
+import { OnboardingWelcome, useWelcomeFlow, type WelcomeTask, type WelcomeHabit } from './components/OnboardingWelcome';
 import { openTaskEditor } from './lib/taskEditor';
-import { timer } from './lib/timer';
+import { getTimerState, timer } from './lib/timer';
+import { soundscape, useSoundscape, type SoundscapeType } from './lib/soundscape';
+import { initJournalAutoSave } from './lib/journalAutoSave';
+import { parseTaskInput } from './lib/taskParser';
+import { toggleHabitDay } from './lib/habitActions';
+import { computeStreaks } from './lib/analytics';
 import { checkAndNotifyOverdue } from './lib/notifications';
-import { isoToday, storage } from './lib/utils';
-import type { LayoutMode, Page, Task } from './types';
+import { isoToday, storage, uid } from './lib/utils';
+import type { LayoutMode, Page, Task, Theme } from './types';
 
-const STATIC_VIEWS = ['home', 'calendar', 'review', 'analytics', 'pages', 'settings'];
+const STATIC_VIEWS = ['home', 'calendar', 'review', 'analytics', 'journal', 'pages', 'settings'];
 const VIEW_TITLES: Record<string, string> = {
   home: 'Home',
   calendar: 'Calendar',
   review: 'Weekly Review',
   analytics: 'Analytics',
-  pages: 'Pages',
+  journal: 'Daily Journal',
+  pages: 'Knowledge Pages',
   settings: 'Settings',
 };
 const THEMES = ['nocturne', 'onyx', 'solaris', 'bauhaus'];
@@ -71,6 +79,88 @@ export default function App() {
   const categoryList = useLiveQuery(() => db.categories.toArray(), []);
   const categories = categoryList ?? [];
 
+  const today = isoToday();
+  const { welcomeOpen, welcomeVariant, completeWelcome, triggerWelcome } = useWelcomeFlow(today);
+  const currentSoundscape = useSoundscape();
+
+  const allTasks = useLiveQuery(() => db.tasks.toArray(), []) ?? [];
+  const allHabits = useLiveQuery(() => db.habits.toArray(), []) ?? [];
+  const allFocusLogs = useLiveQuery(() => db.focusLogs.toArray(), []) ?? [];
+
+  const catMap = useMemo(() => new Map(categories.map(c => [c.id, c.name])), [categories]);
+  const welcomeTasks: WelcomeTask[] = useMemo(() => {
+    return allTasks.map(t => ({
+      id: t.id,
+      title: t.title,
+      categoryName: catMap.get(t.categoryId) ?? 'General',
+      projectTag: t.projectTag ?? 'Task',
+      priority: t.priority,
+      estimatedDuration: t.estimatedDuration || 30,
+      done: t.status === 'Submitted/Done',
+    }));
+  }, [allTasks, catMap]);
+
+  const welcomeHabits: WelcomeHabit[] = useMemo(() => {
+    return allHabits.filter(h => h.active).map(h => {
+      const { current } = computeStreaks(h.completions, today);
+      return {
+        id: h.id,
+        name: h.name,
+        color: h.color,
+        streak: current,
+        doneToday: h.completions.includes(today),
+      };
+    });
+  }, [allHabits, today]);
+
+  const focusMinutesToday = useMemo(() => {
+    return allFocusLogs
+      .filter(l => l.startedAt?.slice(0, 10) === today && l.mode === 'focus')
+      .reduce((sum, l) => sum + (l.durationMinutes || 0), 0);
+  }, [allFocusLogs, today]);
+
+  const handleWelcomeAddTask = useCallback(async (raw: string) => {
+    const parsed = parseTaskInput(raw, categories, today);
+    const targetCat = categories.find(c => c.id === parsed.categoryId) ?? categories[0];
+    if (!targetCat) return;
+    const now = new Date().toISOString();
+    const task: Task = {
+      id: uid(),
+      title: parsed.title,
+      categoryId: targetCat.id,
+      projectTag: parsed.projectTag ?? targetCat.name,
+      priority: parsed.priority ?? 'Medium',
+      status: 'To Do',
+      estimatedDuration: parsed.estimatedDuration ?? 30,
+      dueDate: parsed.dueDate ?? today,
+      dueTime: parsed.dueTime ?? '',
+      subtasks: [],
+      notes: '',
+      colorCode: targetCat.color,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await db.tasks.add(task);
+  }, [categories, today]);
+
+  const handleWelcomeToggleHabit = useCallback(async (habitId: string) => {
+    await toggleHabitDay(habitId, today);
+  }, [today]);
+
+  const handleWelcomeSelectSoundscape = useCallback((id: SoundscapeType) => {
+    soundscape.setType(id);
+  }, []);
+
+  const handleWelcomeStartFocusTask = useCallback((taskId: string) => {
+    const t = allTasks.find(x => x.id === taskId);
+    if (t) {
+      timer.setTask(t);
+      if (!getTimerState().running) {
+        timer.toggle();
+      }
+    }
+  }, [allTasks]);
+
   const active = nav.view;
   const isCategory = categories.some(c => c.id === active);
 
@@ -93,6 +183,11 @@ export default function App() {
     boot();
     void navigator.storage?.persist?.().catch(() => undefined);
   }, [boot]);
+
+  useEffect(() => {
+    const cleanup = initJournalAutoSave();
+    return cleanup;
+  }, []);
 
   useEffect(() => {
     const clean = normalizeTheme(theme);
@@ -138,9 +233,10 @@ export default function App() {
         setShortcuts(s => !s);
         return;
       }
-      if (isEditing && (key === 'n' || ['1', '2', '3', '4', '5'].includes(e.key))) return;
+      if (isEditing && (key === 'n' || ['1', '2', '3', '4', '5', '6'].includes(e.key))) return;
       if (mod && key === 'n') { e.preventDefault(); setSearch(false); setShortcuts(false); setQuick(true); return; }
       if (mod && key === 'k') { e.preventDefault(); setQuick(false); setShortcuts(false); setSearch(s => !s); return; }
+      if (mod && (key === 'j' || e.key === '6')) { e.preventDefault(); go('journal'); return; }
       if (mod && e.key === '1') { e.preventDefault(); go('home'); return; }
       if (mod && e.key === '2') { e.preventDefault(); go('calendar'); return; }
       if (mod && e.key === '3') { e.preventDefault(); go('pages'); return; }
@@ -243,10 +339,11 @@ export default function App() {
                     : active === 'calendar' ? <Calendar />
                     : active === 'review' ? <Review onNavigate={go} onQuickAdd={openQuick} />
                     : active === 'analytics' ? <Analytics onNavigate={go} />
+                    : active === 'journal' ? <Journal />
                     : active === 'pages' ? (
                       nav.pageId ? <PageView pageId={nav.pageId} onBack={() => go('pages')} /> : <PagesList onOpenPage={pageId => go('pages', { pageId })} />
                     )
-                    : <Settings theme={theme} setTheme={setTheme} layoutMode={layoutMode} setLayoutMode={setLayoutMode} />}
+                    : <Settings theme={theme} setTheme={setTheme} layoutMode={layoutMode} setLayoutMode={setLayoutMode} onReplayWelcome={() => triggerWelcome('full-daily')} />}
                 </ErrorBoundary>
               </div>
             </main>
@@ -267,9 +364,26 @@ export default function App() {
         <TaskEditor />
         <QuickAddModal open={quick} onClose={closeQuick} defaultCategory={isCategory ? active : undefined} />
         <ShortcutsModal open={shortcuts} onClose={() => setShortcuts(false)} />
-        {search && <CommandPalette categories={categories} onClose={closeSearch} onNavigate={go} onNewTask={openQuick} onOpenTask={openTask} onOpenPage={openPage} onCycleTheme={cycleTheme} onOpenShortcuts={() => setShortcuts(true)} />}
+        {search && <CommandPalette categories={categories} onClose={closeSearch} onNavigate={go} onNewTask={openQuick} onOpenTask={openTask} onOpenPage={openPage} onCycleTheme={cycleTheme} onOpenShortcuts={() => setShortcuts(true)} onReplayWelcome={() => triggerWelcome('full-daily')} />}
         {active !== 'home' && layoutMode !== 'cockpit' && <MiniTimer onOpen={goHome} />}
         <FloatingHUDPortal />
+        <OnboardingWelcome
+          open={welcomeOpen}
+          variant={welcomeVariant}
+          theme={theme as Theme}
+          setTheme={t => setTheme(t)}
+          layoutMode={layoutMode}
+          setLayoutMode={setLayoutMode}
+          onComplete={completeWelcome}
+          tasks={welcomeTasks}
+          habits={welcomeHabits}
+          focusMinutesToday={focusMinutesToday}
+          soundscape={currentSoundscape.type}
+          onSelectSoundscape={handleWelcomeSelectSoundscape}
+          onAddQuickTask={handleWelcomeAddTask}
+          onToggleHabit={handleWelcomeToggleHabit}
+          onStartFocusTask={handleWelcomeStartFocusTask}
+        />
         <Toaster />
         <ReloadPrompt />
       </div>
