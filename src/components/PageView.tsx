@@ -3,9 +3,12 @@ import { ArrowLeft, Check, Circle, Flame, ListChecks, Pencil, Plus, Sparkles, Ta
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { db } from '../db/db';
 import { computeStreaks } from '../lib/analytics';
+import { toggleHabitDay } from '../lib/habitActions';
 import { deleteEntry, getOrCreateEntry, restoreEntry, saveEntry, shouldDropEmptyEntry } from '../lib/journal';
 import { addLink, listLinks, removeLink } from '../lib/pageLinks';
 import { confirmLegacyPage, deletePage, restorePage, savePage } from '../lib/pages';
+import { changeStatus } from '../lib/tasks';
+import { generateDailySummaryDoc } from '../lib/journalSummary';
 import { toast } from '../lib/toast';
 import { dateLabel, isoToday, relativeDay } from '../lib/utils';
 import type { Habit, JournalEntry, Page, PageLink, Task } from '../types';
@@ -147,7 +150,21 @@ function JournalEntryRow({ entry, isToday, editing, onEdit, onDoneEditing }: { e
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-line">
         <span className="text-xs font-medium text-fg-muted">{isToday ? `Today · ${dateLabel(entry.date)}` : dateLabel(entry.date)}</span>
         {editing ? (
-          <button onClick={() => void flush()} className="text-xs text-fg-muted hover:text-fg px-2 py-1 rounded-xl hover:bg-hover">Done</button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                const summaryDoc = await generateDailySummaryDoc(entry.date);
+                await saveEntry(entry.id, summaryDoc);
+                toast('Daily summary inserted!', 'success');
+              }}
+              className="text-xs text-accent hover:text-accent-hover flex items-center gap-1 font-medium px-2 py-1 rounded-xl hover:bg-hover transition-colors"
+              title="Insert today's completed tasks, habits, and focus time"
+            >
+              <Sparkles size={12} /> Auto Summary
+            </button>
+            <button onClick={() => void flush()} className="text-xs text-fg-muted hover:text-fg px-2 py-1 rounded-xl hover:bg-hover">Done</button>
+          </div>
         ) : (
           <button onClick={onEdit} aria-label="Edit this entry" title="Edit" className="text-fg-subtle hover:text-fg p-1 rounded-xl hover:bg-hover"><Pencil size={13} /></button>
         )}
@@ -216,8 +233,9 @@ function RelatedSection({ pageId, links }: { pageId: string; links: PageLink[] }
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-medium text-fg-soft">Related</h2>
         <div className="flex gap-1">
-          <button onClick={() => setPicking(picking === 'task' ? null : 'task')} className="text-xs h-7 px-2.5 rounded-xl text-fg-muted hover:text-[var(--sidebar-active-text)] hover:bg-[var(--sidebar-active-bg)]">+ Task</button>
-          <button onClick={() => setPicking(picking === 'habit' ? null : 'habit')} className="text-xs h-7 px-2.5 rounded-xl text-fg-muted hover:text-[var(--sidebar-active-text)] hover:bg-[var(--sidebar-active-bg)]">+ Habit</button>
+          <button onClick={() => setPicking(picking === 'task' ? null : 'task')} className={`text-xs h-7 px-2.5 rounded-xl transition ${picking === 'task' ? 'bg-surface-2 text-fg font-medium' : 'text-fg-muted hover:text-[var(--sidebar-active-text)] hover:bg-[var(--sidebar-active-bg)]'}`}>+ Task</button>
+          <button onClick={() => setPicking(picking === 'habit' ? null : 'habit')} className={`text-xs h-7 px-2.5 rounded-xl transition ${picking === 'habit' ? 'bg-surface-2 text-fg font-medium' : 'text-fg-muted hover:text-[var(--sidebar-active-text)] hover:bg-[var(--sidebar-active-bg)]'}`}>+ Habit</button>
+          <button onClick={() => setPicking(picking === 'goal' ? null : 'goal')} className={`text-xs h-7 px-2.5 rounded-xl transition ${picking === 'goal' ? 'bg-surface-2 text-fg font-medium' : 'text-fg-muted hover:text-[var(--sidebar-active-text)] hover:bg-[var(--sidebar-active-bg)]'}`}>+ Goal</button>
         </div>
       </div>
       {picking && <LinkPicker pageId={pageId} kind={picking} existing={links.map(l => l.targetId)} onDone={() => setPicking(null)} />}
@@ -276,14 +294,21 @@ function LinkPicker({ pageId, kind, existing, onDone }: { pageId: string; kind: 
 function LinkedTaskRow({ link }: { link: PageLink }) {
   const task = useLiveQuery(() => db.tasks.get(link.targetId), [link.targetId]);
   if (task === undefined) return null;
-  if (!task) return null; // the task was deleted; the dangling link is cleaned up by deleteTask/bulkDelete
+  if (!task) return null;
   const done = task.status === 'Submitted/Done';
   return (
     <div className="group flex items-center gap-2 text-sm">
-      {done ? <Check size={14} className="text-fg-muted shrink-0" /> : <Circle size={14} className="text-fg-subtle shrink-0" />}
-      <span className={`min-w-0 truncate ${done ? 'line-through text-fg-subtle' : 'text-fg-soft'}`}>{task.title}</span>
+      <button
+        type="button"
+        onClick={() => void changeStatus(task, done ? 'To Do' : 'Submitted/Done')}
+        aria-label={done ? `Mark "${task.title}" as incomplete` : `Mark "${task.title}" as complete`}
+        className="size-5 rounded border border-line hover:border-fg-muted grid place-items-center shrink-0 transition-colors"
+      >
+        {done ? <Check size={12} className="text-accent" /> : null}
+      </button>
+      <span className={`min-w-0 truncate flex-1 ${done ? 'line-through text-fg-subtle' : 'text-fg-soft'}`}>{task.title}</span>
       {task.dueDate && <span className="text-xs text-fg-subtle shrink-0">{relativeDay(task.dueDate)}</span>}
-      <button onClick={() => void removeLink(link.id)} aria-label={`Unlink ${task.title}`} className="ml-auto shrink-0 text-fg-subtle hover:text-fg-soft opacity-0 group-hover:opacity-100"><X size={13} /></button>
+      <button onClick={() => void removeLink(link.id)} aria-label={`Unlink ${task.title}`} title="Unlink" className="shrink-0 text-fg-subtle hover:text-fg-soft opacity-0 group-hover:opacity-100"><X size={13} /></button>
     </div>
   );
 }
@@ -292,13 +317,23 @@ function LinkedHabitRow({ link }: { link: PageLink }) {
   const habit = useLiveQuery(() => db.habits.get(link.targetId), [link.targetId]);
   if (habit === undefined) return null;
   if (!habit) return null;
-  const streak = computeStreaks(habit.completions, isoToday()).current;
+  const today = isoToday();
+  const done = habit.completions.includes(today);
+  const streak = computeStreaks(habit.completions, today).current;
   return (
     <div className="group flex items-center gap-2 text-sm">
-      <ListChecks size={14} className="text-fg-subtle shrink-0" />
-      <span className="min-w-0 truncate text-fg-soft">{habit.name}</span>
+      <button
+        type="button"
+        onClick={() => void toggleHabitDay(habit.id, today)}
+        aria-label={done ? `Mark "${habit.name}" as not done today` : `Check in "${habit.name}" for today`}
+        className="size-5 rounded border border-line hover:border-fg-muted grid place-items-center shrink-0 transition-colors"
+        style={{ borderColor: done ? habit.color : undefined, background: done ? `${habit.color}20` : undefined }}
+      >
+        {done ? <Check size={12} style={{ color: habit.color }} /> : null}
+      </button>
+      <span className={`min-w-0 truncate flex-1 ${done ? 'text-fg-subtle' : 'text-fg-soft'}`}>{habit.name}</span>
       {streak > 0 && <span className="flex items-center gap-1 text-xs text-fg-muted shrink-0"><Flame size={11} />{streak}</span>}
-      <button onClick={() => void removeLink(link.id)} aria-label={`Unlink ${habit.name}`} className="ml-auto shrink-0 text-fg-subtle hover:text-fg-soft opacity-0 group-hover:opacity-100"><X size={13} /></button>
+      <button onClick={() => void removeLink(link.id)} aria-label={`Unlink ${habit.name}`} title="Unlink" className="shrink-0 text-fg-subtle hover:text-fg-soft opacity-0 group-hover:opacity-100"><X size={13} /></button>
     </div>
   );
 }

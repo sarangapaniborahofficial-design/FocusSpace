@@ -54,7 +54,12 @@ export const relativeDay = (date: string, today = isoToday()) => {
   return dateLabel(date);
 };
 
-export const priorityTone = (p: string) => ({ Low: 'text-zinc-400 bg-zinc-800', Medium: 'text-sky-300 bg-sky-500/10', High: 'text-amber-300 bg-amber-500/10', Urgent: 'text-zinc-300 bg-zinc-500/10' }[p] ?? 'text-zinc-400 bg-zinc-800');
+export const priorityTone = (p: string) => ({
+  Low: 'text-fg-muted bg-surface-3',
+  Medium: 'text-sky-700 dark:text-sky-300 bg-sky-500/15',
+  High: 'text-amber-700 dark:text-amber-300 bg-amber-500/15',
+  Urgent: 'text-rose-700 dark:text-rose-400 bg-rose-500/15 font-medium',
+}[p] ?? 'text-fg-muted bg-surface-3');
 
 /** localStorage that never throws (private mode, blocked storage, quota). */
 export const storage = {

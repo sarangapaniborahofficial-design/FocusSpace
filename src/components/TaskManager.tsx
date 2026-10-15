@@ -106,8 +106,8 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
     <div className="p-5 lg:p-7 max-w-[1500px] mx-auto">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
         <div>
-          <div className="text-xs uppercase tracking-[.18em] text-fg-subtle mb-1">Task management</div>
-          <h1 className="text-2xl font-semibold tracking-tight">{categoryId ? category?.name ?? 'Category' : 'All tasks'}</h1>
+          <div className="index-chip text-fg-subtle mb-1">Task management</div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{categoryId ? category?.name ?? 'Category' : 'All tasks'}</h1>
           <p className="text-sm text-fg-muted mt-1">{loading ? 'Loading…' : all.length ? `${openCount} open · ${all.length - openCount} done` : 'Your local-first execution queue.'}</p>
         </div>
         <div className="flex gap-2 self-start md:self-auto">

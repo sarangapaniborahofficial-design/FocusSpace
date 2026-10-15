@@ -18,7 +18,7 @@ const readRange = (): RangeId => {
 };
 
 const oneDecimal = (n: number) => (Math.round(n * 10) / 10).toString();
-const card = 'rounded-2xl border border-line bg-surface shadow-card';
+const card = 'atelier-card rounded-3xl';
 
 export function Analytics({ onNavigate }: { onNavigate?: (view: string) => void } = {}) {
   const today = useToday();
@@ -52,8 +52,8 @@ export function Analytics({ onNavigate }: { onNavigate?: (view: string) => void 
     <div className="p-5 lg:p-7 max-w-[1200px] mx-auto">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
         <div>
-          <div className="text-xs uppercase tracking-[.18em] text-fg-soft mb-1">Insights</div>
-          <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
+          <div className="index-chip text-fg-soft mb-1">Insights</div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Analytics</h1>
           <p className="text-sm text-fg-muted mt-1">What you finished and how long you focused, across every workspace.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -264,7 +264,7 @@ function Stat({ label, value, sub, className = '' }: { label: string; value: str
   return (
     <div className={`p-5 border-line min-w-0 ${className}`}>
       <div className="text-xs text-fg-muted">{label}</div>
-      <div className="text-2xl font-semibold tracking-tight mt-1.5 tabular-nums">{value}</div>
+      <div className="text-2xl sm:text-3xl font-bold tracking-tight mt-1.5 tabular-nums">{value}</div>
       <div className="text-xs text-fg-soft mt-1.5">{sub}</div>
     </div>
   );
@@ -439,7 +439,7 @@ function GoalsSection() {
   const goals = useLiveQuery(() => db.goals.toArray(), []) ?? [];
   if (goals.length === 0) return null;
   return (
-    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden" aria-labelledby="active-goals-title">
+    <section className="atelier-card rounded-3xl overflow-hidden" aria-labelledby="active-goals-title">
       <div className="p-5 border-b border-line flex items-center justify-between">
         <div>
           <h2 id="active-goals-title" className="font-medium flex items-center gap-2"><Target size={15} /> Long-Term Goals</h2>

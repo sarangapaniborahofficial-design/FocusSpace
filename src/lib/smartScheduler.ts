@@ -1,7 +1,27 @@
 import { db } from '../db/db';
 import type { Priority, Task } from '../types';
 import { reorderTasks } from './tasks';
-import { addDays } from './utils';
+import { addDays, storage } from './utils';
+
+export interface SchedulePreferences {
+  workdayStart?: string;
+  workdayEnd?: string;
+  bufferMinutes?: number;
+}
+
+export function loadSchedulePreferences(): Required<SchedulePreferences> {
+  return {
+    workdayStart: storage.get('focusspace-workday-start') || '09:00',
+    workdayEnd: storage.get('focusspace-workday-end') || '19:30',
+    bufferMinutes: Number(storage.get('focusspace-buffer-mins')) || 10,
+  };
+}
+
+export function saveSchedulePreferences(prefs: SchedulePreferences): void {
+  if (prefs.workdayStart) storage.set('focusspace-workday-start', prefs.workdayStart);
+  if (prefs.workdayEnd) storage.set('focusspace-workday-end', prefs.workdayEnd);
+  if (prefs.bufferMinutes) storage.set('focusspace-buffer-mins', String(prefs.bufferMinutes));
+}
 
 export type SlotType = 'quick-win' | 'deep-work' | 'fixed-anchor' | 'standard' | 'buffer';
 
@@ -53,7 +73,17 @@ const roundUpToFive = (m: number): number => Math.ceil(m / 5) * 5;
 /**
  * Generates an optimized, cognitive-load-aware daily timeline for Today's tasks.
  */
-export function generateSmartSchedule(tasks: Task[], today: string, nowTimeStr?: string): SchedulePlan {
+export function generateSmartSchedule(
+  tasks: Task[],
+  today: string,
+  nowTimeStr?: string,
+  customPrefs?: SchedulePreferences,
+): SchedulePlan {
+  const prefs = { ...loadSchedulePreferences(), ...customPrefs };
+  const workdayStartMin = timeToMinutes(prefs.workdayStart);
+  const workdayEndMin = timeToMinutes(prefs.workdayEnd);
+  const bufferDuration = Math.max(5, prefs.bufferMinutes);
+
   const now = new Date();
   const defaultNow = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const nowTime = nowTimeStr || defaultNow;
@@ -77,8 +107,8 @@ export function generateSmartSchedule(tasks: Task[], today: string, nowTimeStr?:
 
   // Work start cursor (round up to next 5-min slot)
   let cursorMin = roundUpToFive(currentMin);
-  // If running late at night (e.g. after 21:00) or early morning before 07:00, anchor to current or 09:00
-  if (cursorMin < 420) cursorMin = 540; // 09:00 AM
+  // If running before configured workday start, anchor to workday start
+  if (cursorMin < workdayStartMin) cursorMin = workdayStartMin;
 
   // Separate fixed timed tasks from floating untimed tasks
   const fixedTasks = openTasks
@@ -184,17 +214,17 @@ export function generateSmartSchedule(tasks: Task[], today: string, nowTimeStr?:
       totalWorkMinutes += duration;
       fixedIdx++;
 
-      // Short buffer after fixed meeting
+      // Buffer after fixed meeting
       const bufStart = minutesToTime(cursorMin);
-      cursorMin += 10;
+      cursorMin += bufferDuration;
       buffers.push({
         id: `buf-${cursorMin}`,
         startTime: bufStart,
         endTime: minutesToTime(cursorMin),
-        durationMinutes: 10,
+        durationMinutes: bufferDuration,
         reason: 'Post-meeting decompression buffer',
       });
-      totalBufferMinutes += 10;
+      totalBufferMinutes += bufferDuration;
       continue;
     }
 
@@ -270,10 +300,9 @@ export function generateSmartSchedule(tasks: Task[], today: string, nowTimeStr?:
     }
   }
 
-  // Evaluate capacity and overbooking (assume normal day cutoff at 19:30 or 10 hours from start)
-  const maxDayMinutes = 19 * 60 + 30; // 19:30
-  const isOverbooked = cursorMin > maxDayMinutes;
-  const overbookedMinutes = isOverbooked ? cursorMin - maxDayMinutes : 0;
+  // Evaluate capacity and overbooking (against configured workday cutoff)
+  const isOverbooked = cursorMin > workdayEndMin;
+  const overbookedMinutes = isOverbooked ? cursorMin - workdayEndMin : 0;
 
   // Suggest low-priority or non-urgent tasks to defer if overbooked
   const suggestedDeferrals = isOverbooked

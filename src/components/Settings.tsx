@@ -1,8 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Bell, Calendar, Check, Download, Flame, Keyboard, Palette, Pencil, Plus, RefreshCw, Smartphone, Target, Trash2, Upload, X } from 'lucide-react';
+import { Bell, Calendar, Check, Download, Flame, Keyboard, Palette, Pencil, Plus, RefreshCw, Smartphone, Target, Trash2, Upload, X, Zap } from 'lucide-react';
 import { isNotificationSupported, getNotificationPermission, requestNotificationPermission, sendNotification } from '../lib/notifications';
 import { useEffect, useRef, useState } from 'react';
 import { db } from '../db/db';
+import { loadSchedulePreferences, saveSchedulePreferences } from '../lib/smartScheduler';
 import { exportBackup, currentReminderState, daysSince, shouldRemindBackup, snoozeBackupReminder } from '../lib/backupExport';
 import { base64ToBlob, formatBytes } from '../lib/files';
 import { HABIT_COLORS, addHabit, deleteHabit, updateHabit } from '../lib/habitActions';
@@ -17,11 +18,18 @@ import { storage, uid } from '../lib/utils';
 import type { Category, Habit } from '../types';
 
 const themes = [
-  { id: 'dark', name: 'Dark', description: 'zinc workspace with soft contrast' },
-  { id: 'light', name: 'Light', description: 'Bright neutral workspace' },
+  { id: 'nocturne', name: 'Nocturne Solaris (Dark)', description: 'Pitch-black anodized dot-matrix, warm stone borders & vermilion orange' },
+  { id: 'onyx', name: 'Swiss Onyx (Dark)', description: 'Pitch-black architectural grid, brutalist offset shadows & acid citron' },
+  { id: 'solaris', name: 'Solaris (Light)', description: 'Warm analog paper, vermilion orange & botanical sage' },
+  { id: 'bauhaus', name: 'Swiss Brutal (Light)', description: 'High-contrast architectural grid, hard offset shadows & acid citron' },
 ];
 
-export function Settings({ theme, setTheme }: { theme: string; setTheme: (theme: string) => void }) {
+const layouts: { id: 'orbital' | 'cockpit'; name: string; description: string }[] = [
+  { id: 'orbital', name: 'Floating Layout', description: 'Floating cards & sidebar rail with compact mini-timer' },
+  { id: 'cockpit', name: 'Split View (Docked Timer)', description: 'Full-width workspace with Pomodoro timer docked on the right' },
+];
+
+export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMode }: { theme: string; setTheme: (theme: string) => void; layoutMode?: 'orbital' | 'cockpit'; setLayoutMode?: (m: 'orbital' | 'cockpit') => void }) {
   const categories = useLiveQuery(() => db.categories.toArray(), []) ?? [];
   const { isInstallable, install } = usePWAInstall();
   const [editing, setEditing] = useState<Category | null>(null);
@@ -140,9 +148,20 @@ export function Settings({ theme, setTheme }: { theme: string; setTheme: (theme:
   return <div className="p-5 lg:p-7 max-w-5xl mx-auto space-y-5">
     <div><div className="text-xs uppercase tracking-[.18em] text-fg-subtle">System</div><h1 className="text-2xl font-semibold mt-1">Settings</h1><p className="text-sm text-fg-muted mt-1">Own the workspace. Everything stays local unless you export it.</p></div>
     <BackupReminder onExport={() => void exportData()} />
-    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
-      <div className="p-5 border-b border-line"><div className="flex items-center gap-2 font-medium"><Palette size={16}/> Appearance</div><p className="text-xs text-fg-subtle mt-1">Choose how FocusSpace looks on this device.</p></div>
-      <div className="p-5 grid md:grid-cols-3 gap-3">{themes.map(t => <button key={t.id} onClick={()=>{setTheme(t.id);localStorage.setItem('focusspace-theme',t.id)}} className={`text-left rounded-xl border p-4 transition ${theme===t.id?'border-line-strong bg-surface-2':'border-line bg-surface/30 hover:bg-hover'}`}><div className="text-sm font-medium">{t.name}</div><div className="text-xs text-fg-subtle mt-1">{t.description}</div></button>)}</div>
+    <section className="atelier-card rounded-3xl overflow-hidden">
+      <div className="p-5 border-b border-line"><div className="flex items-center gap-2 font-semibold"><Palette size={16} className="text-accent-text"/> Appearance & Layout</div><p className="text-xs text-fg-subtle mt-1">Switch between three bespoke aesthetic personas and two spatial layout architectures.</p></div>
+      <div className="p-5 space-y-5">
+        <div>
+          <div className="index-chip text-fg-subtle mb-2.5">Theme</div>
+          <div className="grid sm:grid-cols-2 gap-3">{themes.map(t => <button key={t.id} onClick={()=>{setTheme(t.id);localStorage.setItem('focusspace-theme',t.id)}} className={`text-left rounded-2xl border p-4 transition ${theme===t.id?'border-line-strong bg-surface-2 keycap':'border-line bg-surface/30 hover:bg-hover'}`}><div className="flex items-center justify-between"><span className="text-sm font-semibold">{t.name}</span>{theme===t.id && <span className="size-2 rounded-full bg-accent"/>}</div><div className="text-xs text-fg-subtle mt-1">{t.description}</div></button>)}</div>
+        </div>
+        {setLayoutMode && (
+          <div>
+            <div className="index-chip text-fg-subtle mb-2.5">Navigation & Layout Style</div>
+            <div className="grid md:grid-cols-2 gap-3">{layouts.map(l => <button key={l.id} onClick={()=>setLayoutMode(l.id)} className={`text-left rounded-2xl border p-4 transition ${layoutMode===l.id?'border-line-strong bg-surface-2 keycap':'border-line bg-surface/30 hover:bg-hover'}`}><div className="flex items-center justify-between"><span className="text-sm font-semibold">{l.name}</span>{layoutMode===l.id && <span className="size-2 rounded-full bg-accent"/>}</div><div className="text-xs text-fg-subtle mt-1">{l.description}</div></button>)}</div>
+          </div>
+        )}
+      </div>
     </section>
 
     <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
@@ -169,13 +188,14 @@ export function Settings({ theme, setTheme }: { theme: string; setTheme: (theme:
     <HabitsCard />
     <NotificationsCard />
     <GoalsCard />
+    <SchedulingPreferencesCard />
 
     <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
       <div className="p-5 border-b border-line"><div className="flex items-center gap-2 font-medium"><Keyboard size={16}/> Keyboard shortcuts</div><p className="text-xs text-fg-subtle mt-1">Available from any view. Use ⌘ instead of Ctrl on a Mac.</p></div>
-      <dl className="p-5 grid sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">{[['Ctrl K','Search tasks and run commands'],['Ctrl N','Quick add a task'],['Space','Start or pause the timer'],['Esc','Close a dialog']].map(([keys,what])=><div key={keys} className="flex items-center justify-between gap-4"><dt className="text-fg-muted">{what}</dt><dd><kbd className="text-[11px] border border-line rounded px-1.5 py-0.5 text-fg-soft">{keys}</kbd></dd></div>)}</dl>
+      <dl className="p-5 grid sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">{[['Ctrl K','Search tasks and run commands'],['Ctrl N','Quick add a task'],['Ctrl /','Open shortcuts cheatsheet'],['Space','Start or pause the timer'],['Ctrl 1-5','Quick view navigation'],['Esc','Close a dialog']].map(([keys,what])=><div key={keys} className="flex items-center justify-between gap-4"><dt className="text-fg-muted">{what}</dt><dd><kbd className="text-[11px] border border-line rounded px-1.5 py-0.5 text-fg-soft">{keys}</kbd></dd></div>)}</dl>
     </section>
 
-    {deleteTarget && <div className="fade-in fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4" onMouseDown={()=>setDeleteTarget(null)}><div role="dialog" aria-modal="true" aria-label={`Delete ${deleteTarget.name}`} onMouseDown={e=>e.stopPropagation()} className="pop-in w-full max-w-md rounded-2xl border border-line bg-surface shadow-2xl p-5"><div className="flex items-start justify-between"><div><h2 className="font-semibold">Delete {deleteTarget.name}?</h2><p className="text-xs text-fg-subtle mt-1">Tasks and pages in this category must be moved before it is deleted.</p></div><button onClick={()=>setDeleteTarget(null)}><X size={17} className="text-fg-subtle"/></button></div><label className="block text-xs text-fg-muted mt-5">Move tasks and pages to<select value={moveTo} onChange={e=>setMoveTo(e.target.value)} className="mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line px-3 text-sm">{categories.filter(c=>c.id!==deleteTarget.id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><div className="flex justify-end gap-2 mt-5"><button onClick={()=>setDeleteTarget(null)} className="h-8 px-3 rounded-xl text-sm text-fg-muted">Cancel</button><button disabled={!moveTo||busy} onClick={()=>void removeCategory()} className="h-8 px-3 rounded-xl bg-red-400 text-white text-sm font-medium disabled:opacity-40">Move & delete</button></div></div></div>}
+    {deleteTarget && <div className="fade-in fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4" onMouseDown={()=>setDeleteTarget(null)}><div role="dialog" aria-modal="true" aria-label={`Delete ${deleteTarget.name}`} onMouseDown={e=>e.stopPropagation()} className="pop-in w-full max-w-md rounded-2xl border border-line bg-surface shadow-2xl p-5"><div className="flex items-start justify-between"><div><h2 className="font-semibold">Delete {deleteTarget.name}?</h2><p className="text-xs text-fg-subtle mt-1">Tasks and pages in this category must be moved before it is deleted.</p></div><button onClick={()=>setDeleteTarget(null)}><X size={17} className="text-fg-subtle"/></button></div><label className="block text-xs text-fg-muted mt-5">Move tasks and pages to<select value={moveTo} onChange={e=>setMoveTo(e.target.value)} className="mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line px-3 text-sm">{categories.filter(c=>c.id!==deleteTarget.id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><div className="flex justify-end gap-2 mt-5"><button onClick={()=>setDeleteTarget(null)} className="h-8 px-3 rounded-xl text-sm text-fg-muted">Cancel</button><button disabled={!moveTo||busy} onClick={()=>void removeCategory()} className="h-8 px-3 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium disabled:opacity-40 transition-colors">Move & delete</button></div></div></div>}
   </div>;
 }
 
@@ -255,16 +275,18 @@ function HabitsCard() {
   const today = useToday();
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
+  const [newColor, setNewColor] = useState(HABIT_COLORS[0]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [editColor, setEditColor] = useState(HABIT_COLORS[0]);
 
   const create = async () => {
-    const habit = await addHabit({ name });
-    if (habit) { setName(''); setCreating(false); } else toast('Give the habit a name first.', 'error');
+    const habit = await addHabit({ name, color: newColor });
+    if (habit) { setName(''); setNewColor(HABIT_COLORS[0]); setCreating(false); } else toast('Give the habit a name first.', 'error');
   };
-  const startEdit = (h: Habit) => { setEditingId(h.id); setEditName(h.name); };
+  const startEdit = (h: Habit) => { setEditingId(h.id); setEditName(h.name); setEditColor(h.color); };
   const saveEdit = async () => {
-    if (editingId && editName.trim()) await updateHabit(editingId, { name: editName.trim() });
+    if (editingId && editName.trim()) await updateHabit(editingId, { name: editName.trim(), color: editColor });
     setEditingId(null);
   };
 
@@ -272,7 +294,7 @@ function HabitsCard() {
     <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
       <div className="p-5 border-b border-line flex items-center justify-between">
         <div><div className="font-medium">Habits</div><p className="text-xs text-fg-subtle mt-1">Active habits show up on Today as one-tap check-ins.</p></div>
-        <button onClick={() => { setCreating(true); setName(''); }} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium flex items-center gap-1.5"><Plus size={15} /> Add habit</button>
+        <button onClick={() => { setCreating(true); setName(''); setNewColor(HABIT_COLORS[0]); }} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium flex items-center gap-1.5"><Plus size={15} /> Add habit</button>
       </div>
       <div className="p-4 space-y-2">
         {habits.length === 0 && !creating && <p className="text-sm text-fg-subtle px-1 py-2">No habits yet. Add one to start tracking daily streaks.</p>}
@@ -280,36 +302,63 @@ function HabitsCard() {
           const streak = computeStreaks(h.completions, today).current;
           const editingThis = editingId === h.id;
           return (
-            <div key={h.id} className={`flex items-center gap-3 rounded-xl border p-3 ${h.active ? 'border-line bg-surface/40' : 'border-line bg-surface/20 opacity-60'}`}>
-              <span className="size-3 rounded-full shrink-0" style={{ background: h.color }} />
+            <div key={h.id} className={`flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border p-3 ${h.active ? 'border-line bg-surface/40' : 'border-line bg-surface/20 opacity-60'}`}>
+              <span className="size-3.5 rounded-full shrink-0" style={{ background: editingThis ? editColor : h.color }} />
               {editingThis ? (
-                <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') void saveEdit(); if (e.key === 'Escape') setEditingId(null); }} className="flex-1 min-w-0 h-8 rounded-xl bg-surface-2 border border-line px-2 text-sm outline-none" />
+                <div className="flex-1 flex flex-wrap items-center gap-2 min-w-0">
+                  <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') void saveEdit(); if (e.key === 'Escape') setEditingId(null); }} className="flex-1 min-w-[160px] h-8 rounded-xl bg-surface-2 border border-line px-2 text-sm outline-none" />
+                  <div className="flex items-center gap-1">
+                    {HABIT_COLORS.map(c => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setEditColor(c)}
+                        aria-label={`Select color ${c}`}
+                        className={`size-5 rounded-full transition-transform ${editColor === c ? 'scale-110 ring-2 ring-offset-2 ring-accent ring-offset-surface' : 'opacity-70 hover:opacity-100'}`}
+                        style={{ background: c }}
+                      />
+                    ))}
+                  </div>
+                </div>
               ) : (
                 <div className="flex-1 min-w-0">
                   <div className="text-sm truncate">{h.name}{!h.active && <span className="text-fg-subtle"> · archived</span>}</div>
                   {streak > 0 && <div className="text-[11px] text-fg-subtle flex items-center gap-1"><Flame size={11} />{streak}-day streak</div>}
                 </div>
               )}
-              {editingThis ? (
-                <button onClick={() => void saveEdit()} className="text-xs text-fg-soft hover:text-fg px-2 py-1.5 rounded-xl hover:bg-hover"><Check size={14} /></button>
-              ) : (
-                <button onClick={() => startEdit(h)} aria-label={`Rename ${h.name}`} className="text-fg-muted hover:text-fg p-2 rounded-xl hover:bg-hover"><Pencil size={14} /></button>
-              )}
-              <button onClick={() => void updateHabit(h.id, { active: !h.active })} className="text-xs text-fg-muted hover:text-fg px-2 py-1.5 rounded-xl hover:bg-hover">{h.active ? 'Archive' : 'Restore'}</button>
-              <button onClick={() => void deleteHabit(h.id)} aria-label={`Delete ${h.name}`} className="text-fg-subtle hover:text-red-300 p-2 rounded-xl hover:bg-hover" title="Delete"><Trash2 size={15} /></button>
+              <div className="flex items-center gap-1 self-end sm:self-center shrink-0">
+                {editingThis ? (
+                  <button onClick={() => void saveEdit()} className="text-xs text-fg-soft hover:text-fg px-2 py-1.5 rounded-xl hover:bg-hover"><Check size={14} /></button>
+                ) : (
+                  <button onClick={() => startEdit(h)} aria-label={`Rename ${h.name}`} className="text-fg-muted hover:text-fg p-2 rounded-xl hover:bg-hover"><Pencil size={14} /></button>
+                )}
+                <button onClick={() => void updateHabit(h.id, { active: !h.active })} className="text-xs text-fg-muted hover:text-fg px-2 py-1.5 rounded-xl hover:bg-hover">{h.active ? 'Archive' : 'Restore'}</button>
+                <button onClick={() => void deleteHabit(h.id)} aria-label={`Delete ${h.name}`} className="text-fg-subtle hover:text-rose-500 p-2 rounded-xl hover:bg-hover" title="Delete"><Trash2 size={15} /></button>
+              </div>
             </div>
           );
         })}
       </div>
       {creating && (
         <div className="p-4 border-t border-line bg-surface/30">
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-3">
             <input autoFocus value={name} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') void create(); }} placeholder="e.g. Read 20 minutes" className="flex-1 h-10 rounded-lg bg-surface-2 border border-line px-3 text-sm outline-none" />
-            <div className="flex gap-1">
-              {HABIT_COLORS.slice(0, 5).map(c => <span key={c} className="size-6 rounded-full self-center" style={{ background: c }} />)}
+            <div className="flex items-center gap-1.5 self-center">
+              {HABIT_COLORS.map(c => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setNewColor(c)}
+                  aria-label={`Select color ${c}`}
+                  className={`size-6 rounded-full transition-transform ${newColor === c ? 'scale-110 ring-2 ring-offset-2 ring-accent ring-offset-surface' : 'opacity-70 hover:opacity-100'}`}
+                  style={{ background: c }}
+                />
+              ))}
             </div>
-            <button onClick={() => setCreating(false)} className="h-8 px-2 rounded-xl text-sm text-fg-muted hover:bg-hover">Cancel</button>
-            <button onClick={() => void create()} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium">Save</button>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setCreating(false)} className="h-8 px-2 rounded-xl text-sm text-fg-muted hover:bg-hover">Cancel</button>
+              <button onClick={() => void create()} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium hover:bg-accent-hover">Save</button>
+            </div>
           </div>
         </div>
       )}
@@ -503,6 +552,62 @@ function NotificationsCard() {
             )}
           </>
         )}
+      </div>
+    </section>
+  );
+}
+
+function SchedulingPreferencesCard() {
+  const [prefs, setPrefs] = useState(() => loadSchedulePreferences());
+
+  const update = (patch: Partial<typeof prefs>) => {
+    const next = { ...prefs, ...patch };
+    setPrefs(next);
+    saveSchedulePreferences(next);
+    toast('Scheduling preferences saved.', 'info');
+  };
+
+  return (
+    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
+      <div className="p-5 border-b border-line">
+        <div className="flex items-center gap-2 font-medium"><Zap size={16} /> Focus & Smart Scheduling</div>
+        <p className="text-xs text-fg-subtle mt-1">Configure your target workday hours and buffers for the AI plan optimizer.</p>
+      </div>
+      <div className="p-5 space-y-4">
+        <div className="grid sm:grid-cols-3 gap-4">
+          <label className="block text-xs text-fg-muted">
+            <span className="block mb-1.5 font-medium text-fg-soft">Workday starts</span>
+            <input
+              type="time"
+              value={prefs.workdayStart}
+              onChange={e => update({ workdayStart: e.target.value })}
+              className="w-full h-10 rounded-xl bg-surface-2 border border-line px-3 text-sm text-fg outline-none"
+            />
+          </label>
+          <label className="block text-xs text-fg-muted">
+            <span className="block mb-1.5 font-medium text-fg-soft">Workday cutoff</span>
+            <input
+              type="time"
+              value={prefs.workdayEnd}
+              onChange={e => update({ workdayEnd: e.target.value })}
+              className="w-full h-10 rounded-xl bg-surface-2 border border-line px-3 text-sm text-fg outline-none"
+            />
+          </label>
+          <label className="block text-xs text-fg-muted">
+            <span className="block mb-1.5 font-medium text-fg-soft">Post-meeting buffer</span>
+            <select
+              value={prefs.bufferMinutes}
+              onChange={e => update({ bufferMinutes: Number(e.target.value) })}
+              className="w-full h-10 rounded-xl bg-surface-2 border border-line px-3 text-sm text-fg outline-none"
+            >
+              <option value={5}>5 minutes</option>
+              <option value={10}>10 minutes</option>
+              <option value={15}>15 minutes</option>
+              <option value={20}>20 minutes</option>
+            </select>
+          </label>
+        </div>
+        <p className="text-xs text-fg-subtle">The smart scheduler will align deep work blocks to these hours and warn if tasks push past your cutoff.</p>
       </div>
     </section>
   );

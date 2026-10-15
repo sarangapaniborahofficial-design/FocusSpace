@@ -1,27 +1,145 @@
-import { Menu, Moon, Plus, Search, Sun } from 'lucide-react';
+import { Columns3, Keyboard, LayoutGrid, Menu, Moon, Orbit, Pause, Play, Plus, Search, Sparkles, Sun } from 'lucide-react';
+import { MODE_LABELS, formatClock, timer, useTimer } from '../lib/timer';
+import type { LayoutMode } from '../types';
 
-const THEME_LABEL: Record<string, string> = { dark: 'Dark', light: 'Light' };
+const THEME_META: Record<string, { label: string; short: string }> = {
+  nocturne: { label: 'Nocturne Solaris', short: 'Nocturne' },
+  onyx: { label: 'Swiss Onyx', short: 'Swiss Onyx' },
+  solaris: { label: 'Solaris', short: 'Solaris' },
+  bauhaus: { label: 'Swiss Brutal', short: 'Swiss Brutal' },
+};
 
-export function Header({ title, onMenu, onQuickAdd, onSearch, theme, setTheme }: {
-  title: string; onMenu: () => void; onQuickAdd: () => void; onSearch: () => void; theme: string; setTheme: (v: string) => void;
+const THEMES = ['nocturne', 'onyx', 'solaris', 'bauhaus'];
+
+export function Header({
+  title,
+  onMenu,
+  onQuickAdd,
+  onSearch,
+  onShortcuts,
+  theme,
+  setTheme,
+  layoutMode = 'orbital',
+  setLayoutMode,
+}: {
+  title: string;
+  onMenu: () => void;
+  onQuickAdd: () => void;
+  onSearch: () => void;
+  onShortcuts?: () => void;
+  theme: string;
+  setTheme: (v: string) => void;
+  layoutMode?: LayoutMode;
+  setLayoutMode?: (m: LayoutMode) => void;
 }) {
-  const next = theme === 'dark' ? 'light' : 'dark';
+  const s = useTimer();
+  const currentTheme = THEMES.includes(theme) ? theme : 'nocturne';
+  const next = THEMES[(THEMES.indexOf(currentTheme) + 1) % THEMES.length];
+
   return (
-    <header className="h-16 shrink-0 border-b border-line flex items-center justify-between gap-3 px-3 sm:px-5 bg-surface/80 backdrop-blur-xl sticky top-0 z-30">
-      <div className="flex items-center gap-2 text-sm text-fg-muted min-w-0">
-        <button onClick={onMenu} aria-label="Open navigation" className="md:hidden size-9 grid place-items-center rounded-lg text-fg-muted hover:text-fg hover:bg-hover -ml-1"><Menu size={18} /></button>
-        <span className="hidden sm:inline">Workspace</span>
-        <span className="hidden sm:inline text-fg-subtle">/</span>
-        <span className="text-fg-soft truncate">{title}</span>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <button onClick={onSearch} aria-label="Search and commands" className="hidden md:flex items-center gap-2 h-8 px-3 rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:border-line text-sm">
-          <Search size={15} /><span>Search</span><kbd className="ml-4 text-[10px] border border-line rounded px-1.5 py-0.5">Ctrl K</kbd>
+    <header
+      className={`h-16 shrink-0 flex items-center justify-between gap-3 px-3 sm:px-5 bg-surface/90 backdrop-blur-xl sticky top-0 z-30 border-b border-line ${
+        layoutMode === 'orbital' ? 'rounded-2xl border shadow-card mb-1' : ''
+      }`}
+    >
+      {/* Left: Mobile Menu + Breadcrumb Title */}
+      <div className="flex items-center gap-2.5 text-sm text-fg-muted min-w-0">
+        <button
+          onClick={onMenu}
+          aria-label="Open navigation"
+          className="md:hidden size-9 grid place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover -ml-1 keycap"
+        >
+          <Menu size={18} />
         </button>
-        <button onClick={onSearch} aria-label="Search and commands" className="md:hidden size-9 grid place-items-center rounded-lg border border-line text-fg-muted hover:text-fg hover:bg-hover"><Search size={16} /></button>
-        <button onClick={onQuickAdd} aria-label="Quick add task" className="h-8 px-3 rounded-xl bg-accent text-accent-fg hover:bg-accent-hover text-sm font-medium flex items-center gap-1.5"><Plus size={16} /> <span className="hidden sm:inline">Quick Add</span></button>
-        <button title={`Theme: ${THEME_LABEL[theme] ?? theme}. Switch to ${THEME_LABEL[next]}`} aria-label={`Theme: ${THEME_LABEL[theme] ?? theme}. Switch to ${THEME_LABEL[next]}`} onClick={() => setTheme(next)} className="size-9 grid place-items-center rounded-lg border border-line text-fg-muted hover:text-fg hover:bg-hover">
-          {theme === 'light' ? <Sun size={16} /> : <Moon size={16} fill={theme === 'dark' ? 'currentColor' : 'none'} />}
+        <span className="hidden sm:inline text-fg-subtle">Workspace</span>
+        <span className="hidden sm:inline text-fg-subtle">/</span>
+        <span className="font-semibold text-base text-fg truncate">{title}</span>
+      </div>
+
+      {/* Center: Quick Timer Control Pill (Desktop) */}
+      <div className="hidden xl:flex items-center gap-3 px-3 py-1 rounded-xl border border-line bg-surface-2">
+        <span className="text-xs text-fg-muted">{MODE_LABELS[s.mode]}</span>
+        <button
+          onClick={() => timer.toggle()}
+          title={s.running ? 'Pause timer (Space)' : 'Start timer (Space)'}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono transition ${
+            s.running
+              ? 'bg-accent text-accent-fg font-semibold shadow-xs'
+              : 'text-fg-soft hover:bg-hover'
+          }`}
+        >
+          {s.running ? <Pause size={12} /> : <Play size={12} fill="currentColor" />}
+          <span className="tabular-nums">{formatClock(s.remainingMs)}</span>
+        </button>
+      </div>
+
+      {/* Right: Search, Quick Add, Layout Switcher, Shortcuts, Theme Switcher */}
+      <div className="flex items-center gap-2 shrink-0">
+        <button
+          onClick={onSearch}
+          aria-label="Search and commands"
+          className="hidden md:flex items-center gap-2 h-9 px-3 rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:border-line-strong text-sm keycap"
+        >
+          <Search size={15} />
+          <span>Search</span>
+          <kbd className="ml-2 font-mono text-[10px] border border-line bg-surface rounded px-1.5 py-0.5 text-fg-soft">Ctrl K</kbd>
+        </button>
+        <button
+          onClick={onSearch}
+          aria-label="Search and commands"
+          className="md:hidden size-9 grid place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover keycap"
+        >
+          <Search size={16} />
+        </button>
+
+        <button
+          onClick={onQuickAdd}
+          aria-label="Quick add task"
+          className="h-9 px-3.5 rounded-xl bg-accent text-accent-fg hover:bg-accent-hover text-sm font-semibold flex items-center gap-1.5 keycap"
+        >
+          <Plus size={16} />
+          <span className="hidden sm:inline">Quick Add</span>
+        </button>
+
+        {setLayoutMode && (
+          <button
+            onClick={() => setLayoutMode(layoutMode === 'orbital' ? 'cockpit' : 'orbital')}
+            title={`Navigation layout: ${layoutMode === 'orbital' ? 'Floating Layout' : 'Split View (Docked Timer)'}. Click to switch.`}
+            aria-label="Switch layout style"
+            className="hidden lg:inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover text-xs font-semibold keycap"
+          >
+            {layoutMode === 'orbital' ? <Orbit size={14} className="text-accent-text" /> : <Columns3 size={14} className="text-accent-text" />}
+            <span>{layoutMode === 'orbital' ? 'Floating' : 'Split View'}</span>
+          </button>
+        )}
+
+        {onShortcuts && (
+          <button
+            onClick={onShortcuts}
+            title="Keyboard Shortcuts (Ctrl + /)"
+            aria-label="Keyboard Shortcuts"
+            className="size-9 grid place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover transition-colors keycap"
+          >
+            <Keyboard size={16} />
+          </button>
+        )}
+
+        <button
+          title={`Theme: ${THEME_META[currentTheme]?.label}. Switch to ${THEME_META[next]?.label}`}
+          aria-label={`Theme: ${THEME_META[currentTheme]?.label}. Switch to ${THEME_META[next]?.label}`}
+          onClick={() => setTheme(next)}
+          className="h-9 px-3 rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover flex items-center gap-1.5 text-xs font-semibold keycap"
+        >
+          {currentTheme === 'solaris' ? (
+            <Sun size={15} className="text-amber-600" />
+          ) : currentTheme === 'bauhaus' ? (
+            <LayoutGrid size={15} className="text-fg" />
+          ) : currentTheme === 'nocturne' ? (
+            <Moon size={15} className="text-accent-text" />
+          ) : (
+            <Sparkles size={15} className="text-accent-text" />
+          )}
+          <span className="hidden sm:inline">{THEME_META[currentTheme]?.short}</span>
         </button>
       </div>
     </header>

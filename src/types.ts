@@ -1,6 +1,7 @@
 export type Priority = 'Low' | 'Medium' | 'High' | 'Urgent';
 export type Status = 'To Do' | 'In Progress' | 'Submitted/Done';
-export type Theme = 'light' | 'dark';
+export type Theme = 'solaris' | 'bauhaus' | 'nocturne' | 'onyx';
+export type LayoutMode = 'orbital' | 'cockpit';
 
 export type RecurrenceFreq = 'daily' | 'weekdays' | 'weekly' | 'monthly';
 /** Completing a recurring task creates the next occurrence. `interval` = every N days/weeks/months. */
@@ -51,7 +52,7 @@ export interface JournalEntry {
   pageId: string;
   /** YYYY-MM-DD, unique per page. */
   date: string;
-  /** PzincMirror/TipTap document JSON. */
+  /** ProseMirror/TipTap document JSON. */
   content: RichTextDoc;
   /** Plain-text mirror of `content`, kept in step, used for search and card snippets. */
   plainText: string;
@@ -63,7 +64,7 @@ export type PageLinkKind = 'task' | 'habit' | 'goal';
 /** A reference from a page to a task/habit/goal. Never a copy — the page always reads the live record. */
 export interface PageLink { id: string; pageId: string; kind: PageLinkKind; targetId: string; createdAt: string; }
 
-/* ---------- rich text (PzincMirror/TipTap-compatible JSON) ---------- */
+/* ---------- rich text (ProseMirror/TipTap-compatible JSON) ---------- */
 
 export type MarkType = 'bold' | 'italic' | 'strike' | 'code' | 'link';
 export interface RichMark { type: MarkType; attrs?: { href?: string }; }

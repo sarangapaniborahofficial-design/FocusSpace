@@ -10,6 +10,7 @@ import { Header } from './components/Header';
 import { PageView } from './components/PageView';
 import { PagesList } from './components/PagesList';
 import { MiniTimer } from './components/MiniTimer';
+import { Pomodoro } from './components/Pomodoro';
 import { QuickAddModal } from './components/QuickAddModal';
 import { Settings } from './components/Settings';
 import { Sidebar } from './components/Sidebar';
@@ -17,18 +18,32 @@ import { TaskEditor } from './components/TaskEditor';
 import { Toaster } from './components/Toaster';
 import { ReloadPrompt } from './components/ReloadPrompt';
 import { Review } from './components/Review';
+import { ShortcutsModal } from './components/ShortcutsModal';
 import { Today } from './components/Today';
 import { ErrorBoundary } from './components/ui';
 import { openTaskEditor } from './lib/taskEditor';
 import { timer } from './lib/timer';
 import { checkAndNotifyOverdue } from './lib/notifications';
 import { storage } from './lib/utils';
-import type { Page, Task } from './types';
+import type { LayoutMode, Page, Task } from './types';
 
 const STATIC_VIEWS = ['home', 'calendar', 'review', 'analytics', 'pages', 'settings'];
-const VIEW_TITLES: Record<string, string> = { home: 'Home', calendar: 'Calendar', review: 'Review & Reflection', analytics: 'Analytics', pages: 'Pages', settings: 'Settings' };
-const THEMES = ['light', 'dark'];
-const nextTheme = (theme: string) => THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+const VIEW_TITLES: Record<string, string> = {
+  home: 'Home',
+  calendar: 'Calendar',
+  review: 'Weekly Review',
+  analytics: 'Analytics',
+  pages: 'Pages',
+  settings: 'Settings',
+};
+const THEMES = ['nocturne', 'onyx', 'solaris', 'bauhaus'];
+const normalizeTheme = (raw: string | null): string => {
+  if (raw === 'nocturne' || raw === 'onyx' || raw === 'solaris' || raw === 'bauhaus') return raw;
+  if (raw === 'dark') return 'nocturne';
+  if (raw === 'light') return 'solaris';
+  return 'nocturne';
+};
+const nextTheme = (theme: string) => THEMES[(THEMES.indexOf(normalizeTheme(theme)) + 1) % THEMES.length];
 
 interface Nav {
   view: string;
@@ -49,7 +64,9 @@ export default function App() {
   const [nav, setNav] = useState<Nav>({ view: 'home', tab: 'tasks', pageId: null, query: '', n: 0 });
   const [quick, setQuick] = useState(false);
   const [search, setSearch] = useState(false);
-  const [theme, setTheme] = useState(() => storage.get('focusspace-theme') || 'light');
+  const [shortcuts, setShortcuts] = useState(false);
+  const [theme, setTheme] = useState(() => normalizeTheme(storage.get('focusspace-theme')));
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>(() => (storage.get('focusspace-layout') === 'cockpit' ? 'cockpit' : 'orbital'));
   const categoryList = useLiveQuery(() => db.categories.toArray(), []);
   const categories = categoryList ?? [];
 
@@ -73,26 +90,29 @@ export default function App() {
 
   useEffect(() => {
     boot();
-    // Ask the browser not to evict local data under storage pressure. Ignored where unsupported.
     void navigator.storage?.persist?.().catch(() => undefined);
   }, [boot]);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    const clean = normalizeTheme(theme);
+    document.documentElement.dataset.theme = clean;
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', theme === 'light' ? '#f2f4f6' : '#000000');
-    document.documentElement.style.colorScheme = theme === 'light' ? 'light' : 'dark';
-    storage.set('focusspace-theme', theme);
+    if (meta) meta.setAttribute('content', clean === 'nocturne' ? '#040404' : clean === 'onyx' ? '#020302' : clean === 'bauhaus' ? '#e9ece4' : '#f3eee4');
+    document.documentElement.style.colorScheme = (clean === 'nocturne' || clean === 'onyx') ? 'dark' : 'light';
+    storage.set('focusspace-theme', clean);
   }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.dataset.layout = layoutMode;
+    storage.set('focusspace-layout', layoutMode);
+  }, [layoutMode]);
 
   useEffect(() => { storage.set('focusspace-sidebar', collapsed ? 'collapsed' : 'open'); }, [collapsed]);
 
-  // A deleted category must not leave the app on a dead view (it used to fall through to Settings).
   useEffect(() => {
     if (categoryList && !STATIC_VIEWS.includes(active) && !categoryList.some(c => c.id === active)) go('home');
   }, [categoryList, active, go]);
 
-  // Check for overdue tasks once per session or day
   useEffect(() => {
     const run = async () => {
       const enabled = (storage.get('focusspace-notify-overdue') ?? 'true') === 'true';
@@ -108,8 +128,20 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
-      if (mod && key === 'n') { e.preventDefault(); setSearch(false); setQuick(true); return; }
-      if (mod && key === 'k') { e.preventDefault(); setQuick(false); setSearch(s => !s); return; }
+      if (mod && (e.key === '/' || e.key === '?')) {
+        e.preventDefault();
+        setSearch(false);
+        setQuick(false);
+        setShortcuts(s => !s);
+        return;
+      }
+      if (mod && key === 'n') { e.preventDefault(); setSearch(false); setShortcuts(false); setQuick(true); return; }
+      if (mod && key === 'k') { e.preventDefault(); setQuick(false); setShortcuts(false); setSearch(s => !s); return; }
+      if (mod && e.key === '1') { e.preventDefault(); go('home'); return; }
+      if (mod && e.key === '2') { e.preventDefault(); go('calendar'); return; }
+      if (mod && e.key === '3') { e.preventDefault(); go('pages'); return; }
+      if (mod && e.key === '4') { e.preventDefault(); go('analytics'); return; }
+      if (mod && e.key === '5') { e.preventDefault(); go('review'); return; }
       if (e.code === 'Space' && !e.repeat && !mod && !e.altKey) {
         const el = e.target;
         if (el instanceof Element && el.closest('input,textarea,select,button,a,[contenteditable="true"],[role="dialog"]')) return;
@@ -119,7 +151,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [go]);
 
   const closeQuick = useCallback(() => setQuick(false), []);
   const closeSearch = useCallback(() => setSearch(false), []);
@@ -134,54 +166,107 @@ export default function App() {
   if (dbError) {
     return (
       <div className="min-h-screen bg-canvas text-fg grid place-items-center p-6">
-        <div className="max-w-sm text-center" role="alert">
+        <div className="max-w-sm text-center atelier-card rounded-2xl p-6" role="alert">
           <div className="size-10 rounded-xl bg-accent text-accent-fg grid place-items-center mx-auto mb-4"><Command size={18} /></div>
           <h1 className="text-lg font-semibold">FocusSpace can't open its local database</h1>
           <p className="text-sm text-fg-muted mt-2">This usually happens in private browsing, or when the browser blocks site storage. Allow storage for this site (or use a normal window) and try again.</p>
-          <p className="text-xs text-fg-soft mt-3 break-words">{dbError}</p>
-          <button onClick={boot} className="mt-5 h-10 px-4 rounded-lg bg-accent text-accent-fg text-sm font-medium">Try again</button>
+          <p className="text-xs text-fg-soft mt-3 break-words font-mono">{dbError}</p>
+          <button onClick={boot} className="mt-5 h-10 px-4 rounded-xl bg-accent text-accent-fg text-sm font-medium keycap">Try again</button>
         </div>
       </div>
     );
   }
 
-  if (!ready) return <div className="min-h-screen bg-canvas text-fg grid place-items-center"><div className="text-center"><div className="size-10 rounded-xl bg-accent text-accent-fg grid place-items-center mx-auto mb-3"><Command size={18} /></div><div className="text-sm text-fg-muted">Initializing local workspace…</div></div></div>;
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-canvas text-fg grid place-items-center">
+        <div className="text-center">
+          <div className="size-11 rounded-2xl bg-accent text-accent-fg grid place-items-center mx-auto mb-3 keycap"><Command size={20} /></div>
+          <div className="text-sm text-fg-muted">Initializing local workspace…</div>
+        </div>
+      </div>
+    );
+  }
 
   const title = VIEW_TITLES[active] ?? categories.find(c => c.id === active)?.name ?? 'Home';
 
   return (
-    <div className="h-screen overflow-hidden flex items-center justify-center p-2 sm:p-6">
-      <div className="w-full h-full max-w-[1440px] mx-auto bg-[var(--app-bg)] text-fg rounded-[32px] shadow-2xl flex overflow-hidden border border-line relative">
-      <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} active={active} setActive={go} categories={categories} mobileOpen={drawer} onCloseMobile={() => setDrawer(false)} activePageId={nav.pageId} onOpenPage={openPageIn} />
-      <main className="flex-1 min-w-0 flex flex-col overflow-hidden bg-transparent p-2 sm:p-6">
-        <Header title={title} onMenu={() => setDrawer(true)} onQuickAdd={openQuick} onSearch={openSearch} theme={theme} setTheme={setTheme} />
-        <div className="flex-1 overflow-y-auto pb-20">
-          <div key={nav.n} className="view-in">
-            <ErrorBoundary onReset={goHome}>
-              {active === 'home' ? <Today onQuickAdd={openQuick} onNavigate={go} />
-                : isCategory ? (
-                  <CategoryView
-                    categoryId={active} tab={nav.tab} pageId={nav.pageId} query={nav.query} onQuickAdd={openQuick}
-                    onTab={tab => go(active, { tab })} onOpenPage={pageId => go(active, { pageId })} onBackToPages={() => go(active, { tab: 'pages' })}
-                  />
-                )
-                : active === 'calendar' ? <Calendar />
-                : active === 'review' ? <Review onNavigate={go} onQuickAdd={openQuick} />
-                : active === 'analytics' ? <Analytics onNavigate={go} />
-                : active === 'pages' ? (
-                  nav.pageId ? <PageView pageId={nav.pageId} onBack={() => go('pages')} /> : <PagesList onOpenPage={pageId => go('pages', { pageId })} />
-                )
-                : <Settings theme={theme} setTheme={setTheme} />}
-            </ErrorBoundary>
+    <div className={`h-screen overflow-hidden flex flex-col ${layoutMode === 'orbital' ? 'p-2 sm:p-4 gap-3' : 'p-0'}`}>
+      <div
+        className={`w-full h-full max-w-[1680px] mx-auto bg-[var(--app-bg)] backdrop-blur-2xl text-fg flex overflow-hidden relative transition-all duration-300 ${
+          layoutMode === 'orbital'
+            ? 'rounded-[28px] shadow-pop border border-line sm:gap-3 sm:p-3'
+            : 'rounded-none border-x border-line'
+        }`}
+      >
+        <Sidebar
+          collapsed={collapsed}
+          setCollapsed={setCollapsed}
+          active={active}
+          setActive={go}
+          categories={categories}
+          mobileOpen={drawer}
+          onCloseMobile={() => setDrawer(false)}
+          activePageId={nav.pageId}
+          onOpenPage={openPageIn}
+          layoutMode={layoutMode}
+        />
+
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-transparent">
+          <Header
+            title={title}
+            onMenu={() => setDrawer(true)}
+            onQuickAdd={openQuick}
+            onSearch={openSearch}
+            onShortcuts={() => setShortcuts(true)}
+            theme={theme}
+            setTheme={setTheme}
+            layoutMode={layoutMode}
+            setLayoutMode={setLayoutMode}
+          />
+
+          <div className="flex-1 min-h-0 flex overflow-hidden gap-3">
+            <main className="flex-1 min-w-0 overflow-y-auto pb-24 sm:pb-12">
+              <div key={nav.n} className="view-in">
+                <ErrorBoundary onReset={goHome}>
+                  {active === 'home' ? <Today onQuickAdd={openQuick} onNavigate={go} />
+                    : isCategory ? (
+                      <CategoryView
+                        categoryId={active} tab={nav.tab} pageId={nav.pageId} query={nav.query} onQuickAdd={openQuick}
+                        onTab={tab => go(active, { tab })} onOpenPage={pageId => go(active, { pageId })} onBackToPages={() => go(active, { tab: 'pages' })}
+                      />
+                    )
+                    : active === 'calendar' ? <Calendar />
+                    : active === 'review' ? <Review onNavigate={go} onQuickAdd={openQuick} />
+                    : active === 'analytics' ? <Analytics onNavigate={go} />
+                    : active === 'pages' ? (
+                      nav.pageId ? <PageView pageId={nav.pageId} onBack={() => go('pages')} /> : <PagesList onOpenPage={pageId => go('pages', { pageId })} />
+                    )
+                    : <Settings theme={theme} setTheme={setTheme} layoutMode={layoutMode} setLayoutMode={setLayoutMode} />}
+                </ErrorBoundary>
+              </div>
+            </main>
+
+            {/* In Split/Cockpit mode, keep the Pomodoro Timer persistently docked on the right across secondary views */}
+            {layoutMode === 'cockpit' && active !== 'home' && (
+              <aside className="hidden 2xl:flex w-[350px] shrink-0 border-l border-line bg-surface/60 p-4 flex-col gap-4 overflow-y-auto">
+                <div className="flex items-center justify-between">
+                  <span className="index-chip text-fg-muted">Docked Pomodoro Timer</span>
+                  <span className="size-2 rounded-full bg-accent animate-pulse" />
+                </div>
+                <Pomodoro />
+              </aside>
+            )}
           </div>
         </div>
-      </main>
-      <TaskEditor />
-      <QuickAddModal open={quick} onClose={closeQuick} defaultCategory={isCategory ? active : undefined} />
-      {search && <CommandPalette categories={categories} onClose={closeSearch} onNavigate={go} onNewTask={openQuick} onOpenTask={openTask} onOpenPage={openPage} onCycleTheme={cycleTheme} />}
-      {active !== 'home' && <MiniTimer onOpen={goHome} />}
-      <Toaster />
-      <ReloadPrompt />
+
+        <TaskEditor />
+        <QuickAddModal open={quick} onClose={closeQuick} defaultCategory={isCategory ? active : undefined} />
+        <ShortcutsModal open={shortcuts} onClose={() => setShortcuts(false)} />
+        {search && <CommandPalette categories={categories} onClose={closeSearch} onNavigate={go} onNewTask={openQuick} onOpenTask={openTask} onOpenPage={openPage} onCycleTheme={cycleTheme} onOpenShortcuts={() => setShortcuts(true)} />}
+        {active !== 'home' && layoutMode !== 'cockpit' && <MiniTimer onOpen={goHome} />}
+        <Toaster />
+        <ReloadPrompt />
       </div>
     </div>
   );

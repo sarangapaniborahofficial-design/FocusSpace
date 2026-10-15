@@ -14,28 +14,18 @@ This document tracks our progress towards the 1.0 release based on the v2 projec
 | Phase | Description | Status | Notes |
 |-------|-------------|--------|-------|
 | 1-5 | Foundation (Tasks, Calendar, Settings) | ✅ **Completed** | Solid base established. |
-| 6 | Core Product (Analytics, UI Polish, ICS) | ✅ **Completed** | ICS export is now in codebase. |
-| 7 | Daily-driver Hardening | ✅ **Completed** | Recurring tasks, filters, habit management added. |
-| 7.5 | Pages Foundation (Rich text, Journal) | 🟡 **In Progress** | Code exists (TipTap implemented). Needs manual testing. |
-| 8 | Production, PWA & Pages Integration | ⏳ **Up Next** | Live references on Pages, PWA setup, Deployment. |
-| 9 | Real-world Use | ⏸️ **Pending** | 2-4 weeks of daily driver usage before 1.0. |
+| 6 | Core Product (Analytics, UI Polish, ICS) | ✅ **Completed** | Analytics, goals progress, ICS export active. |
+| 7 | Daily-driver Hardening | ✅ **Completed** | Recurring tasks, filters, habit picker, drag-and-drop reorder. |
+| 7.5 | Pages Foundation (Rich text, Journal) | ✅ **Completed** | TipTap rich-text editor, live interactive references, auto daily summaries. |
+| 8 | Production, PWA & Power Tools | ✅ **Completed** | Service worker offline caching, smart schedule preferences, global shortcuts cheatsheet. |
+| 9 | Real-world Use & Feedback | 🚀 **Active** | Daily driver usage and testing before 1.0. |
 
-## Immediate Action Items (The Gate)
+## Completed Polish & Power Milestones
 
-Before we start Phase 8, we must clear the current gate:
-
-1. ✅ **`npm run build` passes with no type errors.** *(Fixed by Antigravity)*
-   - *Fixed a `setContent` TipTap option typing issue.*
-   - *Fixed a Dexie mapped type circular reference issue on `journal.ts`.*
-2. 🔄 **Existing data survives the database upgrade.**
-   - Needs a manual verification in the browser since the migration converts existing Markdown to TipTap rich-text.
-3. 🔄 **Phase 6 + task editor + pages build first daily-use check.**
-   - We need to confirm the TipTap editor works smoothly in a real browser, as it was written blindly against the v2 API by Claude.
-
-## Phase 8 Preview (What's Next)
-
-Once the gate is cleared, we will tackle:
-- **Live References:** Ensure tasks/habits linked on Pages stay updated.
-- **Production Build:** Vite bundle size checks, config tuning.
-- **PWA:** Manifest, icons, offline caching via `vite-plugin-pwa`.
-- **Deployment:** Connect to a host/domain.
+1. ✅ **`npm run build` passes with 0 errors.**
+2. ✅ **Interactive Live References on Pages:** Tasks & habits linked on Pages can be checked off or checked in directly.
+3. ✅ **Auto Daily Journal Reflection:** Generates a structured daily log of focus time, completed tasks, and habits with 1 click.
+4. ✅ **Goals System Connected:** Goals tracking card in Settings, active goals bar on Today, and goal links in Pages.
+5. ✅ **Global Shortcuts & Cheatsheet:** `Ctrl + /` (shortcuts modal), `Ctrl + 1-5` (instant navigation), `Ctrl + K`, `Ctrl + N`.
+6. ✅ **Smart Scheduler Workday Customization:** Configurable workday start, cutoff hour, and post-meeting decompression buffers in Settings.
+7. ✅ **Clean Project Root:** One-shot patch scripts archived.

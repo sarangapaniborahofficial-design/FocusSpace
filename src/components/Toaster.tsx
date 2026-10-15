@@ -1,7 +1,7 @@
 import { X } from 'lucide-react';
 import { dismissToast, useToasts } from '../lib/toast';
 
-const dot = { info: 'bg-surface-2', success: 'bg-emerald-400', error: 'bg-rose-500' } as const;
+const dot = { info: 'bg-sky-500', success: 'bg-emerald-400', error: 'bg-rose-500' } as const;
 
 export function Toaster() {
   const items = useToasts();

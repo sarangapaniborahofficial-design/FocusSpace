@@ -2,7 +2,7 @@ import { parseInline, parseMarkdown, safeHref, type Inline } from './markdown';
 import type { MarkType, RichMark, RichTextDoc, RichTextNode } from '../types';
 
 /**
- * PzincMirror/TipTap-compatible document JSON: builders, a Markdown -> rich-text converter (used once,
+ * ProseMirror/TipTap-compatible document JSON: builders, a Markdown -> rich-text converter (used once,
  * to migrate legacy notes), a plain-text mirror for search, and a whitelist sanitizer. All pure data —
  * nothing here renders anything, so it needed no TipTap dependency to write or test.
  */

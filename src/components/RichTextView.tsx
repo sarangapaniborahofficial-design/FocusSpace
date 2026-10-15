@@ -73,7 +73,7 @@ function renderNode(node: RichTextNode, i: number, onToggleTask?: (path: [number
   }
 }
 
-/** Read-only renderer for a rich-text (PzincMirror/TipTap JSON) document. Never uses raw HTML. */
+/** Read-only renderer for a rich-text (ProseMirror/TipTap JSON) document. Never uses raw HTML. */
 export { toggleTaskAtPath };
 
 export function RichTextView({ doc, onToggleTask }: { doc: RichTextDoc; onToggleTask?: (path: [number, number]) => void }) {

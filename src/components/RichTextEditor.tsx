@@ -9,7 +9,7 @@ import { sanitizeDoc } from '../lib/richtext';
 import type { RichTextDoc } from '../types';
 
 /**
- * True rich-text editing (TipTap/PzincMirror), scoped to what Pages needs: headings (2-3), paragraphs,
+ * True rich-text editing (TipTap/ProseMirror), scoped to what Pages needs: headings (2-3), paragraphs,
  * bullet/ordered/task lists, blockquotes, bold/italic/strike/code, links. No tables, images or custom
  * blocks — kept deliberately small per the Pages design (this stays a note editor, not a page builder).
  *

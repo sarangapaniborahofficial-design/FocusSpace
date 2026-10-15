@@ -150,8 +150,8 @@ export function Calendar() {
     <div className="p-4 lg:p-6 max-w-[1600px] mx-auto h-full min-h-[calc(100vh-64px)] flex flex-col">
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-4 shrink-0">
         <div>
-          <div className="text-xs uppercase tracking-[.18em] text-fg-soft mb-1">Schedule</div>
-          <h1 className="text-2xl font-semibold tracking-tight">Calendar & Time Blocking</h1>
+          <div className="index-chip text-fg-soft mb-1">Schedule</div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Calendar & Time Blocking</h1>
           <p className="text-sm text-fg-muted mt-1">Drag unscheduled tasks onto the grid. Move or resize blocks to update them.</p>
         </div>
         <div className="flex items-center gap-2 text-xs text-fg-muted">
@@ -161,7 +161,7 @@ export function Calendar() {
       </div>
 
       <div className="flex-1 min-h-[620px] grid xl:grid-cols-[290px_minmax(0,1fr)] gap-4">
-        <aside ref={externalRef} className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden flex flex-col min-h-[280px]">
+        <aside ref={externalRef} className="atelier-card rounded-3xl overflow-hidden flex flex-col min-h-[280px]">
           <div className="p-4 border-b border-line">
             <div className="font-medium">Unscheduled</div>
             <div className="text-xs text-fg-soft mt-1">Drag a task to a date/time.</div>

@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { BarChart3, CalendarDays, CheckSquare2, FolderKanban, Home, Moon, Plus, Search, Settings, Timer, Trophy, X, FileText, type LucideIcon } from 'lucide-react';
+import { BarChart3, CalendarDays, CheckSquare2, FolderKanban, Home, Keyboard, Moon, Plus, Search, Settings, Timer, Trophy, X, FileText, type LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { db } from '../db/db';
 import { timer } from '../lib/timer';
@@ -18,7 +18,7 @@ interface Item {
 
 const rank = (label: string, q: string) => (label.toLowerCase().startsWith(q) ? 0 : 1);
 
-export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onOpenTask, onOpenPage, onCycleTheme }: {
+export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onOpenTask, onOpenPage, onCycleTheme, onOpenShortcuts }: {
   categories: Category[];
   onClose: () => void;
   onNavigate: (view: string) => void;
@@ -26,6 +26,7 @@ export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onO
   onOpenTask: (task: Task) => void;
   onOpenPage: (page: Page) => void;
   onCycleTheme: () => void;
+  onOpenShortcuts?: () => void;
 }) {
   const tasks = useLiveQuery(() => db.tasks.toArray(), []) ?? [];
   const pages = useLiveQuery(() => db.pages.toArray(), []) ?? [];
@@ -40,6 +41,7 @@ export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onO
       { id: 'new', group: 'Actions', label: 'New task', hint: 'Ctrl N', icon: Plus, run: onNewTask },
       { id: 'timer', group: 'Actions', label: 'Start or pause timer', hint: 'Space', icon: Timer, run: () => timer.toggle() },
       { id: 'theme', group: 'Actions', label: 'Switch theme', icon: Moon, run: onCycleTheme },
+      ...(onOpenShortcuts ? [{ id: 'shortcuts', group: 'Actions' as const, label: 'Keyboard shortcuts', hint: 'Ctrl /', icon: Keyboard, run: () => { onClose(); onOpenShortcuts(); } }] : []),
       { id: 'home', group: 'Go to', label: 'Home / Master', icon: Home, run: () => onNavigate('home') },
       { id: 'calendar', group: 'Go to', label: 'Calendar', icon: CalendarDays, run: () => onNavigate('calendar') },
       { id: 'review', group: 'Go to', label: 'Weekly Review', icon: Trophy, run: () => onNavigate('review') },

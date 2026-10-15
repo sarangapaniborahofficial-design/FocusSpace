@@ -66,8 +66,8 @@ export function PagesList({ categoryId, tabs, onOpenPage }: { categoryId?: strin
     <div className="p-5 lg:p-7 max-w-[1500px] mx-auto">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
         <div>
-          <div className="text-xs uppercase tracking-[.18em] text-fg-subtle mb-1">{categoryId ? 'Pages' : 'Context & journal'}</div>
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          <div className="index-chip text-fg-subtle mb-1">{categoryId ? 'Pages' : 'Context & journal'}</div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{title}</h1>
           <p className="text-sm text-fg-muted mt-1">{loading ? 'Loading…' : count ? `${count}${count === 1 ? 'page' : 'pages'}` : 'A permanent place to write about a topic and track its related tasks and habits.'}</p>
         </div>
         <div className="self-start md:self-auto">{createButton}</div>

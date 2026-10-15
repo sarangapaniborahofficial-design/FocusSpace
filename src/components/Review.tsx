@@ -15,7 +15,7 @@ import { toast } from '../lib/toast';
 import { formatDuration, priorityTone } from '../lib/utils';
 import { EmptyState } from './ui';
 
-const card = 'rounded-2xl border border-line bg-surface shadow-card';
+const card = 'atelier-card rounded-3xl';
 
 const PERIODS: { id: ReviewPeriod; label: string }[] = [
   { id: 'this-week', label: 'This Week' },
@@ -89,10 +89,10 @@ export function Review({ onQuickAdd }: { onNavigate?: (view: string) => void; on
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="text-xs uppercase tracking-[.18em] text-fg-subtle mb-1 flex items-center gap-1.5">
+          <div className="index-chip text-fg-subtle mb-1 flex items-center gap-1.5">
             <Trophy size={14} className="text-accent" /> Review & Reflection
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">{reviewData.periodInfo.title}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{reviewData.periodInfo.title}</h1>
           <p className="text-sm text-fg-muted mt-0.5">{reviewData.periodInfo.subtitle}</p>
         </div>
 
