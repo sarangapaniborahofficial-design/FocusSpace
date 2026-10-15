@@ -52,11 +52,17 @@ export function FloatingHUDPortal() {
     setMounted(true);
   }, []);
 
-  if (!mounted || !isOpen || !pipWindow || !pipWindow.document?.body) {
+  if (!mounted || !isOpen || !pipWindow || pipWindow.closed) {
     return null;
   }
 
-  return createPortal(<FloatingHUDContent />, pipWindow.document.body);
+  try {
+    const body = pipWindow.document?.body;
+    if (!body) return null;
+    return createPortal(<FloatingHUDContent />, body);
+  } catch {
+    return null;
+  }
 }
 
 function FloatingHUDContent() {

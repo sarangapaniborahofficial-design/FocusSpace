@@ -13,18 +13,43 @@ class PipHUDManager {
   private isExpanded: boolean = false;
   private observer: MutationObserver | null = null;
   private listeners: Set<() => void> = new Set();
+  private snapshot: PipHUDState;
+
+  constructor() {
+    this.snapshot = {
+      isOpen: false,
+      isExpanded: false,
+      isSupported: this.isSupported(),
+      pipWindow: null,
+    };
+  }
 
   isSupported(): boolean {
     return typeof window !== 'undefined' && 'documentPictureInPicture' in window;
   }
 
   getState(): PipHUDState {
-    return {
-      isOpen: this.pipWindow !== null && !this.pipWindow.closed,
+    return this.snapshot;
+  }
+
+  private updateSnapshot() {
+    const nextIsOpen = this.pipWindow !== null && !this.pipWindow.closed;
+    const nextIsSupported = this.isSupported();
+    if (
+      this.snapshot.isOpen === nextIsOpen &&
+      this.snapshot.isExpanded === this.isExpanded &&
+      this.snapshot.isSupported === nextIsSupported &&
+      this.snapshot.pipWindow === this.pipWindow
+    ) {
+      return;
+    }
+    this.snapshot = {
+      isOpen: nextIsOpen,
       isExpanded: this.isExpanded,
-      isSupported: this.isSupported(),
+      isSupported: nextIsSupported,
       pipWindow: this.pipWindow,
     };
+    this.notify();
   }
 
   subscribe(listener: () => void): () => void {
@@ -74,7 +99,7 @@ class PipHUDManager {
         this.cleanup();
       });
 
-      this.notify();
+      this.updateSnapshot();
       return true;
     } catch (err: any) {
       console.warn('Could not open Document PiP window:', err);
@@ -92,6 +117,7 @@ class PipHUDManager {
   }
 
   setExpanded(expanded: boolean) {
+    if (this.isExpanded === expanded) return;
     this.isExpanded = expanded;
     if (this.pipWindow && !this.pipWindow.closed) {
       try {
@@ -102,7 +128,7 @@ class PipHUDManager {
         /* resize may be constrained by OS */
       }
     }
-    this.notify();
+    this.updateSnapshot();
   }
 
   toggleExpanded() {
@@ -170,7 +196,7 @@ class PipHUDManager {
       this.observer = null;
     }
     this.pipWindow = null;
-    this.notify();
+    this.updateSnapshot();
   }
 }
 

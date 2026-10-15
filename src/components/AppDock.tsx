@@ -61,9 +61,10 @@ const resolveIcon = (link: LaunchLink): LucideIcon => {
 
 function isAppAttached(link: LaunchLink, task?: Task): boolean {
   if (!task) return false;
-  const label = link.label.toLowerCase();
-  if (task.launchLinks?.some(l => l.url === link.url || l.label.toLowerCase() === label)) return true;
-  if (task.title.toLowerCase().includes(label)) return true;
+  const label = link.label?.toLowerCase() ?? '';
+  if (!label) return false;
+  if (task.launchLinks?.some(l => l.url === link.url || (l.label && l.label.toLowerCase() === label))) return true;
+  if (task.title && task.title.toLowerCase().includes(label)) return true;
   if (task.notes && task.notes.toLowerCase().includes(label)) return true;
   return false;
 }

@@ -56,4 +56,18 @@ describe('Sprint 1: Flow Overtime & Sonic Ducking Suite', () => {
       soundscape.setDucked(false);
     });
   });
+
+  describe('PipHUD Store Stability', () => {
+    it('maintains strict reference equality for getState() to prevent useSyncExternalStore loops', async () => {
+      const { pipHUD } = await import('../pipHud');
+      const s1 = pipHUD.getState();
+      const s2 = pipHUD.getState();
+      const s3 = pipHUD.getState();
+
+      // Must be exact same object reference
+      expect(s1).toBe(s2);
+      expect(s2).toBe(s3);
+      expect(Object.is(s1, s2)).toBe(true);
+    });
+  });
 });
