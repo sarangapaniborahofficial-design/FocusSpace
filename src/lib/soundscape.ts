@@ -19,6 +19,8 @@ class SoundscapeEngine {
   private volume: number = 0.5;
   private listeners: Set<() => void> = new Set();
 
+  private snapshot: SoundscapeState;
+
   constructor() {
     const savedType = storage.get(STORAGE_TYPE_KEY) as SoundscapeType | null;
     const savedVol = storage.get(STORAGE_VOL_KEY);
@@ -29,6 +31,11 @@ class SoundscapeEngine {
       const v = parseFloat(savedVol);
       if (!isNaN(v) && v >= 0 && v <= 1) this.volume = v;
     }
+    this.snapshot = {
+      type: this.currentType,
+      volume: this.volume,
+      isPlaying: false,
+    };
   }
 
   private initCtx(): AudioContext {
@@ -46,11 +53,7 @@ class SoundscapeEngine {
   }
 
   getState(): SoundscapeState {
-    return {
-      type: this.currentType,
-      volume: this.volume,
-      isPlaying: this.currentType !== 'off' && this.currentSource !== null,
-    };
+    return this.snapshot;
   }
 
   subscribe(listener: () => void): () => void {
@@ -62,6 +65,15 @@ class SoundscapeEngine {
     this.listeners.forEach(l => l());
   }
 
+  private updateSnapshot() {
+    this.snapshot = {
+      type: this.currentType,
+      volume: this.volume,
+      isPlaying: this.currentType !== 'off' && this.currentSource !== null,
+    };
+    this.notify();
+  }
+
   setVolume(vol: number) {
     const clamped = Math.max(0, Math.min(1, vol));
     this.volume = clamped;
@@ -69,7 +81,7 @@ class SoundscapeEngine {
     if (this.masterGain && this.ctx) {
       this.masterGain.gain.setTargetAtTime(clamped, this.ctx.currentTime, 0.05);
     }
-    this.notify();
+    this.updateSnapshot();
   }
 
   setType(type: SoundscapeType) {
@@ -81,7 +93,7 @@ class SoundscapeEngine {
     if (type !== 'off') {
       this.startType(type);
     }
-    this.notify();
+    this.updateSnapshot();
   }
 
   private stopCurrent() {

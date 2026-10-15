@@ -266,11 +266,54 @@ button.bg-accent, button[class*="bg-accent"], .bg-accent {
   font-weight: 600;
   letter-spacing: -0.01em;
 }
+
+/* Swiss Onyx: Active buttons, accent badges, and active sidebar/category items use crisp pitch-black font */
 :root[data-theme="onyx"] button.bg-accent,
 :root[data-theme="onyx"] button[class*="bg-accent"],
-:root[data-theme="onyx"] .bg-accent {
-  color: #000000;
+:root[data-theme="onyx"] .bg-accent,
+:root[data-theme="onyx"] aside [aria-current="page"],
+:root[data-theme="onyx"] aside button[aria-current="page"] {
+  background-color: var(--c-accent);
+  color: #000000 !important;
   font-weight: 600;
+}
+:root[data-theme="onyx"] aside [aria-current="page"] *,
+:root[data-theme="onyx"] aside button[aria-current="page"] * {
+  color: #000000 !important;
+}
+:root[data-theme="onyx"] aside [aria-current="page"] svg,
+:root[data-theme="onyx"] aside button[aria-current="page"] svg {
+  stroke: #000000 !important;
+}
+
+/* Swiss Onyx: Ensure inactive sidebar elements, headers, and categories are crisp and high-contrast */
+:root[data-theme="onyx"] aside {
+  color: var(--c-fg-soft);
+}
+:root[data-theme="onyx"] aside button:not([aria-current="page"]):not(.bg-accent) {
+  color: var(--c-fg-soft);
+}
+:root[data-theme="onyx"] aside button:not([aria-current="page"]):not(.bg-accent):hover {
+  color: var(--c-fg);
+}
+:root[data-theme="onyx"] aside .text-fg-muted {
+  color: #b0baa8;
+}
+
+/* Swiss Brutal: Active buttons and sidebar items use dark black text on acid citron */
+:root[data-theme="bauhaus"] aside [aria-current="page"],
+:root[data-theme="bauhaus"] aside button[aria-current="page"] {
+  background-color: var(--c-accent);
+  color: #0d0f0d !important;
+  font-weight: 600;
+}
+:root[data-theme="bauhaus"] aside [aria-current="page"] *,
+:root[data-theme="bauhaus"] aside button[aria-current="page"] * {
+  color: #0d0f0d !important;
+}
+:root[data-theme="bauhaus"] aside [aria-current="page"] svg,
+:root[data-theme="bauhaus"] aside button[aria-current="page"] svg {
+  stroke: #0d0f0d !important;
 }
 ::selection { background: var(--c-accent); color: var(--c-accent-fg); }
 ::placeholder { color: var(--c-fg-subtle); opacity: 1; }

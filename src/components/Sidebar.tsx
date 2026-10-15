@@ -214,7 +214,7 @@ export function Sidebar({
           <button
             onClick={() => setCollapsed(!collapsed)}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="mt-1 w-full h-8 rounded-xl border border-transparent hover:border-line text-fg-muted hover:text-fg hover:bg-hover hidden md:grid place-items-center"
+            className="mt-1 w-full h-8 rounded-xl border border-transparent hover:border-line text-fg-soft hover:text-fg hover:bg-hover hidden md:grid place-items-center"
           >
             {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
           </button>
@@ -249,8 +249,8 @@ function NavItem({
       aria-current={active ? 'page' : undefined}
       className={`w-full h-10 rounded-xl flex items-center gap-3 px-3.5 text-[14px] font-medium transition-[background-color,color,box-shadow] duration-150 ${
         active
-          ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)] font-semibold keycap'
-          : 'text-fg-muted hover:bg-hover hover:text-fg'
+          ? 'bg-accent text-accent-fg font-semibold keycap'
+          : 'text-fg-soft hover:bg-hover hover:text-fg'
       } ${compact ? 'justify-center px-0' : ''}`}
     >
       <Icon size={17} strokeWidth={active ? 2.2 : 1.8} className="shrink-0" />
@@ -261,7 +261,7 @@ function NavItem({
           {badge && (
             <span
               className={`text-[11px] font-mono px-1.5 py-0.5 rounded-md tabular-nums ${
-                active ? 'bg-black/15 text-current' : 'bg-surface-2 text-fg-subtle border border-line'
+                active ? 'bg-black/20 text-accent-fg font-semibold' : 'bg-surface-2 text-fg-soft border border-line'
               }`}
             >
               {badge}
@@ -312,8 +312,8 @@ function CategoryPages({
           title={page.title || 'Untitled'}
           className={`w-full h-8 rounded-lg flex items-center gap-2 px-2.5 text-[13px] text-left transition ${
             activePageId === page.id
-              ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)] font-medium'
-              : 'text-fg-muted hover:bg-hover hover:text-fg'
+              ? 'bg-accent text-accent-fg font-semibold'
+              : 'text-fg-soft hover:bg-hover hover:text-fg'
           }`}
         >
           <FileText size={13} className="shrink-0" />
