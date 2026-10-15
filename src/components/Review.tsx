@@ -125,7 +125,7 @@ export function Review({ onQuickAdd }: { onNavigate?: (view: string) => void; on
           {onQuickAdd && (
             <button
               onClick={onQuickAdd}
-              className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-xs font-medium hover:bg-accent-hover flex items-center gap-1.5 shadow-sm"
+              className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-xs font-semibold hover:bg-accent-hover flex items-center gap-1.5 keycap"
             >
               <Plus size={13} /> New Task
             </button>
@@ -440,7 +440,7 @@ export function Review({ onQuickAdd }: { onNavigate?: (view: string) => void; on
               <span>Saved locally for this period</span>
               <button
                 onClick={copyMarkdown}
-                className="h-8 px-4 rounded-xl bg-accent text-accent-fg font-medium hover:bg-accent-hover flex items-center gap-1.5 transition-colors"
+                className="h-8 px-4 rounded-xl bg-accent text-accent-fg font-semibold hover:bg-accent-hover flex items-center gap-1.5 transition-colors keycap"
               >
                 <Copy size={13} /> {copied ? 'Copied Summary' : 'Export & Copy'}
               </button>

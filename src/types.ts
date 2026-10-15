@@ -21,7 +21,8 @@ export interface Task {
   /** Custom sort index for manual drag-and-drop reordering. */
   order?: number;
 }
-export interface Goal { id: string; categoryId?: string; title: string; metricLabel: string; currentValue: number; targetValue: number; deadline?: string; createdAt: string; updatedAt: string; }
+export type GoalType = 'manual' | 'tasks-completed' | 'focus-hours' | 'habit-streak';
+export interface Goal { id: string; categoryId?: string; title: string; metricLabel: string; currentValue: number; targetValue: number; goalType?: GoalType; deadline?: string; createdAt: string; updatedAt: string; }
 export interface Habit { id: string; name: string; color: string; active: boolean; completions: string[]; targetLabel?: string; }
 export interface FocusLog { id: string; taskId?: string; startedAt: string; endedAt: string; durationMinutes: number; mode: 'focus' | 'shortBreak' | 'longBreak'; }
 

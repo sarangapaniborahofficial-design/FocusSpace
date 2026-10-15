@@ -101,7 +101,7 @@ function PageEditor({ page, onBack }: { page: Page; onBack: () => void }) {
         <div className="flex items-center justify-between mb-3">
           <h2 id="journal-heading" className="font-medium">Journal</h2>
           {!todayEntry && (
-            <button onClick={() => void openToday()} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-xs font-medium flex items-center gap-1.5"><Plus size={13} /> Write today's entry</button>
+            <button onClick={() => void openToday()} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-xs font-semibold flex items-center gap-1.5 hover:bg-accent-hover keycap"><Plus size={13} /> Write today's entry</button>
           )}
         </div>
 
@@ -109,7 +109,7 @@ function PageEditor({ page, onBack }: { page: Page; onBack: () => void }) {
           <div className="skeleton h-40" />
         ) : sorted.length === 0 ? (
           <div className="rounded-xl border border-dashed border-line">
-            <EmptyState compact icon={Sparkles} title="No entries yet" text="Write today's entry to start this page's journal." action={<button onClick={() => void openToday()} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium">Write today's entry</button>} />
+            <EmptyState compact icon={Sparkles} title="No entries yet" text="Write today's entry to start this page's journal." action={<button onClick={() => void openToday()} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-semibold hover:bg-accent-hover keycap">Write today's entry</button>} />
           </div>
         ) : (
           <ul className="space-y-3">

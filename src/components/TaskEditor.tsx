@@ -226,7 +226,7 @@ function Panel({ task, categories }: { task: Task; categories: Category[] }) {
           <button type="button" onClick={() => { closeTaskEditor(); void deleteTask(task); }} className="h-8 px-2 rounded-xl text-sm text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 flex items-center gap-1.5"><Trash2 size={15} /> Delete</button>
           <div className="flex items-center gap-2">
             <button type="button" onClick={requestClose} className="h-8 px-3 rounded-xl text-sm text-fg-muted hover:bg-hover">Cancel</button>
-            <button type="submit" disabled={!valid || !dirty || saving} title="Ctrl/⌘ + Enter" className="h-8 px-3 rounded-xl bg-accent text-accent-fg font-medium text-sm hover:bg-accent-hover disabled:opacity-40">Save</button>
+            <button type="submit" disabled={!valid || !dirty || saving} title="Ctrl/⌘ + Enter" className="h-8 px-3 rounded-xl bg-accent text-accent-fg font-semibold text-sm hover:bg-accent-hover disabled:opacity-40 keycap">Save</button>
           </div>
         </div>
       </form>

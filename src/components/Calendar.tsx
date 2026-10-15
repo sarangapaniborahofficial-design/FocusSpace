@@ -5,15 +5,15 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin, { Draggable } from '@fullcalendar/interaction';
 import type { EventDropArg } from '@fullcalendar/core';
-import { CalendarDays, Clock3, Search, X } from 'lucide-react';
+import { CalendarDays, Clock3, Layers, Plus, Search, Upload, X } from 'lucide-react';
 import { db } from '../db/db';
 import { useMediaQuery } from '../lib/hooks';
+import { importIcsToDatabase } from '../lib/icsImport';
 import { openTaskEditor } from '../lib/taskEditor';
-import { WEEK_STARTS_ON } from '../lib/utils';
+import { toast } from '../lib/toast';
+import { uid, WEEK_STARTS_ON } from '../lib/utils';
 import type { Category, Task } from '../types';
 
-// Only the parts of FullCalendar's event that these handlers use. Typing them structurally means the code
-// doesn't depend on which argument types the library happens to export (they differ between versions).
 interface CalendarEventLike {
   extendedProps: Record<string, unknown>;
   start: Date | null;
@@ -50,17 +50,26 @@ function categoryColor(task: Task, categories: Category[]) {
 export function Calendar() {
   const tasks = useLiveQuery(() => db.tasks.toArray(), []) ?? [];
   const categories = useLiveQuery(() => db.categories.toArray(), []) ?? [];
+  const focusLogs = useLiveQuery(() => db.focusLogs.toArray(), []) ?? [];
   const externalRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState('');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [trackView, setTrackView] = useState<'both' | 'planned' | 'actual'>('both');
+  const [clickSlot, setClickSlot] = useState<{ date: string; time: string } | null>(null);
+  const [quickTitle, setQuickTitle] = useState('');
   const isNarrow = useMediaQuery('(max-width: 767px)');
 
   useEffect(() => {
-    if (!selectedTask) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSelectedTask(null); };
+    if (!selectedTask && !clickSlot) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedTask(null);
+        setClickSlot(null);
+      }
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedTask]);
+  }, [selectedTask, clickSlot]);
 
   const scheduled = useMemo(
     () => tasks.filter(t => Boolean(t.dueDate && t.dueTime)),
@@ -84,7 +93,7 @@ export function Calendar() {
         backgroundColor: element.getAttribute('data-color') ?? '#a1a1aa',
         borderColor: element.getAttribute('data-color') ?? '#a1a1aa',
         textColor: '#09090b',
-        extendedProps: { taskId: element.getAttribute('data-task-id') },
+        extendedProps: { taskId: element.getAttribute('data-task-id'), isPlanned: true },
       }),
     });
     return () => draggable.destroy();
@@ -111,8 +120,6 @@ export function Calendar() {
       info.event.setAllDay(false);
       info.event.setStart(start);
     }
-    // Keep the task's own estimate unless the dropped block carries an explicit end. (The previous
-    // expression mixed `??` with `-` and either forced 30 minutes or produced an epoch-sized duration.)
     const dropped = info.event.end ? Math.max(5, Math.round((info.event.end.getTime() - start.getTime()) / 60000)) : undefined;
     await persistEvent(taskId, start, dropped);
     await db.tasks.get(taskId).then(task => task && setSelectedTask(task));
@@ -133,7 +140,7 @@ export function Calendar() {
     await persistEvent(taskId, new Date(info.event.start), duration);
   };
 
-  const events = useMemo(
+  const plannedEvents = useMemo(
     () =>
       scheduled.map(task => ({
         id: task.id,
@@ -145,10 +152,36 @@ export function Calendar() {
         textColor: '#09090b',
         editable: true,
         classNames: task.status === 'Submitted/Done' ? ['focusspace-event-done'] : [],
-        extendedProps: { taskId: task.id, categoryId: task.categoryId },
+        extendedProps: { taskId: task.id, categoryId: task.categoryId, isPlanned: true },
       })),
     [scheduled, categories]
   );
+
+  const actualEvents = useMemo(() => {
+    return focusLogs
+      .filter(l => l.mode === 'focus')
+      .map(log => {
+        const task = log.taskId ? tasks.find(t => t.id === log.taskId) : undefined;
+        return {
+          id: `log-${log.id}`,
+          title: task ? `⚡ ${task.title}` : `⚡ Focus (${log.durationMinutes}m)`,
+          start: log.startedAt,
+          end: log.endedAt,
+          backgroundColor: 'rgba(56, 189, 248, 0.22)',
+          borderColor: '#38bdf8',
+          textColor: '#38bdf8',
+          editable: false,
+          classNames: ['focusspace-actual-event'],
+          extendedProps: { logId: log.id, taskId: log.taskId, isActual: true },
+        };
+      });
+  }, [focusLogs, tasks]);
+
+  const events = useMemo(() => {
+    if (trackView === 'planned') return plannedEvents;
+    if (trackView === 'actual') return actualEvents;
+    return [...plannedEvents, ...actualEvents];
+  }, [trackView, plannedEvents, actualEvents]);
 
   return (
     <div className="p-4 lg:p-6 max-w-[1600px] mx-auto h-full min-h-[calc(100vh-64px)] flex flex-col">
@@ -156,11 +189,58 @@ export function Calendar() {
         <div>
           <div className="index-chip text-fg-soft mb-1">Schedule</div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Calendar & Time Blocking</h1>
-          <p className="text-sm text-fg-muted mt-1">Drag unscheduled tasks onto the grid. Move or resize blocks to update them.</p>
+          <p className="text-sm text-fg-muted mt-1">Dual-track planning. Drag tasks onto the grid, or click any slot to schedule.</p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-fg-muted">
-          <CalendarDays size={15} />
-          <span>{scheduled.length} scheduled · {unscheduled.length} unscheduled</span>
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Dual-Track Toggle */}
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-surface-2 border border-line text-xs">
+            <button
+              onClick={() => setTrackView('both')}
+              className={`px-2.5 py-1 rounded-lg transition ${trackView === 'both' ? 'bg-accent text-accent-fg font-semibold keycap' : 'text-fg-muted hover:text-fg'}`}
+            >
+              Dual-Track
+            </button>
+            <button
+              onClick={() => setTrackView('planned')}
+              className={`px-2.5 py-1 rounded-lg transition ${trackView === 'planned' ? 'bg-accent text-accent-fg font-semibold keycap' : 'text-fg-muted hover:text-fg'}`}
+            >
+              Planned
+            </button>
+            <button
+              onClick={() => setTrackView('actual')}
+              className={`px-2.5 py-1 rounded-lg transition ${trackView === 'actual' ? 'bg-accent text-accent-fg font-semibold keycap' : 'text-fg-muted hover:text-fg'}`}
+            >
+              Actual Focus
+            </button>
+          </div>
+
+          {/* Import .ics button */}
+          <label className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-xs font-medium text-fg flex items-center gap-1.5 hover:bg-hover cursor-pointer keycap transition">
+            <Upload size={13} className="text-fg-muted" /> Import .ics
+            <input
+              type="file"
+              accept=".ics,text/calendar"
+              className="hidden"
+              onChange={async e => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const defaultCat = categories[0]?.id ?? 'personal';
+                try {
+                  const text = await file.text();
+                  await importIcsToDatabase(text, defaultCat);
+                } catch (err) {
+                  toast(err instanceof Error ? err.message : 'Could not import .ics file', 'error');
+                }
+                e.currentTarget.value = '';
+              }}
+            />
+          </label>
+
+          <div className="flex items-center gap-1 text-xs text-fg-muted ml-2">
+            <CalendarDays size={15} />
+            <span>{scheduled.length} scheduled · {unscheduled.length} unscheduled</span>
+          </div>
         </div>
       </div>
 
@@ -232,9 +312,17 @@ export function Calendar() {
               eventReceive={handleReceive}
               eventDrop={handleDrop}
               eventResize={handleResize}
+              dateClick={info => {
+                const d = localDate(info.date);
+                const t = info.allDay ? '09:00' : localTime(info.date);
+                setClickSlot({ date: d, time: t });
+              }}
               eventClick={info => {
-                const task = tasks.find(t => t.id === String(info.event.extendedProps.taskId));
-                if (task) setSelectedTask(task);
+                const taskId = info.event.extendedProps.taskId;
+                if (taskId) {
+                  const task = tasks.find(t => t.id === String(taskId));
+                  if (task) setSelectedTask(task);
+                }
               }}
               eventDidMount={info => {
                 info.el.title = info.event.title;
@@ -243,6 +331,64 @@ export function Calendar() {
           </div>
         </section>
       </div>
+
+      {/* Click-to-create Modal */}
+      {clickSlot && (
+        <div className="fade-in fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4" onMouseDown={() => setClickSlot(null)}>
+          <form
+            onSubmit={async e => {
+              e.preventDefault();
+              const title = quickTitle.trim();
+              if (!title || !categories[0]) return;
+              const cat = categories[0];
+              const task: Task = {
+                id: uid(),
+                title,
+                categoryId: cat.id,
+                projectTag: '',
+                priority: 'Medium',
+                status: 'To Do',
+                estimatedDuration: 30,
+                dueDate: clickSlot.date,
+                dueTime: clickSlot.time,
+                subtasks: [],
+                notes: '',
+                colorCode: cat.color,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              };
+              await db.tasks.add(task);
+              toast(`Scheduled "${title}" at ${clickSlot.time}`, 'success');
+              setClickSlot(null);
+              setQuickTitle('');
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Schedule task at slot"
+            className="pop-in w-full max-w-md rounded-2xl border border-line bg-surface shadow-2xl p-5"
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="font-semibold text-base">Schedule Task</h2>
+                <p className="text-xs text-fg-subtle mt-0.5">{clickSlot.date} at {clickSlot.time}</p>
+              </div>
+              <button type="button" onClick={() => setClickSlot(null)} className="text-fg-subtle hover:text-fg"><X size={16} /></button>
+            </div>
+            <input
+              autoFocus
+              value={quickTitle}
+              onChange={e => setQuickTitle(e.target.value)}
+              placeholder="What are you scheduling?"
+              className="mt-4 w-full h-10 rounded-xl bg-surface-2 border border-line px-3 text-sm outline-none focus:border-accent text-fg"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setClickSlot(null)} className="h-8 px-3 rounded-xl text-sm text-fg-muted hover:bg-hover">Cancel</button>
+              <button disabled={!quickTitle.trim()} className="h-8 px-4 rounded-xl bg-accent text-accent-fg text-sm font-semibold hover:bg-accent-hover disabled:opacity-40 keycap">Schedule</button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {selectedTask && (
         <div className="fade-in fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4" onMouseDown={() => setSelectedTask(null)}>

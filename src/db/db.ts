@@ -37,6 +37,9 @@ class FocusSpaceDB extends Dexie {
         if (entry) await tx.table('journalEntries').add(entry);
       }
     });
+    this.version(4).stores({
+      goals: 'id, categoryId, goalType, deadline',
+    });
   }
 }
 export const db = new FocusSpaceDB();

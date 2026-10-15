@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { db } from '../db/db';
 import type { FocusLog, Task } from '../types';
+import { recordFocusDurationForGoals } from './goals';
 import { toast } from './toast';
 import { sendNotification } from './notifications';
 import { formatDuration, storage, uid } from './utils';
@@ -135,7 +136,14 @@ function saveFocusLog(minutes: number, startedAt: string, taskId?: string) {
     durationMinutes: minutes,
     mode: 'focus',
   };
-  db.focusLogs.add(log).catch(() => toast('Could not save that focus session to local storage.', 'error'));
+  db.focusLogs.add(log).then(async () => {
+    let catId: string | undefined;
+    if (taskId) {
+      const t = await db.tasks.get(taskId);
+      catId = t?.categoryId;
+    }
+    void recordFocusDurationForGoals(minutes, catId);
+  }).catch(() => toast('Could not save that focus session to local storage.', 'error'));
 }
 
 /** Logs the focus time worked so far in an unfinished session. Returns the minutes saved (0 if under a minute). */

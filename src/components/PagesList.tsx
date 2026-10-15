@@ -56,7 +56,7 @@ export function PagesList({ categoryId, tabs, onOpenPage }: { categoryId?: strin
   };
 
   const createButton = (
-    <button onClick={() => void newPage()} disabled={creating} className="h-8 px-3 rounded-xl bg-accent text-accent-fg font-medium text-sm flex items-center gap-2 hover:bg-accent-hover disabled:opacity-60"><Plus size={16} /> New page</button>
+    <button onClick={() => void newPage()} disabled={creating} className="h-8 px-3 rounded-xl bg-accent text-accent-fg font-semibold text-sm flex items-center gap-2 hover:bg-accent-hover disabled:opacity-60 keycap"><Plus size={16} /> New page</button>
   );
   const loading = pages === undefined;
   const count = pages?.length ?? 0;

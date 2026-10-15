@@ -1,8 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Bell, Calendar, Check, Download, Flame, Keyboard, Palette, Pencil, Plus, RefreshCw, Smartphone, Target, Trash2, Upload, X, Zap } from 'lucide-react';
+import { Bell, Calendar, Check, Download, Flame, Folder, FolderSync, Keyboard, Palette, Pencil, Plus, RefreshCw, Smartphone, Target, Trash2, Upload, X, Zap } from 'lucide-react';
 import { isNotificationSupported, getNotificationPermission, requestNotificationPermission, sendNotification } from '../lib/notifications';
 import { useEffect, useRef, useState } from 'react';
 import { db } from '../db/db';
+import { clearDirectoryHandle, getLastSyncTime, getSavedDirectoryHandle, isFileSystemAccessSupported, saveDirectoryHandle, syncToDirectory } from '../lib/folderSync';
 import { loadSchedulePreferences, saveSchedulePreferences } from '../lib/smartScheduler';
 import { exportBackup, currentReminderState, daysSince, shouldRemindBackup, snoozeBackupReminder } from '../lib/backupExport';
 import { base64ToBlob, formatBytes } from '../lib/files';
@@ -15,7 +16,9 @@ import { computeStreaks } from '../lib/analytics';
 import { DURATIONS_KEY, timer } from '../lib/timer';
 import { toast } from '../lib/toast';
 import { storage, uid } from '../lib/utils';
-import type { Category, Habit } from '../types';
+import type { Category, GoalType, Habit } from '../types';
+
+import { ConfirmDialog } from './ui';
 
 const themes = [
   { id: 'nocturne', name: 'Nocturne Solaris (Dark)', description: 'Pitch-black anodized dot-matrix, warm stone borders & vermilion orange' },
@@ -40,6 +43,12 @@ export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMod
   const [moveTo, setMoveTo] = useState('');
   const [busy, setBusy] = useState(false);
   const [includeFiles, setIncludeFiles] = useState(true);
+  const [pendingImport, setPendingImport] = useState<{
+    summary: string;
+    note: string;
+    counts: { tasks: number; categories: number; habits: number; logs: number; pages: number; files: number };
+    action: () => Promise<void>;
+  } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -121,26 +130,46 @@ export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMod
       const note = !hasPages ? ' This backup predates pages, so your current pages and files will be removed.'
         : !hasJournal ? ' This backup predates rich-text pages, so your current pages, journal entries and links will be replaced with whatever this older backup has.'
         : raw.filesIncluded === false ? ' Files were not included in this backup, so current attached files will be removed.' : '';
-      if (!confirm(`Import ${summary}? Existing local data will be replaced.${note}`)) return;
 
-      const blobs = validFiles.flatMap(f => {
-        try { return [{ id: f.id, blob: base64ToBlob(f.data, f.type) }]; } catch { return []; }
-      });
-      const blobIds = new Set(blobs.map(b => b.id));
-      const storedFiles = validFiles.filter(f => blobIds.has(f.id)).map(({ data: _data, ...meta }) => meta);
+      setPendingImport({
+        summary,
+        note,
+        counts: {
+          tasks: validTasks.length,
+          categories: cats.items.length,
+          habits: habits.items.length,
+          logs: logs.items.length,
+          pages: validPages.length,
+          files: validFiles.length,
+        },
+        action: async () => {
+          setBusy(true);
+          try {
+            const blobs = validFiles.flatMap(f => {
+              try { return [{ id: f.id, blob: base64ToBlob(f.data, f.type) }]; } catch { return []; }
+            });
+            const blobIds = new Set(blobs.map(b => b.id));
+            const storedFiles = validFiles.filter(f => blobIds.has(f.id)).map(({ data: _data, ...meta }) => meta);
 
-      await db.transaction('rw', [db.categories, db.tasks, db.habits, db.focusLogs, db.pages, db.files, db.fileBlobs, db.journalEntries, db.pageLinks], async () => {
-        await Promise.all([db.categories.clear(), db.tasks.clear(), db.habits.clear(), db.focusLogs.clear(), db.pages.clear(), db.files.clear(), db.fileBlobs.clear(), db.journalEntries.clear(), db.pageLinks.clear()]);
-        await db.categories.bulkAdd(cats.items); await db.tasks.bulkAdd(validTasks); await db.habits.bulkAdd(habits.items); await db.focusLogs.bulkAdd(logs.items);
-        await db.pages.bulkAdd(validPages); await db.files.bulkAdd(storedFiles); await db.fileBlobs.bulkAdd(blobs);
-        await db.journalEntries.bulkAdd(validEntries); await db.pageLinks.bulkAdd(validLinks);
+            await db.transaction('rw', [db.categories, db.tasks, db.habits, db.focusLogs, db.pages, db.files, db.fileBlobs, db.journalEntries, db.pageLinks], async () => {
+              await Promise.all([db.categories.clear(), db.tasks.clear(), db.habits.clear(), db.focusLogs.clear(), db.pages.clear(), db.files.clear(), db.fileBlobs.clear(), db.journalEntries.clear(), db.pageLinks.clear()]);
+              await db.categories.bulkAdd(cats.items); await db.tasks.bulkAdd(validTasks); await db.habits.bulkAdd(habits.items); await db.focusLogs.bulkAdd(logs.items);
+              await db.pages.bulkAdd(validPages); await db.files.bulkAdd(storedFiles); await db.fileBlobs.bulkAdd(blobs);
+              await db.journalEntries.bulkAdd(validEntries); await db.pageLinks.bulkAdd(validLinks);
+            });
+            timer.setTask(undefined); // the attached task may no longer exist
+            if (typeof raw.pomodoroDurations === 'string') { storage.set(DURATIONS_KEY, raw.pomodoroDurations); timer.reloadDurations(); }
+            if (typeof raw.goals === 'string') storage.set(GOALS_KEY, raw.goals);
+            if (typeof raw.theme === 'string') { storage.set('focusspace-theme', raw.theme); setTheme(raw.theme); }
+            const dropped = skipped + (validFiles.length - storedFiles.length);
+            toast(`Imported ${summary}${dropped ? ` (${dropped} unusable ${dropped === 1 ? 'record was' : 'records were'} skipped)` : ''}.`, 'success', { duration: 8000 });
+          } catch (error) {
+            toast(error instanceof Error ? error.message : 'Could not import backup.', 'error', { duration: 7000 });
+          } finally {
+            setBusy(false);
+          }
+        }
       });
-      timer.setTask(undefined); // the attached task may no longer exist
-      if (typeof raw.pomodoroDurations === 'string') { storage.set(DURATIONS_KEY, raw.pomodoroDurations); timer.reloadDurations(); }
-      if (typeof raw.goals === 'string') storage.set(GOALS_KEY, raw.goals);
-      if (typeof raw.theme === 'string') { storage.set('focusspace-theme', raw.theme); setTheme(raw.theme); }
-      const dropped = skipped + (validFiles.length - storedFiles.length);
-      toast(`Imported ${summary}${dropped ? ` (${dropped} unusable ${dropped === 1 ? 'record was' : 'records were'} skipped)` : ''}.`, 'success', { duration: 8000 });
     } catch (error) { toast(error instanceof Error ? error.message : 'Could not import backup.', 'error', { duration: 7000 }); }
     finally { setBusy(false); }
   };
@@ -170,19 +199,21 @@ export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMod
           <div className="flex items-center gap-2 font-medium"><Smartphone size={16}/> Install App</div>
           <p className="text-xs text-fg-subtle mt-1">Install FocusSpace to your device for native offline access.</p>
         </div>
-        <button onClick={install} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium flex items-center gap-2 hover:bg-hover transition">
+        <button onClick={install} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-semibold flex items-center gap-2 hover:bg-accent-hover transition keycap">
           <Download size={15}/> Install
         </button>
       </div>
     </section>
 
     <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
-      <div className="p-5 border-b border-line flex items-center justify-between"><div><div className="font-medium">Categories</div><p className="text-xs text-fg-subtle mt-1">Create, rename and recolor your workspaces.</p></div><button onClick={startCreate} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium flex items-center gap-1.5"><Plus size={15}/> Add category</button></div>
+      <div className="p-5 border-b border-line flex items-center justify-between"><div><div className="font-medium">Categories</div><p className="text-xs text-fg-subtle mt-1">Create, rename and recolor your workspaces.</p></div><button onClick={startCreate} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-semibold flex items-center gap-1.5 hover:bg-accent-hover keycap"><Plus size={15}/> Add category</button></div>
       <div className="p-4 space-y-2">{categories.map(c => <div key={c.id} className="flex items-center gap-3 rounded-2xl border border-line bg-surface-2 p-3"><span className="size-3 rounded-full" style={{background:c.color}}/><div className="flex-1 min-w-0"><div className="text-sm truncate">{c.name}</div><div className="text-[11px] text-fg-subtle">{c.id}</div></div><button onClick={()=>openEdit(c)} className="text-xs text-fg-muted hover:text-fg px-2 py-1.5 rounded-xl hover:bg-hover">Edit</button><button onClick={()=>{setDeleteTarget(c);setMoveTo(categories.find(x=>x.id!==c.id)?.id??'')}} className="text-fg-subtle hover:text-red-300 p-2 rounded-xl hover:bg-hover" title="Delete"><Trash2 size={15}/></button></div>)}</div>
-      {(editing || creating) && <div className="p-4 border-t border-line bg-surface/30"><div className="grid sm:grid-cols-[1fr_110px_auto] gap-2 items-end"><label className="text-xs text-fg-muted">Name<input ref={inputRef} value={newName} onChange={e=>setNewName(e.target.value)} placeholder="e.g. Valorant" className="mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line px-3 text-sm outline-none"/></label><label className="text-xs text-fg-muted">Color<input type="color" value={newColor} onChange={e=>setNewColor(e.target.value)} className="mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line p-1"/></label><div className="flex gap-2"><button onClick={()=>{setEditing(null);setCreating(false);setNewName('')}} className="h-8 px-2 rounded-xl text-sm text-fg-muted hover:bg-hover">Cancel</button><button onClick={saveCategory} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium">Save</button></div></div></div>}
+      {(editing || creating) && <div className="p-4 border-t border-line bg-surface/30"><div className="grid sm:grid-cols-[1fr_110px_auto] gap-2 items-end"><label className="text-xs text-fg-muted">Name<input ref={inputRef} value={newName} onChange={e=>setNewName(e.target.value)} placeholder="e.g. Valorant" className="mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line px-3 text-sm outline-none"/></label><label className="text-xs text-fg-muted">Color<input type="color" value={newColor} onChange={e=>setNewColor(e.target.value)} className="mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line p-1"/></label><div className="flex gap-2"><button onClick={()=>{setEditing(null);setCreating(false);setNewName('')}} className="h-8 px-2 rounded-xl text-sm text-fg-muted hover:bg-hover">Cancel</button><button onClick={saveCategory} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-semibold hover:bg-accent-hover keycap">Save</button></div></div></div>}
     </section>
 
-    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden"><div className="p-5 border-b border-line"><div className="font-medium">Data ownership</div><p className="text-xs text-fg-subtle mt-1">Export everything or restore a previous FocusSpace backup.</p></div><div className="p-5 flex flex-wrap gap-3"><button onClick={()=>void exportData()} disabled={busy} className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-sm flex items-center gap-2 hover:bg-hover disabled:opacity-50"><Download size={15}/> Export JSON</button><label className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-sm flex items-center gap-2 hover:bg-hover cursor-pointer"><Upload size={15}/> Import JSON<input type="file" accept="application/json,.json" className="hidden" disabled={busy} onChange={e=>{void importData(e.target.files?.[0]);e.currentTarget.value=''}}/></label><button onClick={()=>{storage.remove(DURATIONS_KEY);timer.reloadDurations();toast('Timer durations reset to 25 / 5 / 15.','success')}} className="h-8 px-3 rounded-xl text-sm text-fg-subtle hover:text-fg flex items-center gap-2"><RefreshCw size={14}/> Reset timer defaults</button></div><div className="px-5 pb-5 space-y-3"><label className="flex items-center gap-2 text-xs text-fg-muted cursor-pointer w-fit"><input type="checkbox" checked={includeFiles} onChange={e=>setIncludeFiles(e.target.checked)} className="accent-accent"/> Include attached files in the export (they are embedded, so the file gets larger)</label><StorageInfo/></div></section>
+    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden"><div className="p-5 border-b border-line"><div className="font-medium">Data ownership</div><p className="text-xs text-fg-subtle mt-1">Export everything or restore a previous FocusSpace backup.</p></div><div className="p-5 flex flex-wrap gap-3"><button onClick={()=>void exportData()} disabled={busy} className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-sm flex items-center gap-2 hover:bg-hover disabled:opacity-50 keycap"><Download size={15}/> Export JSON</button><label className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-sm flex items-center gap-2 hover:bg-hover cursor-pointer keycap"><Upload size={15}/> Import JSON<input type="file" accept="application/json,.json" className="hidden" disabled={busy} onChange={e=>{void importData(e.target.files?.[0]);e.currentTarget.value=''}}/></label><button onClick={()=>{storage.remove(DURATIONS_KEY);timer.reloadDurations();toast('Timer durations reset to 25 / 5 / 15.','success')}} className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-sm text-fg-subtle hover:text-fg flex items-center gap-2 hover:bg-hover keycap"><RefreshCw size={14}/> Reset timer defaults</button></div><div className="px-5 pb-5 space-y-3"><label className="flex items-center gap-2 text-xs text-fg-muted cursor-pointer w-fit"><input type="checkbox" checked={includeFiles} onChange={e=>setIncludeFiles(e.target.checked)} className="accent-accent"/> Include attached files in the export (they are embedded, so the file gets larger)</label><StorageInfo/></div></section>
+
+    <FolderSyncCard />
 
     <IcsExportCard />
     <HabitsCard />
@@ -196,6 +227,39 @@ export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMod
     </section>
 
     {deleteTarget && <div className="fade-in fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4" onMouseDown={()=>setDeleteTarget(null)}><div role="dialog" aria-modal="true" aria-label={`Delete ${deleteTarget.name}`} onMouseDown={e=>e.stopPropagation()} className="pop-in w-full max-w-md rounded-2xl border border-line bg-surface shadow-2xl p-5"><div className="flex items-start justify-between"><div><h2 className="font-semibold">Delete {deleteTarget.name}?</h2><p className="text-xs text-fg-subtle mt-1">Tasks and pages in this category must be moved before it is deleted.</p></div><button onClick={()=>setDeleteTarget(null)}><X size={17} className="text-fg-subtle"/></button></div><label className="block text-xs text-fg-muted mt-5">Move tasks and pages to<select value={moveTo} onChange={e=>setMoveTo(e.target.value)} className="mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line px-3 text-sm">{categories.filter(c=>c.id!==deleteTarget.id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><div className="flex justify-end gap-2 mt-5"><button onClick={()=>setDeleteTarget(null)} className="h-8 px-3 rounded-xl text-sm text-fg-muted">Cancel</button><button disabled={!moveTo||busy} onClick={()=>void removeCategory()} className="h-8 px-3 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium disabled:opacity-40 transition-colors">Move & delete</button></div></div></div>}
+
+    {pendingImport && (
+      <ConfirmDialog
+        title="Import Backup & Replace Data?"
+        confirmLabel="Replace & Import"
+        danger
+        onCancel={() => setPendingImport(null)}
+        onConfirm={async () => {
+          const action = pendingImport.action;
+          setPendingImport(null);
+          await action();
+        }}
+      >
+        <div className="mt-3 space-y-3">
+          <p className="text-sm text-fg-muted">
+            Existing tasks, categories, habits, pages, and logs in this browser will be replaced with this backup:
+          </p>
+          <div className="grid grid-cols-3 gap-2 p-3 rounded-xl border border-line bg-surface-2 text-center text-xs">
+            <div><span className="font-semibold text-fg text-sm block">{pendingImport.counts.tasks}</span><span className="text-fg-subtle">Tasks</span></div>
+            <div><span className="font-semibold text-fg text-sm block">{pendingImport.counts.categories}</span><span className="text-fg-subtle">Categories</span></div>
+            <div><span className="font-semibold text-fg text-sm block">{pendingImport.counts.habits}</span><span className="text-fg-subtle">Habits</span></div>
+            <div><span className="font-semibold text-fg text-sm block">{pendingImport.counts.logs}</span><span className="text-fg-subtle">Focus Logs</span></div>
+            <div><span className="font-semibold text-fg text-sm block">{pendingImport.counts.pages}</span><span className="text-fg-subtle">Pages</span></div>
+            <div><span className="font-semibold text-fg text-sm block">{pendingImport.counts.files}</span><span className="text-fg-subtle">Files</span></div>
+          </div>
+          {pendingImport.note && (
+            <div className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs text-amber-200">
+              {pendingImport.note}
+            </div>
+          )}
+        </div>
+      </ConfirmDialog>
+    )}
   </div>;
 }
 
@@ -215,6 +279,119 @@ function StorageInfo() {
       {count ? `${count} attached ${count === 1 ? 'file' : 'files'} · ${formatBytes(bytes)}` : 'No attached files'}
       {estimate ? ` · this site uses ${formatBytes(estimate.usage)} of roughly ${formatBytes(estimate.quota)} available in this browser` : ''}
     </p>
+  );
+}
+
+function FolderSyncCard() {
+  const supported = isFileSystemAccessSupported();
+  const [handle, setHandle] = useState<FileSystemDirectoryHandle | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<string | null>(() => getLastSyncTime());
+
+  useEffect(() => {
+    if (supported) {
+      getSavedDirectoryHandle().then(h => setHandle(h));
+    }
+  }, [supported]);
+
+  const selectFolder = async () => {
+    try {
+      const dirHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+      await saveDirectoryHandle(dirHandle);
+      setHandle(dirHandle);
+      toast(`Connected to "${dirHandle.name}". Syncing backup now...`, 'info');
+      setSyncing(true);
+      await syncToDirectory(dirHandle);
+      setLastSync(getLastSyncTime());
+      toast('Backup synced to folder!', 'success');
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        toast(err instanceof Error ? err.message : 'Could not connect folder', 'error');
+      }
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleSyncNow = async () => {
+    if (!handle) return;
+    setSyncing(true);
+    try {
+      await syncToDirectory(handle);
+      setLastSync(getLastSyncTime());
+      toast('Synced latest backup to folder.', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Sync failed', 'error');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const disconnect = async () => {
+    await clearDirectoryHandle();
+    setHandle(null);
+    toast('Disconnected folder sync.');
+  };
+
+  return (
+    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
+      <div className="p-5 border-b border-line flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2 font-medium">
+            <FolderSync size={16} className="text-accent-text" /> Zero-Cloud Local Folder Auto-Sync
+          </div>
+          <p className="text-xs text-fg-subtle mt-1">
+            Automatically write daily JSON backups to your local iCloud, Dropbox, or Google Drive folder.
+          </p>
+        </div>
+      </div>
+      <div className="p-5 space-y-4">
+        {!supported ? (
+          <p className="text-xs text-fg-muted">
+            The File System Access API is not supported in this browser. On mobile or unsupported browsers, use the manual JSON Export button above.
+          </p>
+        ) : handle ? (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-line bg-surface-2">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-semibold text-fg">
+                <span className="size-2 rounded-full bg-emerald-500" />
+                <span>Connected: {handle.name}</span>
+              </div>
+              <p className="text-xs text-fg-subtle mt-1">
+                {lastSync ? `Last synced: ${new Date(lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Not synced yet'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleSyncNow}
+                disabled={syncing}
+                className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-xs font-semibold hover:bg-accent-hover disabled:opacity-40 transition keycap"
+              >
+                {syncing ? 'Syncing...' : 'Sync Now'}
+              </button>
+              <button
+                onClick={disconnect}
+                className="h-8 px-3 rounded-xl border border-line bg-surface text-xs text-fg-muted hover:text-fg hover:bg-hover transition"
+              >
+                Disconnect
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <p className="text-xs text-fg-muted">
+              Choose a folder on your computer. FocusSpace will save timestamped backup snapshots directly to your disk.
+            </p>
+            <button
+              onClick={selectFolder}
+              className="h-9 px-4 rounded-xl bg-accent text-accent-fg text-xs font-semibold flex items-center gap-2 hover:bg-accent-hover transition keycap shrink-0"
+            >
+              <Folder size={14} /> Connect Local Folder
+            </button>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -294,7 +471,7 @@ function HabitsCard() {
     <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
       <div className="p-5 border-b border-line flex items-center justify-between">
         <div><div className="font-medium">Habits</div><p className="text-xs text-fg-subtle mt-1">Active habits show up on Today as one-tap check-ins.</p></div>
-        <button onClick={() => { setCreating(true); setName(''); setNewColor(HABIT_COLORS[0]); }} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium flex items-center gap-1.5"><Plus size={15} /> Add habit</button>
+        <button onClick={() => { setCreating(true); setName(''); setNewColor(HABIT_COLORS[0]); }} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-semibold flex items-center gap-1.5 hover:bg-accent-hover keycap"><Plus size={15} /> Add habit</button>
       </div>
       <div className="p-4 space-y-2">
         {habits.length === 0 && !creating && <p className="text-sm text-fg-subtle px-1 py-2">No habits yet. Add one to start tracking daily streaks.</p>}
@@ -357,7 +534,7 @@ function HabitsCard() {
             </div>
             <div className="flex gap-2 justify-end">
               <button onClick={() => setCreating(false)} className="h-8 px-2 rounded-xl text-sm text-fg-muted hover:bg-hover">Cancel</button>
-              <button onClick={() => void create()} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium hover:bg-accent-hover">Save</button>
+              <button onClick={() => void create()} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-semibold hover:bg-accent-hover keycap">Save</button>
             </div>
           </div>
         </div>
@@ -369,11 +546,23 @@ function HabitsCard() {
 
 function GoalsCard() {
   const goals = useLiveQuery(() => db.goals.toArray(), []) ?? [];
+  const categories = useLiveQuery(() => db.categories.toArray(), []) ?? [];
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState('');
+  const [goalType, setGoalType] = useState<GoalType>('manual');
+  const [categoryId, setCategoryId] = useState('');
   const [metricLabel, setMetricLabel] = useState('');
   const [targetValue, setTargetValue] = useState('10');
   const [deadline, setDeadline] = useState('');
+  const [editingProgressId, setEditingProgressId] = useState<string | null>(null);
+  const [progressVal, setProgressVal] = useState('');
+
+  const onTypeChange = (t: GoalType) => {
+    setGoalType(t);
+    if (t === 'tasks-completed') setMetricLabel('tasks');
+    else if (t === 'focus-hours') setMetricLabel('hours');
+    else if (t === 'habit-streak') setMetricLabel('days streak');
+  };
 
   const create = async () => {
     if (!title.trim() || !metricLabel.trim()) return toast('Please fill in title and metric.', 'error');
@@ -383,6 +572,8 @@ function GoalsCard() {
     await db.goals.add({
       id: uid(),
       title: title.trim(),
+      goalType,
+      categoryId: categoryId || undefined,
       metricLabel: metricLabel.trim(),
       currentValue: 0,
       targetValue: target,
@@ -390,7 +581,7 @@ function GoalsCard() {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
-    setCreating(false); setTitle(''); setMetricLabel(''); setTargetValue('10'); setDeadline('');
+    setCreating(false); setTitle(''); setMetricLabel(''); setTargetValue('10'); setDeadline(''); setCategoryId(''); setGoalType('manual');
     toast('Goal created.', 'success');
   };
 
@@ -399,41 +590,109 @@ function GoalsCard() {
     toast('Goal deleted.');
   };
 
+  const saveProgress = async (id: string) => {
+    const next = parseFloat(progressVal);
+    if (isNaN(next) || next < 0) return toast('Progress must be a non-negative number.', 'error');
+    await db.goals.update(id, { currentValue: next, updatedAt: new Date().toISOString() });
+    setEditingProgressId(null);
+    toast('Goal progress updated.', 'success');
+  };
+
   return (
     <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
       <div className="p-5 border-b border-line flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 font-medium"><Target size={16}/> Goals</div>
-          <p className="text-xs text-fg-subtle mt-1">Track larger milestones and measurable targets.</p>
+          <p className="text-xs text-fg-subtle mt-1">Track larger milestones and measurable targets with optional auto-tracking.</p>
         </div>
-        <button onClick={() => setCreating(true)} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium flex items-center gap-1.5 hover:bg-accent-hover"><Plus size={15} /> Add goal</button>
+        <button onClick={() => setCreating(true)} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-semibold flex items-center gap-1.5 hover:bg-accent-hover keycap"><Plus size={15} /> Add goal</button>
       </div>
       <div className="p-4 space-y-2">
         {goals.length === 0 && !creating && <p className="text-sm text-fg-subtle px-1 py-2">No goals yet. Add a big milestone to track.</p>}
         {goals.map(g => {
           const pct = Math.min(100, Math.max(0, (g.currentValue / g.targetValue) * 100));
+          const isUpdating = editingProgressId === g.id;
           return (
             <div key={g.id} className="rounded-2xl border border-line bg-surface p-4 shadow-card">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate text-fg">{g.title}</div>
-                  <div className="text-xs text-fg-muted mt-0.5">{g.currentValue} / {g.targetValue} {g.metricLabel}{g.deadline ? ` · Target: ${g.deadline}` : ''}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm truncate text-fg">{g.title}</span>
+                    {g.goalType && g.goalType !== 'manual' && (
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-accent/15 text-accent-text border border-accent/25 flex items-center gap-1 shrink-0">
+                        <Zap size={10} />
+                        {g.goalType === 'tasks-completed' ? 'Auto: Tasks' : g.goalType === 'focus-hours' ? 'Auto: Focus' : 'Auto: Streak'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-fg-muted mt-0.5">
+                    {g.currentValue} / {g.targetValue} {g.metricLabel}
+                    {g.categoryId && (
+                      <span className="text-fg-subtle"> · {categories.find(c => c.id === g.categoryId)?.name ?? g.categoryId}</span>
+                    )}
+                    {g.deadline ? ` · Target: ${g.deadline}` : ''}
+                  </div>
                 </div>
                 <div className="flex gap-1">
                   <button onClick={() => {
-                    const nextStr = window.prompt(`Update progress for ${g.title} (current: ${g.currentValue}):`, String(g.currentValue));
-                    if (nextStr === null) return;
-                    const next = parseFloat(nextStr);
-                    if (!isNaN(next)) {
-                      db.goals.update(g.id, { currentValue: next, updatedAt: new Date().toISOString() });
+                    if (isUpdating) {
+                      setEditingProgressId(null);
+                    } else {
+                      setEditingProgressId(g.id);
+                      setProgressVal(String(g.currentValue));
                     }
-                  }} className="text-xs text-fg-muted hover:text-fg px-2 py-1.5 rounded-xl hover:bg-hover">Update</button>
+                  }} className={`text-xs px-2 py-1.5 rounded-xl transition ${isUpdating ? 'bg-surface-2 text-fg font-medium' : 'text-fg-muted hover:text-fg hover:bg-hover'}`}>
+                    {isUpdating ? 'Done' : 'Update'}
+                  </button>
                   <button onClick={() => deleteGoal(g.id)} className="text-fg-subtle hover:text-red-300 p-2 rounded-xl hover:bg-hover" title="Delete"><Trash2 size={15} /></button>
                 </div>
               </div>
               <div className="mt-3 h-1.5 rounded-full bg-[var(--ring-track)] overflow-hidden">
                 <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
               </div>
+              {isUpdating && (
+                <div className="mt-3 pt-3 border-t border-line/60 flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-medium text-fg-muted">New Value ({g.metricLabel}):</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setProgressVal(v => String(Math.max(0, (parseFloat(v) || 0) - 1)))}
+                      className="size-7 rounded-lg border border-line bg-surface-2 grid place-items-center text-xs font-semibold hover:bg-hover keycap"
+                    >-1</button>
+                    <input
+                      type="number"
+                      autoFocus
+                      value={progressVal}
+                      onChange={e => setProgressVal(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') void saveProgress(g.id);
+                        if (e.key === 'Escape') setEditingProgressId(null);
+                      }}
+                      className="w-20 h-7 rounded-lg bg-surface-2 border border-line px-2 text-xs font-mono outline-none text-center"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setProgressVal(v => String((parseFloat(v) || 0) + 1))}
+                      className="size-7 rounded-lg border border-line bg-surface-2 grid place-items-center text-xs font-semibold hover:bg-hover keycap"
+                    >+1</button>
+                    <button
+                      type="button"
+                      onClick={() => setProgressVal(v => String((parseFloat(v) || 0) + 5))}
+                      className="h-7 px-2 rounded-lg border border-line bg-surface-2 text-xs font-semibold hover:bg-hover keycap"
+                    >+5</button>
+                  </div>
+                  <div className="flex items-center gap-1.5 ml-auto">
+                    <button
+                      onClick={() => setEditingProgressId(null)}
+                      className="h-7 px-2.5 rounded-lg text-xs text-fg-muted hover:bg-hover"
+                    >Cancel</button>
+                    <button
+                      onClick={() => void saveProgress(g.id)}
+                      className="h-7 px-3 rounded-lg bg-accent text-accent-fg text-xs font-semibold hover:bg-accent-hover keycap"
+                    >Save</button>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -441,7 +700,33 @@ function GoalsCard() {
           <div className="rounded-xl border border-line bg-surface p-4 shadow-card space-y-3">
             <div>
               <label className="text-[11px] font-medium text-fg-muted uppercase tracking-widest block mb-1">Goal title</label>
-              <input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Run a marathon" className="w-full h-8 rounded-xl bg-surface-2 border border-line px-2 text-sm outline-none" />
+              <input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Finish 50 problem sets" className="w-full h-8 rounded-xl bg-surface-2 border border-line px-2 text-sm outline-none" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-medium text-fg-muted uppercase tracking-widest block mb-1">Tracking Type</label>
+                <select
+                  value={goalType}
+                  onChange={e => onTypeChange(e.target.value as GoalType)}
+                  className="w-full h-8 rounded-xl bg-surface-2 border border-line px-2 text-xs outline-none"
+                >
+                  <option value="manual">Manual Progress</option>
+                  <option value="tasks-completed">⚡ Auto: Completed Tasks</option>
+                  <option value="focus-hours">⚡ Auto: Focus Hours</option>
+                  <option value="habit-streak">⚡ Auto: Habit Streak</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-fg-muted uppercase tracking-widest block mb-1">Category (Optional)</label>
+                <select
+                  value={categoryId}
+                  onChange={e => setCategoryId(e.target.value)}
+                  className="w-full h-8 rounded-xl bg-surface-2 border border-line px-2 text-xs outline-none"
+                >
+                  <option value="">All Categories (Global)</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -450,7 +735,7 @@ function GoalsCard() {
               </div>
               <div>
                 <label className="text-[11px] font-medium text-fg-muted uppercase tracking-widest block mb-1">Metric label</label>
-                <input value={metricLabel} onChange={e => setMetricLabel(e.target.value)} placeholder="e.g. km, books, $" className="w-full h-8 rounded-xl bg-surface-2 border border-line px-2 text-sm outline-none" />
+                <input value={metricLabel} onChange={e => setMetricLabel(e.target.value)} placeholder="e.g. tasks, hours, books" className="w-full h-8 rounded-xl bg-surface-2 border border-line px-2 text-sm outline-none" />
               </div>
             </div>
             <div>
@@ -459,7 +744,7 @@ function GoalsCard() {
             </div>
             <div className="flex justify-end gap-2 pt-1">
               <button onClick={() => setCreating(false)} className="h-8 px-3 rounded-xl text-sm text-fg-muted hover:bg-hover">Cancel</button>
-              <button onClick={create} disabled={!title.trim() || !metricLabel.trim()} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium hover:bg-accent-hover disabled:opacity-40">Save goal</button>
+              <button onClick={create} disabled={!title.trim() || !metricLabel.trim()} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-semibold hover:bg-accent-hover disabled:opacity-40 keycap">Save goal</button>
             </div>
           </div>
         )}

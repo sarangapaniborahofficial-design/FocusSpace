@@ -21,8 +21,16 @@ export async function deleteHabit(id: string) {
   await Promise.all(dangling.map(l => removeLink(l.id)));
 }
 
+import { computeStreaks } from './analytics';
+import { recordHabitStreakForGoals } from './goals';
+
 /** Atomic read-modify-write so two quick taps can't overwrite each other. Works for any past day, which lets you fix a missed check-in. */
 export const toggleHabitDay = (id: string, date: string) =>
   db.habits.where('id').equals(id).modify(h => {
-    h.completions = h.completions.includes(date) ? h.completions.filter(d => d !== date) : [...h.completions, date];
+    const included = h.completions.includes(date);
+    h.completions = included ? h.completions.filter(d => d !== date) : [...h.completions, date];
+    if (!included) {
+      const { current, best } = computeStreaks(h.completions, date);
+      void recordHabitStreakForGoals(Math.max(current, best));
+    }
   });

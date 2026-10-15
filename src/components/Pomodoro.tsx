@@ -1,7 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Pause, Play, RotateCcw, Settings2, TimerReset, X } from 'lucide-react';
+import { Headphones, Pause, Play, RotateCcw, Settings2, TimerReset, Volume2, X } from 'lucide-react';
 import { useState } from 'react';
 import { db } from '../db/db';
+import { SOUNDSCAPES, soundscape, useSoundscape } from '../lib/soundscape';
 import { useToday } from '../lib/hooks';
 import {
   DEFAULT_DURATIONS,
@@ -37,6 +38,7 @@ const PRECOMPUTED_TICKS = Array.from({ length: 36 }, (_, i) => {
 
 export function Pomodoro() {
   const s = useTimer();
+  const sc = useSoundscape();
   const today = useToday();
   const taskId = s.taskId;
 
@@ -275,7 +277,53 @@ export function Pomodoro() {
         </button>
       </div>
 
-      <div className="mt-5 pt-4 border-t border-line flex items-center justify-between text-xs text-fg-muted">
+      {/* Procedural Soundscape Bar */}
+      <div className="mt-4 p-3 rounded-2xl bg-surface-2 border border-line">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-fg">
+            <Headphones size={13} className={sc.isPlaying ? 'text-accent-text animate-pulse' : 'text-fg-subtle'} />
+            <span>Soundscape</span>
+          </div>
+          {sc.type !== 'off' && (
+            <div className="flex items-center gap-1.5 text-xs text-fg-muted">
+              <Volume2 size={12} className="text-fg-subtle" />
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={sc.volume}
+                onChange={e => soundscape.setVolume(parseFloat(e.target.value))}
+                className="w-16 h-1 accent-accent rounded-lg cursor-pointer"
+                title={`Volume: ${Math.round(sc.volume * 100)}%`}
+              />
+              <span className="text-[10px] font-mono w-6 text-right tabular-nums">{Math.round(sc.volume * 100)}%</span>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-4 gap-1.5">
+          {SOUNDSCAPES.map(s => {
+            const active = sc.type === s.id;
+            return (
+              <button
+                key={s.id}
+                onClick={() => soundscape.setType(s.id)}
+                title={s.desc}
+                className={`py-1.5 px-1 rounded-xl text-[11px] font-medium text-center transition ${
+                  active
+                    ? 'bg-accent text-accent-fg font-semibold keycap shadow-sm'
+                    : 'bg-surface text-fg-muted hover:text-fg hover:bg-hover'
+                }`}
+              >
+                {s.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="mt-4 pt-3.5 border-t border-line flex items-center justify-between text-xs text-fg-muted">
         <div
           className="flex items-center gap-1.5"
           title={`${Math.min(s.cycle, SESSIONS_PER_CYCLE)} of ${SESSIONS_PER_CYCLE} sessions before a long break`}

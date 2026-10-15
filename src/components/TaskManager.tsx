@@ -96,11 +96,11 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
   };
 
   const emptyAction = (
-    <button onClick={onQuickAdd} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-medium flex items-center gap-1.5"><Plus size={15} /> New task</button>
+    <button onClick={onQuickAdd} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-semibold flex items-center gap-1.5 hover:bg-accent-hover keycap"><Plus size={15} /> New task</button>
   );
   const clearFilters = () => { setQ(''); setFilters(NO_FILTERS); };
   const noMatches = (
-    <EmptyState icon={Search} title="No tasks match" text={q.trim() ? `Nothing matches “${q.trim()}”. Try a different word or clear the filters.` : 'Nothing matches these filters.'} action={<button onClick={clearFilters} className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-sm hover:bg-hover">Clear filters</button>} />
+    <EmptyState icon={Search} title="No tasks match" text={q.trim() ? `Nothing matches “${q.trim()}”. Try a different word or clear the filters.` : 'Nothing matches these filters.'} action={<button onClick={clearFilters} className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-sm hover:bg-hover keycap">Clear filters</button>} />
   );
 
   return (
@@ -113,11 +113,11 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
         </div>
         <div className="flex gap-2 self-start md:self-auto">
           {view === 'list' && all.length > 0 && (
-            <button onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))} aria-pressed={selectMode} className={`h-8 px-2 rounded-xl border text-sm font-medium ${selectMode ? 'border-line-strong bg-inv text-on-inv' : 'border-line text-fg-muted hover:bg-hover'}`}>
+            <button onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))} aria-pressed={selectMode} className={`h-8 px-2 rounded-xl border text-sm font-semibold keycap ${selectMode ? 'border-line-strong bg-inv text-on-inv' : 'border-line text-fg-muted hover:bg-hover'}`}>
               {selectMode ? 'Cancel' : 'Select'}
             </button>
           )}
-          <button onClick={onQuickAdd} className="h-8 px-3 rounded-xl bg-accent text-accent-fg font-medium text-sm flex items-center gap-2"><Plus size={16} /> New task</button>
+          <button onClick={onQuickAdd} className="h-8 px-3 rounded-xl bg-accent text-accent-fg font-semibold text-sm flex items-center gap-2 hover:bg-accent-hover keycap"><Plus size={16} /> New task</button>
         </div>
       </header>
 

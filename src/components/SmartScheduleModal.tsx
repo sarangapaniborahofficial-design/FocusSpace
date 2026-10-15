@@ -256,7 +256,7 @@ export function SmartScheduleModal({
             <button
               onClick={handleTimeBlock}
               disabled={busy || plan.blocks.length === 0}
-              className="h-9 px-4 rounded-xl bg-accent text-accent-fg text-sm font-medium hover:bg-accent-hover flex items-center gap-1.5 transition shadow-sm disabled:opacity-40"
+              className="h-9 px-4 rounded-xl bg-accent text-accent-fg text-sm font-semibold hover:bg-accent-hover flex items-center gap-1.5 transition keycap disabled:opacity-40"
               title="Reorders and assigns start times into your Calendar"
             >
               <Zap size={14} /> Time-Block My Day

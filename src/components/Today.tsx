@@ -13,18 +13,24 @@ import {
   Target,
   Trophy,
   Zap,
+  Calendar,
+  Clock,
+  Hash,
+  Tag,
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { db } from '../db/db';
 import { computeStreaks } from '../lib/analytics';
 import { toggleHabitDay } from '../lib/habitActions';
 import { useToday } from '../lib/hooks';
+import { parseTaskInput } from '../lib/taskParser';
 import { openTaskEditor } from '../lib/taskEditor';
 import { deleteTask, reorderTasks } from '../lib/tasks';
+import { toast } from '../lib/toast';
 import { buildTodayPlan } from '../lib/todayPlan';
 import { focusOnTask } from '../lib/timer';
-import { addDays, formatDuration } from '../lib/utils';
-import type { Task } from '../types';
+import { addDays, formatDuration, uid } from '../lib/utils';
+import type { Category, Task } from '../types';
 import { Pomodoro } from './Pomodoro';
 import { SmartScheduleModal } from './SmartScheduleModal';
 import { TaskCard } from './TaskCard';
@@ -210,6 +216,9 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
       {/* Main 2-Column Workspace */}
       <div className="grid xl:grid-cols-[1fr_390px] gap-6 items-start">
         <div className="space-y-6 min-w-0">
+          {/* Quick Capture Bar */}
+          <TodayQuickCapture categories={cats} today={today} />
+
           {/* "Do this next" Suggestion */}
           {tasks !== undefined && plan.next && (
             <section className="atelier-card rounded-3xl p-5 border-l-4 border-l-accent flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -465,6 +474,7 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
 
 function GoalsSection() {
   const goals = useLiveQuery(() => db.goals.toArray(), []) ?? [];
+  const categories = useLiveQuery(() => db.categories.toArray(), []) ?? [];
   if (goals.length === 0) return null;
   return (
     <section className="atelier-card rounded-3xl p-5">
@@ -474,11 +484,28 @@ function GoalsSection() {
       <div className="grid sm:grid-cols-2 gap-4">
         {goals.map(g => {
           const pct = Math.min(100, Math.max(0, (g.currentValue / g.targetValue) * 100));
+          const cat = g.categoryId ? categories.find(c => c.id === g.categoryId) : undefined;
           return (
             <div key={g.id} className="p-3.5 rounded-2xl border border-line bg-surface-2">
-              <div className="flex justify-between items-end mb-2">
-                <span className="text-sm font-semibold text-fg truncate">{g.title}</span>
-                <span className="text-xs font-mono text-fg-muted tabular-nums">
+              <div className="flex justify-between items-start mb-2 gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-sm font-semibold text-fg truncate">{g.title}</span>
+                    {g.goalType && g.goalType !== 'manual' && (
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-accent/15 text-accent-text border border-accent/25 shrink-0 flex items-center gap-0.5">
+                        <Zap size={9} />
+                        {g.goalType === 'tasks-completed' ? 'Tasks' : g.goalType === 'focus-hours' ? 'Focus' : 'Streak'}
+                      </span>
+                    )}
+                  </div>
+                  {cat && (
+                    <div className="text-[11px] text-fg-subtle flex items-center gap-1 mt-0.5">
+                      <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                      <span>{cat.name}</span>
+                    </div>
+                  )}
+                </div>
+                <span className="text-xs font-mono text-fg-muted tabular-nums shrink-0">
                   {g.currentValue} / {g.targetValue} {g.metricLabel}
                 </span>
               </div>
@@ -492,3 +519,116 @@ function GoalsSection() {
     </section>
   );
 }
+
+function TodayQuickCapture({ categories, today }: { categories: Category[]; today: string }) {
+  const [input, setInput] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
+
+  const parsed = useMemo(() => parseTaskInput(input, categories, today), [input, categories, today]);
+  const hasTokens = Object.keys(parsed.tokens).length > 0;
+
+  const handleCreate = async () => {
+    const raw = input.trim();
+    if (!raw) return;
+    const title = (hasTokens ? parsed.title : raw).trim();
+    if (!title) return;
+    const cat = parsed.categoryId ? (categories.find(c => c.id === parsed.categoryId) ?? categories[0]) : categories[0];
+    if (!cat) return;
+
+    const task: Task = {
+      id: uid(),
+      title,
+      categoryId: cat.id,
+      projectTag: parsed.projectTag ?? '',
+      priority: parsed.priority ?? 'Medium',
+      status: 'To Do',
+      estimatedDuration: parsed.estimatedDuration ?? 30,
+      dueDate: parsed.dueDate ?? today,
+      dueTime: parsed.dueTime ?? '',
+      subtasks: [],
+      notes: '',
+      colorCode: cat.color,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      await db.tasks.add(task);
+      toast(`Captured "${title}" into ${cat.name}`, 'success');
+      setInput('');
+    } catch {
+      toast('Could not save task.', 'error');
+    }
+  };
+
+  return (
+    <div className={`atelier-card rounded-3xl border transition-[border-color,box-shadow] p-3.5 sm:p-4 ${isFocused ? 'border-line-strong shadow-card' : 'border-line'}`}>
+      <div className="flex items-center gap-2.5">
+        <span className="size-9 rounded-2xl bg-surface-2 border border-line grid place-items-center text-fg-subtle shrink-0">
+          <Plus size={16} />
+        </span>
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              void handleCreate();
+            }
+          }}
+          placeholder="Quick capture task... (e.g. Finish report @projects #Q3 !high ~45m 4pm)"
+          className="flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-subtle"
+        />
+        <button
+          onClick={() => void handleCreate()}
+          disabled={!input.trim()}
+          className="h-8 sm:h-9 px-3.5 rounded-xl bg-accent text-accent-fg text-xs font-semibold hover:bg-accent-hover disabled:opacity-30 transition keycap shrink-0"
+        >
+          Capture
+        </button>
+      </div>
+
+      {hasTokens && (
+        <div className="mt-3 pt-2.5 border-t border-line/60 flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="text-[10px] font-mono text-fg-subtle uppercase tracking-wider mr-1">Parsed:</span>
+          {parsed.tokens.priority && (
+            <span className="px-2 py-0.5 rounded-md font-medium text-[11px] bg-amber-500/15 text-amber-500 border border-amber-500/30">
+              {parsed.tokens.priority.label}
+            </span>
+          )}
+          {parsed.tokens.category && (
+            <span className="px-2 py-0.5 rounded-md font-medium text-[11px] bg-accent/15 text-accent-text border border-accent/30 flex items-center gap-1">
+              <Tag size={10} /> {parsed.tokens.category.label}
+            </span>
+          )}
+          {parsed.tokens.projectTag && (
+            <span className="px-2 py-0.5 rounded-md font-medium text-[11px] bg-surface-3 text-fg-muted border border-line flex items-center gap-1">
+              <Hash size={10} /> {parsed.tokens.projectTag.label}
+            </span>
+          )}
+          {parsed.tokens.duration && (
+            <span className="px-2 py-0.5 rounded-md font-mono text-[11px] bg-surface-3 text-fg-soft border border-line flex items-center gap-1">
+              <Clock size={10} /> {parsed.tokens.duration.label}
+            </span>
+          )}
+          {parsed.tokens.date && (
+            <span className="px-2 py-0.5 rounded-md font-mono text-[11px] bg-sky-500/15 text-sky-400 border border-sky-500/30 flex items-center gap-1">
+              <Calendar size={10} /> {parsed.tokens.date.label}
+            </span>
+          )}
+          {parsed.tokens.time && (
+            <span className="px-2 py-0.5 rounded-md font-mono text-[11px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+              <Clock size={10} /> {parsed.tokens.time.label}
+            </span>
+          )}
+          <span className="text-xs text-fg-subtle ml-auto truncate max-w-[140px] italic">
+            "{parsed.title}"
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+

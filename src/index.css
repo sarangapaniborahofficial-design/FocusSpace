@@ -68,9 +68,11 @@
   --c-on-inv: #fffdf9;
   --c-peach: #fbd5c3;
   --c-link: #c9411b;
-  --c-shadow-card: 0 2px 0 rgb(22 20 18 / 0.06), 0 10px 26px -8px rgb(22 20 18 / 0.07);
-  --c-shadow-pop: 0 24px 56px rgb(22 20 18 / 0.18), 0 4px 12px rgb(22 20 18 / 0.08);
-  --c-keycap-shadow: 0 2px 0 #c2b7a3, 0 1px 0 #ffffff inset;
+  --c-shadow-card: 3px 3px 0px #cfc4b0, 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  --c-shadow-pop: 6px 6px 0px #cfc4b0, 0 16px 36px rgba(22, 20, 18, 0.08);
+  --c-keycap-shadow: 2px 2.5px 0px #30261e, 0 1px 0 rgba(255, 255, 255, 0.7) inset;
+  --c-keycap-accent-shadow: 2.5px 3px 0px #241c14, 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+  --c-keycap-active: 0 0 0 transparent, 0 1px 2px rgba(48, 38, 30, 0.35) inset;
 
   --app-bg: rgba(255, 253, 249, 0.9);
   --card-bg: var(--c-surface);
@@ -122,7 +124,9 @@
   --c-link: #1d4ed8;
   --c-shadow-card: 3px 3px 0px #141614;
   --c-shadow-pop: 7px 7px 0px #141614;
-  --c-keycap-shadow: 2px 2px 0px #141614;
+  --c-keycap-shadow: 2px 2.5px 0px #141614, 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  --c-keycap-accent-shadow: 2.5px 3px 0px #141614, 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+  --c-keycap-active: 0 0 0 transparent, 0 1px 2px rgba(20, 22, 20, 0.4) inset;
 
   --app-bg: #f5f7f2;
   --body-bg:
@@ -160,10 +164,11 @@
   --c-inv: #f4efe6;
   --c-on-inv: #0d0c0b;
   --c-peach: #ff6e45;
-  --c-link: #ff6e45;
-  --c-shadow-card: 3px 3px 0px #000000, 0 1px 0 rgba(255, 245, 230, 0.045) inset;
-  --c-shadow-pop: 0 28px 64px rgba(0, 0, 0, 0.92), 0 0 0 1px rgba(255, 245, 230, 0.06);
-  --c-keycap-shadow: 2px 2px 0px #000000, 0 1px 0 rgba(255, 245, 230, 0.08) inset;
+  --c-shadow-card: 3px 3px 0px #000000, 0 0 0 1px #2a2520, 0 1px 0 rgba(255, 245, 230, 0.05) inset;
+  --c-shadow-pop: 7px 7px 0px #000000, 0 0 0 1px #3d352d;
+  --c-keycap-shadow: 2px 2.5px 0px #000000, 0 0 0 1px #383129, 2px 2.5px 0px 1px #221d18, 0 1px 0 rgba(255, 245, 230, 0.14) inset;
+  --c-keycap-accent-shadow: 2.5px 3px 0px #000000, 0 0 0 1px #ff5526, 2.5px 3px 0px 1px #801d04, 0 1px 0 rgba(255, 255, 255, 0.35) inset;
+  --c-keycap-active: 0 0 0 transparent, 0 1px 3px rgba(0, 0, 0, 0.75) inset;
 
   --app-bg: rgba(9, 8, 7, 0.94);
   --body-bg:
@@ -188,23 +193,25 @@
   --c-surface-3: #1a1f1a;
   --c-hover: #151915;
   --c-line: #2a312a;
-  --c-line-strong: #c8ff29;
+  --c-line-strong: #384236;
   --c-fg: #f4f7f0;
   --c-fg-soft: #d7ded0;
   --c-fg-muted: #909a8a;
   --c-fg-subtle: #626b5d;
-  --c-accent: #c8ff29;
-  --c-accent-hover: #b4ed15;
-  --c-accent-soft: rgba(200, 255, 41, 0.13);
-  --c-accent-fg: #070907;
-  --c-accent-text: #c8ff29;
-  --c-inv: #c8ff29;
-  --c-on-inv: #070907;
-  --c-peach: #c8ff29;
-  --c-link: #c8ff29;
-  --c-shadow-card: 3px 3px 0px #000000, 0 1px 0 rgba(200, 255, 41, 0.04) inset;
-  --c-shadow-pop: 7px 7px 0px #000000, 0 0 0 1px rgba(200, 255, 41, 0.14);
-  --c-keycap-shadow: 2px 2px 0px #242b24;
+  --c-accent: #a3e635;
+  --c-accent-hover: #8cd620;
+  --c-accent-soft: rgba(163, 230, 53, 0.14);
+  --c-accent-fg: #000000;
+  --c-accent-text: #a3e635;
+  --c-inv: #a3e635;
+  --c-on-inv: #000000;
+  --c-peach: #a3e635;
+  --c-link: #a3e635;
+  --c-shadow-card: 3px 3px 0px #000000, 0 0 0 1px #2a312a, 0 1px 0 rgba(163, 230, 53, 0.05) inset;
+  --c-shadow-pop: 7px 7px 0px #000000, 0 0 0 1px #384236;
+  --c-keycap-shadow: 2px 2.5px 0px #000000, 0 0 0 1px #333d32, 2px 2.5px 0px 1px #1d241d, 0 1px 0 rgba(255, 255, 255, 0.12) inset;
+  --c-keycap-accent-shadow: 2.5px 3px 0px #000000, 0 0 0 1px #a3e635, 2.5px 3px 0px 1px #48730b, 0 1px 0 rgba(255, 255, 255, 0.38) inset;
+  --c-keycap-active: 0 0 0 transparent, 0 1px 3px rgba(0, 0, 0, 0.75) inset;
 
   --app-bg: rgba(7, 8, 7, 0.95);
   --body-bg:
@@ -212,11 +219,11 @@
     linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
     #020302;
   --body-bg-size: 32px 32px, 32px 32px, auto;
-  --sidebar-active-bg: #c8ff29;
-  --sidebar-active-text: #070907;
-  --ring-fill: #c8ff29;
+  --sidebar-active-bg: #a3e635;
+  --sidebar-active-text: #000000;
+  --ring-fill: #a3e635;
   --ring-track: #1b201b;
-  --focus-ring: #c8ff29;
+  --focus-ring: #a3e635;
   --card-border-w: 1.5px;
   color-scheme: dark;
 }
@@ -253,6 +260,18 @@ button, a, input, select, textarea {
 }
 button:not(:disabled):active { transform: translate3d(0, 1px, 0) scale(.99); }
 button:disabled { cursor: not-allowed; opacity: .5; }
+
+/* Ensure high-contrast tactile legibility for all accent buttons */
+button.bg-accent, button[class*="bg-accent"], .bg-accent {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+:root[data-theme="onyx"] button.bg-accent,
+:root[data-theme="onyx"] button[class*="bg-accent"],
+:root[data-theme="onyx"] .bg-accent {
+  color: #000000;
+  font-weight: 600;
+}
 ::selection { background: var(--c-accent); color: var(--c-accent-fg); }
 ::placeholder { color: var(--c-fg-subtle); opacity: 1; }
 input[type="checkbox"], input[type="radio"] { accent-color: var(--c-accent); }
@@ -273,14 +292,31 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 .font-display { font-family: "Instrument Serif", Georgia, serif; }
 .tabular-nums, .font-mono { font-variant-numeric: tabular-nums; }
 
+/* ---------- Tactile 3D Keycaps & Neo-Brutalist Mechanical Physics ---------- */
 .keycap {
+  position: relative;
   box-shadow: var(--c-keycap-shadow);
-  transform: translateZ(0);
+  transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
+  transition: transform 0.08s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.08s cubic-bezier(0.2, 0, 0, 1), background-color 0.12s ease, border-color 0.12s ease;
 }
-.keycap:active {
-  transform: translate3d(0, 1.5px, 0);
+.keycap:hover {
+  transform: translate3d(-0.5px, -0.5px, 0);
 }
+.keycap:active, button.keycap:not(:disabled):active {
+  transform: translate3d(2px, 2.5px, 0) scale(1) !important;
+  box-shadow: var(--c-keycap-active, 0 0 0 transparent) !important;
+}
+
+/* Accent 3D keycaps use dedicated high-definition accent extrusion */
+.keycap.bg-accent, button.bg-accent.keycap, button.keycap[class*="bg-accent"] {
+  box-shadow: var(--c-keycap-accent-shadow, var(--c-keycap-shadow));
+}
+.keycap.bg-accent:active, button.bg-accent.keycap:active, button.keycap[class*="bg-accent"]:active {
+  transform: translate3d(2.5px, 3px, 0) scale(1) !important;
+  box-shadow: var(--c-keycap-active, 0 0 0 transparent) !important;
+}
+
 .index-chip {
   font-family: "JetBrains Mono", monospace;
   font-size: 10px;
@@ -318,9 +354,31 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   font-size: 12px;
 }
 .calendar-shell .fc .fc-toolbar-title { font-size: 17px; font-weight: 700; color: var(--c-fg); letter-spacing: -.02em; }
-.calendar-shell .fc .fc-button { border-radius: 10px; text-transform: none; font-weight: 600; box-shadow: var(--c-keycap-shadow) !important; padding: .4em .85em; }
-.calendar-shell .fc .fc-button-primary:not(:disabled).fc-button-active,
-.calendar-shell .fc .fc-button-primary:not(:disabled):active { background: var(--c-accent); border-color: var(--c-accent); color: var(--c-accent-fg); }
+.calendar-shell .fc .fc-button {
+  border-radius: 10px;
+  text-transform: none;
+  font-weight: 600;
+  box-shadow: var(--c-keycap-shadow) !important;
+  padding: .4em .85em;
+  transition: transform 0.08s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.08s cubic-bezier(0.2, 0, 0, 1) !important;
+}
+.calendar-shell .fc .fc-button:hover {
+  transform: translate3d(-0.5px, -0.5px, 0);
+}
+.calendar-shell .fc .fc-button:active,
+.calendar-shell .fc .fc-button-primary:not(:disabled):active {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  color: var(--c-accent-fg);
+  transform: translate3d(2px, 2.5px, 0) !important;
+  box-shadow: var(--c-keycap-active, 0 0 0 transparent) !important;
+}
+.calendar-shell .fc .fc-button-primary:not(:disabled).fc-button-active {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  color: var(--c-accent-fg);
+  box-shadow: var(--c-keycap-accent-shadow, var(--c-keycap-shadow)) !important;
+}
 .calendar-shell .fc .fc-scrollgrid { border-color: var(--c-line); border-radius: 16px; overflow: hidden; }
 .calendar-shell .fc-theme-standard td, .calendar-shell .fc-theme-standard th { border-color: var(--c-line); }
 .calendar-shell .fc .fc-col-header-cell-cushion, .calendar-shell .fc .fc-daygrid-day-number { color: var(--c-fg-muted); text-decoration: none; padding: 8px; font-weight: 600; font-family: "JetBrains Mono", monospace; font-size: 11px; }

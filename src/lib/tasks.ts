@@ -4,6 +4,7 @@ import type { Priority, Status, Task } from '../types';
 import { buildNextInstance } from './recurrence';
 import { buildDuplicate, rescheduledFields } from './taskOps';
 import { getTimerState, timer } from './timer';
+import { recordTaskCompletionForGoals } from './goals';
 import { toast } from './toast';
 import { isoToday, relativeDay, uid } from './utils';
 
@@ -25,6 +26,10 @@ export async function deleteTask(task: Task) {
 export async function changeStatus(task: Task, status: Status, options: { quiet?: boolean } = {}): Promise<Task> {
   if (task.status === status) return task;
   const updated = withStatus(task, status);
+
+  if (status === 'Submitted/Done') {
+    void recordTaskCompletionForGoals(task.categoryId);
+  }
 
   if (status === 'Submitted/Done' && task.recurrence && task.dueDate) {
     const now = new Date().toISOString();
