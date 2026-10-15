@@ -64,6 +64,12 @@ export interface TimerState {
   taskTitle?: string;
   /** Focus sessions finished since the last long break. */
   cycle: number;
+  /** Whether the focus session completed and is currently tracking extra deep-work overtime */
+  isOvertime?: boolean;
+  /** Milliseconds accumulated in Flow Overtime mode */
+  overtimeMs?: number;
+  /** Timestamp when overtime began */
+  overtimeStartedAt?: number | null;
 }
 
 const initialDurations = loadDurations();
@@ -75,6 +81,9 @@ let state: TimerState = {
   endsAt: null,
   startedAt: null,
   cycle: 0,
+  isOvertime: false,
+  overtimeMs: 0,
+  overtimeStartedAt: null,
 };
 
 const listeners = new Set<() => void>();
@@ -87,6 +96,11 @@ export const formatClock = (ms: number) => {
   return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
 };
 
+export const formatOvertimeClock = (ms: number) => {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  return `+${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
+};
+
 const onBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
 
 function commit(next: TimerState) {
@@ -95,7 +109,11 @@ function commit(next: TimerState) {
   if (state.running && ticker === undefined) ticker = window.setInterval(tick, 250);
   if (!state.running && ticker !== undefined) { window.clearInterval(ticker); ticker = undefined; }
 
-  document.title = state.running ? `${formatClock(state.remainingMs)} · ${MODE_LABELS[state.mode]} — ${BASE_TITLE}` : BASE_TITLE;
+  if (state.isOvertime) {
+    document.title = `${formatOvertimeClock(state.overtimeMs ?? 0)} · Overtime Focus — ${BASE_TITLE}`;
+  } else {
+    document.title = state.running ? `${formatClock(state.remainingMs)} · ${MODE_LABELS[state.mode]} — ${BASE_TITLE}` : BASE_TITLE;
+  }
 
   // Ask before a reload/close throws away a running focus session.
   const guard = state.running && state.mode === 'focus';
@@ -106,7 +124,17 @@ function commit(next: TimerState) {
 }
 
 function tick() {
-  if (!state.running || state.endsAt === null) return;
+  if (!state.running) return;
+
+  if (state.isOvertime && typeof state.overtimeStartedAt === 'number') {
+    const elapsed = Math.max(0, Date.now() - state.overtimeStartedAt);
+    if (Math.floor(elapsed / 1000) !== Math.floor((state.overtimeMs ?? 0) / 1000)) {
+      commit({ ...state, overtimeMs: elapsed });
+    }
+    return;
+  }
+
+  if (state.endsAt === null) return;
   const remaining = Math.max(0, state.endsAt - Date.now());
   if (remaining === 0) { complete(); return; }
   if (Math.ceil(remaining / 1000) !== Math.ceil(state.remainingMs / 1000)) commit({ ...state, remainingMs: remaining });
@@ -119,6 +147,9 @@ const fresh = (s: TimerState, mode: Mode = s.mode): TimerState => ({
   endsAt: null,
   remainingMs: s.durations[mode] * 60_000,
   startedAt: null,
+  isOvertime: false,
+  overtimeMs: 0,
+  overtimeStartedAt: null,
 });
 
 function workedMs(s: TimerState) {
@@ -148,6 +179,18 @@ function saveFocusLog(minutes: number, startedAt: string, taskId?: string) {
 
 /** Logs the focus time worked so far in an unfinished session. Returns the minutes saved (0 if under a minute). */
 function flushPartial(): number {
+  if (state.isOvertime) {
+    const extraMinutes = Math.round((state.overtimeMs ?? 0) / 60_000);
+    if (extraMinutes >= 1) {
+      saveFocusLog(
+        extraMinutes,
+        state.overtimeStartedAt ? new Date(state.overtimeStartedAt).toISOString() : new Date().toISOString(),
+        state.taskId
+      );
+      return extraMinutes;
+    }
+    return 0;
+  }
   if (state.mode !== 'focus' || !state.startedAt) return 0;
   const minutes = Math.round(workedMs(state) / 60_000);
   if (minutes < 1) return 0;
@@ -193,14 +236,31 @@ function complete() {
     const minutes = state.durations.focus;
     saveFocusLog(minutes, state.startedAt ?? new Date(Date.now() - minutes * 60_000).toISOString(), state.taskId);
     cycle += 1;
-    const long = cycle >= SESSIONS_PER_CYCLE;
-    next = long ? 'longBreak' : 'shortBreak';
-    message = `Focus session done: ${formatDuration(minutes)} logged. Time for a ${long ? 'long' : 'short'} break.`;
-  } else {
-    if (state.mode === 'longBreak') cycle = 0;
-    next = 'focus';
-    message = 'Break over. Ready for the next focus session?';
+    playChime();
+    message = `Target reached (${formatDuration(minutes)})! Flow Overtime mode active. Keep deep working or bank & rest.`;
+    toast(message, 'success', { duration: 6500 });
+    sendNotification('FocusSpace Flow Overtime', {
+      body: message,
+      tag: 'focusspace-timer',
+    });
+
+    // Seamlessly transition into Flow Overtime
+    commit({
+      ...state,
+      cycle,
+      isOvertime: true,
+      overtimeMs: 0,
+      overtimeStartedAt: Date.now(),
+      remainingMs: 0,
+      endsAt: null,
+      running: true,
+    });
+    return;
   }
+
+  if (state.mode === 'longBreak') cycle = 0;
+  next = 'focus';
+  message = 'Break over. Ready for the next focus session?';
 
   commit({ ...fresh(state, next), cycle });
   playChime();
@@ -213,6 +273,15 @@ function complete() {
 
 export const timer = {
   toggle() {
+    if (state.isOvertime) {
+      if (state.running) {
+        commit({ ...state, running: false });
+      } else {
+        const offset = state.overtimeMs ?? 0;
+        commit({ ...state, running: true, overtimeStartedAt: Date.now() - offset });
+      }
+      return;
+    }
     if (state.running) {
       const remaining = Math.max(0, (state.endsAt ?? Date.now()) - Date.now());
       commit({ ...state, running: false, endsAt: null, remainingMs: remaining });
@@ -220,6 +289,29 @@ export const timer = {
     }
     const remainingMs = state.remainingMs > 0 ? state.remainingMs : state.durations[state.mode] * 60_000;
     commit({ ...state, running: true, remainingMs, endsAt: Date.now() + remainingMs, startedAt: state.startedAt ?? new Date().toISOString() });
+  },
+
+  bankOvertime() {
+    if (!state.isOvertime) return;
+    const extraMinutes = Math.round((state.overtimeMs ?? 0) / 60_000);
+    if (extraMinutes >= 1) {
+      saveFocusLog(
+        extraMinutes,
+        state.overtimeStartedAt ? new Date(state.overtimeStartedAt).toISOString() : new Date().toISOString(),
+        state.taskId
+      );
+      announceSaved(extraMinutes);
+    }
+    const long = state.cycle >= SESSIONS_PER_CYCLE;
+    const nextMode: Mode = long ? 'longBreak' : 'shortBreak';
+    const message = `Overtime banked! Time for a ${long ? 'long' : 'short'} break.`;
+    toast(message, 'info');
+    commit({
+      ...fresh(state, nextMode),
+      cycle: state.cycle,
+      taskId: state.taskId,
+      taskTitle: state.taskTitle,
+    });
   },
 
   reset() {
@@ -283,5 +375,6 @@ const subscribe = (listener: () => void) => {
 };
 const snapshot = () => state;
 
+export const subscribeTimer = subscribe;
 export const getTimerState = snapshot;
 export const useTimer = () => useSyncExternalStore(subscribe, snapshot, snapshot);

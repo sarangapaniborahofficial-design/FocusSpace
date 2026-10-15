@@ -140,7 +140,7 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
   const last7Days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(today, -(6 - i))), [today]);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-[1560px] mx-auto space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1560px] mx-auto space-y-6 pb-28">
       {/* Dynamic Time-Aware Daily Briefing Card */}
       <DailyBriefing
         today={today}
@@ -154,9 +154,6 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
         onNavigate={onNavigate}
         onOpenSchedule={() => setScheduleOpen(true)}
       />
-
-      {/* Context-Aware App Dock / Command Hub */}
-      <AppDock title="Quick-Launch Workspace Apps" />
 
       {/* Main 2-Column Workspace */}
       <div className="grid xl:grid-cols-[1fr_390px] gap-6 items-start">
@@ -413,6 +410,9 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
         today={today}
         categories={cats}
       />
+
+      {/* Floating Bottom Workspace Dock Tray */}
+      <AppDock floating />
     </div>
   );
 }

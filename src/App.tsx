@@ -20,6 +20,7 @@ import { ReloadPrompt } from './components/ReloadPrompt';
 import { Review } from './components/Review';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { Today } from './components/Today';
+import { FloatingHUDPortal } from './components/FloatingHUD';
 import { ErrorBoundary } from './components/ui';
 import { openTaskEditor } from './lib/taskEditor';
 import { timer } from './lib/timer';
@@ -268,6 +269,7 @@ export default function App() {
         <ShortcutsModal open={shortcuts} onClose={() => setShortcuts(false)} />
         {search && <CommandPalette categories={categories} onClose={closeSearch} onNavigate={go} onNewTask={openQuick} onOpenTask={openTask} onOpenPage={openPage} onCycleTheme={cycleTheme} onOpenShortcuts={() => setShortcuts(true)} />}
         {active !== 'home' && layoutMode !== 'cockpit' && <MiniTimer onOpen={goHome} />}
+        <FloatingHUDPortal />
         <Toaster />
         <ReloadPrompt />
       </div>

@@ -1,6 +1,7 @@
 import { Columns3, Keyboard, LayoutGrid, Menu, Moon, Orbit, Pause, Play, Plus, Search, Sparkles, Sun } from 'lucide-react';
 import { MODE_LABELS, formatClock, timer, useTimer } from '../lib/timer';
 import type { LayoutMode } from '../types';
+import { FloatingHUDTrigger } from './FloatingHUD';
 
 const THEME_META: Record<string, { label: string; short: string }> = {
   nocturne: { label: 'Nocturne Solaris', short: 'Nocturne' },
@@ -129,6 +130,8 @@ export function Header({
             <Keyboard size={16} />
           </button>
         )}
+
+        <FloatingHUDTrigger className="size-9 rounded-xl" />
 
         <button
           title={`Theme: ${THEME_META[currentTheme]?.label}. Switch to ${THEME_META[next]?.label}`}

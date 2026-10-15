@@ -59,11 +59,11 @@
   --c-fg-soft: #2e2a25;
   --c-fg-muted: #5c554b;
   --c-fg-subtle: #7d7467;
-  --c-accent: #e04f26;
-  --c-accent-hover: #c9411b;
-  --c-accent-soft: rgba(224, 79, 38, 0.12);
+  --c-accent: #ce3f16;
+  --c-accent-hover: #b8340e;
+  --c-accent-soft: rgba(206, 63, 22, 0.12);
   --c-accent-fg: #ffffff;
-  --c-accent-text: #bf3b16;
+  --c-accent-text: #ce3f16;
   --c-inv: #161412;
   --c-on-inv: #fffdf9;
   --c-peach: #fbd5c3;
@@ -159,7 +159,7 @@
   --c-accent: #ff5526;
   --c-accent-hover: #e64517;
   --c-accent-soft: rgba(255, 85, 38, 0.14);
-  --c-accent-fg: #ffffff;
+  --c-accent-fg: #040404;
   --c-accent-text: #ff6e45;
   --c-inv: #f4efe6;
   --c-on-inv: #0d0c0b;
@@ -261,26 +261,61 @@ button, a, input, select, textarea {
 button:not(:disabled):active { transform: translate3d(0, 1px, 0) scale(.99); }
 button:disabled { cursor: not-allowed; opacity: .5; }
 
+/* Universal Inverted Elements & Button High-Contrast Safety */
+.bg-inv,
+button.bg-inv,
+[class*="bg-inv"] {
+  background-color: var(--c-inv) !important;
+  color: var(--c-on-inv) !important;
+}
+.bg-inv *,
+button.bg-inv *,
+[class*="bg-inv"] * {
+  color: inherit;
+}
+.bg-inv svg,
+button.bg-inv svg,
+[class*="bg-inv"] svg {
+  stroke: currentColor;
+}
+.text-on-inv {
+  color: var(--c-on-inv) !important;
+}
+
 /* Ensure high-contrast tactile legibility for all accent buttons */
 button.bg-accent, button[class*="bg-accent"], .bg-accent {
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 
-/* Swiss Onyx: Active buttons, accent badges, and active sidebar/category items use crisp pitch-black font */
+/* Swiss Onyx: Active buttons, accent badges, active tabs, and active sidebar/category items use crisp pitch-black font */
 :root[data-theme="onyx"] button.bg-accent,
 :root[data-theme="onyx"] button[class*="bg-accent"],
 :root[data-theme="onyx"] .bg-accent,
+:root[data-theme="onyx"] button.bg-inv,
+:root[data-theme="onyx"] button[class*="bg-inv"],
+:root[data-theme="onyx"] .bg-inv,
 :root[data-theme="onyx"] aside [aria-current="page"],
 :root[data-theme="onyx"] aside button[aria-current="page"] {
-  background-color: var(--c-accent);
   color: #000000 !important;
   font-weight: 600;
 }
+:root[data-theme="onyx"] button.bg-accent *,
+:root[data-theme="onyx"] button[class*="bg-accent"] *,
+:root[data-theme="onyx"] .bg-accent *,
+:root[data-theme="onyx"] button.bg-inv *,
+:root[data-theme="onyx"] button[class*="bg-inv"] *,
+:root[data-theme="onyx"] .bg-inv *,
 :root[data-theme="onyx"] aside [aria-current="page"] *,
 :root[data-theme="onyx"] aside button[aria-current="page"] * {
   color: #000000 !important;
 }
+:root[data-theme="onyx"] button.bg-accent svg,
+:root[data-theme="onyx"] button[class*="bg-accent"] svg,
+:root[data-theme="onyx"] .bg-accent svg,
+:root[data-theme="onyx"] button.bg-inv svg,
+:root[data-theme="onyx"] button[class*="bg-inv"] svg,
+:root[data-theme="onyx"] .bg-inv svg,
 :root[data-theme="onyx"] aside [aria-current="page"] svg,
 :root[data-theme="onyx"] aside button[aria-current="page"] svg {
   stroke: #000000 !important;
@@ -300,20 +335,45 @@ button.bg-accent, button[class*="bg-accent"], .bg-accent {
   color: #b0baa8;
 }
 
-/* Swiss Brutal: Active buttons and sidebar items use dark black text on acid citron */
+/* Swiss Brutal: Active buttons, tabs, and sidebar items enforce high-contrast acid citron on black, or dark black on citron */
 :root[data-theme="bauhaus"] aside [aria-current="page"],
-:root[data-theme="bauhaus"] aside button[aria-current="page"] {
-  background-color: var(--c-accent);
+:root[data-theme="bauhaus"] aside button[aria-current="page"],
+:root[data-theme="bauhaus"] button.bg-accent,
+:root[data-theme="bauhaus"] button[class*="bg-accent"],
+:root[data-theme="bauhaus"] .bg-accent {
+  background-color: var(--c-accent) !important;
   color: #0d0f0d !important;
   font-weight: 600;
 }
 :root[data-theme="bauhaus"] aside [aria-current="page"] *,
-:root[data-theme="bauhaus"] aside button[aria-current="page"] * {
+:root[data-theme="bauhaus"] aside button[aria-current="page"] *,
+:root[data-theme="bauhaus"] button.bg-accent *,
+:root[data-theme="bauhaus"] button[class*="bg-accent"] *,
+:root[data-theme="bauhaus"] .bg-accent * {
   color: #0d0f0d !important;
 }
 :root[data-theme="bauhaus"] aside [aria-current="page"] svg,
-:root[data-theme="bauhaus"] aside button[aria-current="page"] svg {
+:root[data-theme="bauhaus"] aside button[aria-current="page"] svg,
+:root[data-theme="bauhaus"] button.bg-accent svg,
+:root[data-theme="bauhaus"] button[class*="bg-accent"] svg,
+:root[data-theme="bauhaus"] .bg-accent svg {
   stroke: #0d0f0d !important;
+}
+:root[data-theme="bauhaus"] .bg-inv,
+:root[data-theme="bauhaus"] button.bg-inv,
+:root[data-theme="bauhaus"] [class*="bg-inv"] {
+  background-color: var(--c-inv) !important;
+  color: var(--c-on-inv) !important;
+}
+:root[data-theme="bauhaus"] .bg-inv *,
+:root[data-theme="bauhaus"] button.bg-inv *,
+:root[data-theme="bauhaus"] [class*="bg-inv"] * {
+  color: var(--c-on-inv) !important;
+}
+:root[data-theme="bauhaus"] .bg-inv svg,
+:root[data-theme="bauhaus"] button.bg-inv svg,
+:root[data-theme="bauhaus"] [class*="bg-inv"] svg {
+  stroke: var(--c-on-inv) !important;
 }
 ::selection { background: var(--c-accent); color: var(--c-accent-fg); }
 ::placeholder { color: var(--c-fg-subtle); opacity: 1; }

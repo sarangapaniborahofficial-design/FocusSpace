@@ -6,6 +6,7 @@ export interface SoundscapeState {
   type: SoundscapeType;
   volume: number; // 0 to 1
   isPlaying: boolean;
+  isDucked: boolean;
 }
 
 const STORAGE_TYPE_KEY = 'focusspace-soundscape-type';
@@ -17,6 +18,7 @@ class SoundscapeEngine {
   private currentSource: { stop: () => void } | null = null;
   private currentType: SoundscapeType = 'off';
   private volume: number = 0.5;
+  private isDucked: boolean = false;
   private listeners: Set<() => void> = new Set();
 
   private snapshot: SoundscapeState;
@@ -35,7 +37,19 @@ class SoundscapeEngine {
       type: this.currentType,
       volume: this.volume,
       isPlaying: false,
+      isDucked: false,
     };
+  }
+
+  private applyEffectiveGain(smooth = true) {
+    if (!this.masterGain || !this.ctx) return;
+    // Duck by 80% (effective gain is 20% of base volume)
+    const effective = this.isDucked ? this.volume * 0.2 : this.volume;
+    if (smooth) {
+      this.masterGain.gain.setTargetAtTime(effective, this.ctx.currentTime, 0.15);
+    } else {
+      this.masterGain.gain.setValueAtTime(effective, this.ctx.currentTime);
+    }
   }
 
   private initCtx(): AudioContext {
@@ -43,7 +57,8 @@ class SoundscapeEngine {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       this.ctx = new AudioCtx();
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+      const initialGain = this.isDucked ? this.volume * 0.2 : this.volume;
+      this.masterGain.gain.setValueAtTime(initialGain, this.ctx.currentTime);
       this.masterGain.connect(this.ctx.destination);
     }
     if (this.ctx.state === 'suspended') {
@@ -70,6 +85,7 @@ class SoundscapeEngine {
       type: this.currentType,
       volume: this.volume,
       isPlaying: this.currentType !== 'off' && this.currentSource !== null,
+      isDucked: this.isDucked,
     };
     this.notify();
   }
@@ -78,9 +94,14 @@ class SoundscapeEngine {
     const clamped = Math.max(0, Math.min(1, vol));
     this.volume = clamped;
     storage.set(STORAGE_VOL_KEY, String(clamped));
-    if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setTargetAtTime(clamped, this.ctx.currentTime, 0.05);
-    }
+    this.applyEffectiveGain(true);
+    this.updateSnapshot();
+  }
+
+  setDucked(ducked: boolean) {
+    if (this.isDucked === ducked) return;
+    this.isDucked = ducked;
+    this.applyEffectiveGain(true);
     this.updateSnapshot();
   }
 
@@ -323,4 +344,21 @@ export function useSoundscape(): SoundscapeState {
     onStoreChange => soundscape.subscribe(onStoreChange),
     () => soundscape.getState()
   );
+}
+
+import { getTimerState, subscribeTimer } from './timer';
+
+// Sonic Anchor Auto-Ducking: Duck volume by 80% when timer is paused during focus
+if (typeof window !== 'undefined') {
+  subscribeTimer(() => {
+    const t = getTimerState();
+    const s = soundscape.getState();
+    if (s.isPlaying) {
+      if (t.mode === 'focus' && !t.running) {
+        soundscape.setDucked(true);
+      } else {
+        soundscape.setDucked(false);
+      }
+    }
+  });
 }

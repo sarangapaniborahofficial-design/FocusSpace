@@ -33,6 +33,7 @@
     "vite": "latest"
   },
   "devDependencies": {
+    "@types/node": "^26.6.5",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "vite-plugin-pwa": "^1.3.0",

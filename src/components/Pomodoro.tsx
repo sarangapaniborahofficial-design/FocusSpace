@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Headphones, Pause, Play, RotateCcw, Settings2, TimerReset, Volume2, X } from 'lucide-react';
+import { Coffee, Headphones, Pause, Play, RotateCcw, Settings2, TimerReset, Volume2, X } from 'lucide-react';
 import { useState } from 'react';
 import { db } from '../db/db';
 import { SOUNDSCAPES, soundscape, useSoundscape } from '../lib/soundscape';
@@ -10,6 +10,7 @@ import {
   MODE_LABELS,
   SESSIONS_PER_CYCLE,
   formatClock,
+  formatOvertimeClock,
   isSoundOn,
   setSoundOn,
   timer,
@@ -17,6 +18,7 @@ import {
   type Durations,
 } from '../lib/timer';
 import { addDays, formatDuration, toISODate } from '../lib/utils';
+import { FloatingHUDTrigger } from './FloatingHUD';
 
 const DIAL_SIZE = 212;
 const DIAL_STROKE = 8;
@@ -86,6 +88,7 @@ export function Pomodoro() {
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          <FloatingHUDTrigger className="size-8 rounded-xl" />
           <button
             onClick={openCustomize}
             aria-label="Customize timer durations"
@@ -229,12 +232,14 @@ export function Pomodoro() {
             <div
               role="timer"
               aria-label={`${MODE_LABELS[s.mode]} time remaining`}
-              className="font-mono text-4xl font-bold tracking-tight tabular-nums text-fg"
+              className={`font-mono text-4xl font-bold tracking-tight tabular-nums ${
+                s.isOvertime ? 'text-accent-text font-black' : 'text-fg'
+              }`}
             >
-              {formatClock(s.remainingMs)}
+              {s.isOvertime ? formatOvertimeClock(s.overtimeMs ?? 0) : formatClock(s.remainingMs)}
             </div>
             <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-fg-muted mt-1.5">
-              {s.running ? MODE_LABELS[s.mode] : s.startedAt ? 'Paused' : MODE_LABELS[s.mode]}
+              {s.isOvertime ? 'Flow Overtime' : s.running ? MODE_LABELS[s.mode] : s.startedAt ? 'Paused' : MODE_LABELS[s.mode]}
             </div>
           </div>
         </div>
@@ -249,24 +254,38 @@ export function Pomodoro() {
         >
           <RotateCcw size={16} />
         </button>
-        <button
-          onClick={() => timer.toggle()}
-          aria-label={s.running ? 'Pause timer' : 'Start timer'}
-          title={s.running ? 'Pause (Space)' : 'Start (Space)'}
-          className="h-12 px-6 rounded-2xl bg-accent text-accent-fg font-semibold text-sm flex items-center gap-2 hover:bg-accent-hover keycap"
-        >
-          {s.running ? (
-            <>
-              <Pause size={18} />
-              <span>Pause</span>
-            </>
-          ) : (
-            <>
-              <Play size={18} fill="currentColor" />
-              <span>Start</span>
-            </>
-          )}
-        </button>
+
+        {s.isOvertime ? (
+          <button
+            onClick={() => timer.bankOvertime()}
+            aria-label="Bank overtime and start break"
+            title="Bank Overtime & Break"
+            className="h-12 px-6 rounded-2xl bg-accent text-accent-fg font-semibold text-sm flex items-center gap-2 hover:bg-accent-hover keycap shadow-md"
+          >
+            <Coffee size={18} />
+            <span>Bank Overtime & Rest</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => timer.toggle()}
+            aria-label={s.running ? 'Pause timer' : 'Start timer'}
+            title={s.running ? 'Pause (Space)' : 'Start (Space)'}
+            className="h-12 px-6 rounded-2xl bg-accent text-accent-fg font-semibold text-sm flex items-center gap-2 hover:bg-accent-hover keycap"
+          >
+            {s.running ? (
+              <>
+                <Pause size={18} />
+                <span>Pause</span>
+              </>
+            ) : (
+              <>
+                <Play size={18} fill="currentColor" />
+                <span>Start</span>
+              </>
+            )}
+          </button>
+        )}
+
         <button
           onClick={() => timer.nextMode()}
           aria-label="Skip to next timer"
