@@ -1,7 +1,8 @@
-import { Check, ChevronDown, ChevronRight, Clock3, Copy, GripVertical, Pencil, Play, Repeat, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Clock3, Copy, ExternalLink, GripVertical, Pencil, Play, Repeat, Trash2 } from 'lucide-react';
 import { memo, useRef, useState, type DragEvent, type TouchEvent } from 'react';
 import { openTaskEditor } from '../lib/taskEditor';
 import { changeStatus, duplicateTask } from '../lib/tasks';
+import { launchTarget } from '../lib/launcher';
 import { isoToday, priorityTone, relativeDay } from '../lib/utils';
 import type { Category, Status, Task } from '../types';
 
@@ -225,11 +226,45 @@ export const TaskCard = memo(function TaskCard({
                   {task.dueTime ? ` · ${task.dueTime}` : ''}
                   {overdue ? ' · OVERDUE' : ''}
                 </span>
+                {task.launchLinks && task.launchLinks.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1">
+                    {task.launchLinks.map(link => (
+                      <button
+                        key={link.id}
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation();
+                          launchTarget(link.url, link.label);
+                        }}
+                        title={`Launch ${link.label} (${link.url})`}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-2 hover:bg-hover border border-line text-[11px] text-fg font-medium hover:border-line-strong transition"
+                      >
+                        <ExternalLink size={10} className="text-accent-text" />
+                        <span className="truncate max-w-[120px]">{link.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Action Dock */}
             <div className="flex items-center gap-1 shrink-0">
+              {task.launchLinks && task.launchLinks[0] && (
+                <button
+                  type="button"
+                  onClick={e => {
+                    e.stopPropagation();
+                    onStart();
+                    launchTarget(task.launchLinks![0].url, task.launchLinks![0].label);
+                  }}
+                  title={`Focus & Launch Workspace: ${task.launchLinks[0].label}`}
+                  className="h-8 px-2 rounded-xl flex items-center gap-1 text-xs font-semibold text-accent-text hover:bg-accent/15 border border-accent/30 transition md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 keycap"
+                >
+                  <ExternalLink size={12} />
+                  <span className="hidden sm:inline">Launch</span>
+                </button>
+              )}
               <button
                 onClick={onStart}
                 aria-label={`Focus on “${task.title}”`}

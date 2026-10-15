@@ -7,8 +7,17 @@ export type RecurrenceFreq = 'daily' | 'weekdays' | 'weekly' | 'monthly';
 /** Completing a recurring task creates the next occurrence. `interval` = every N days/weeks/months. */
 export interface Recurrence { freq: RecurrenceFreq; interval: number; /** monthly: keep this day of the month (short months use their last day) */ anchorDay?: number; }
 
+export type LaunchKind = 'app' | 'web' | 'file';
+export interface LaunchLink {
+  id: string;
+  label: string;
+  url: string;
+  kind?: LaunchKind;
+  icon?: string;
+}
+
 export interface Subtask { id: string; title: string; completed: boolean; }
-export interface Category { id: string; name: string; color: string; icon?: string; }
+export interface Category { id: string; name: string; color: string; icon?: string; launchLinks?: LaunchLink[]; }
 export interface Task {
   id: string; title: string; categoryId: string; projectTag: string; priority: Priority; status: Status;
   estimatedDuration: number; dueDate: string; dueTime: string; subtasks: Subtask[]; notes: string; colorCode: string;
@@ -20,6 +29,8 @@ export interface Task {
   spawnedNextId?: string;
   /** Custom sort index for manual drag-and-drop reordering. */
   order?: number;
+  /** Workspace & external tool launch links (VS Code, Cursor, Obsidian, Figma, Web URLs). */
+  launchLinks?: LaunchLink[];
 }
 export type GoalType = 'manual' | 'tasks-completed' | 'focus-hours' | 'habit-streak';
 export interface Goal { id: string; categoryId?: string; title: string; metricLabel: string; currentValue: number; targetValue: number; goalType?: GoalType; deadline?: string; createdAt: string; updatedAt: string; }

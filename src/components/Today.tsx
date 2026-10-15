@@ -31,6 +31,8 @@ import { buildTodayPlan } from '../lib/todayPlan';
 import { focusOnTask } from '../lib/timer';
 import { addDays, formatDuration, uid } from '../lib/utils';
 import type { Category, Task } from '../types';
+import { AppDock } from './AppDock';
+import { DailyBriefing } from './DailyBriefing';
 import { Pomodoro } from './Pomodoro';
 import { SmartScheduleModal } from './SmartScheduleModal';
 import { TaskCard } from './TaskCard';
@@ -139,79 +141,22 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1560px] mx-auto space-y-6">
-      {/* Top Hero Header & Summary Cards */}
-      <div className="atelier-card rounded-3xl p-5 sm:p-7 overflow-hidden">
-        <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6">
-          <div className="space-y-1.5">
-            <div className="index-chip text-fg-subtle">Today / Focus</div>
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-fg leading-none">
-              Make today count.
-            </h1>
-            <p className="text-sm text-fg-muted">
-              {new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date())}
-            </p>
-          </div>
+      {/* Dynamic Time-Aware Daily Briefing Card */}
+      <DailyBriefing
+        today={today}
+        openCount={openCount}
+        totalCount={totalCount}
+        completionRatio={completionRatio}
+        plannedMinutes={plan.plannedMinutes}
+        habitsDone={habitsDone}
+        totalHabits={habits.length}
+        nextTask={plan.next}
+        onNavigate={onNavigate}
+        onOpenSchedule={() => setScheduleOpen(true)}
+      />
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 shrink-0">
-            <div className="rounded-2xl border border-line bg-surface-2 p-3.5 flex items-center gap-3">
-              <Ring value={completionRatio} size={38} stroke={4}>
-                <span className="text-[10px] font-mono font-bold">{Math.round(completionRatio * 100)}%</span>
-              </Ring>
-              <div>
-                <div className="text-lg font-bold font-mono tabular-nums leading-none">
-                  {totalCount > 0 ? (
-                    <>
-                      {plan.done.length}
-                      <span className="text-fg-muted">/{totalCount}</span>
-                    </>
-                  ) : (
-                    '-'
-                  )}
-                </div>
-                <div className="text-[10px] font-mono uppercase tracking-wider text-fg-subtle mt-1">Completed</div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-line bg-surface-2 p-3.5">
-              <div className="flex items-center justify-between text-fg-muted">
-                <span className="text-[10px] font-mono uppercase tracking-wider">Planned</span>
-                <Clock3 size={13} className="text-accent-text" />
-              </div>
-              <div className="text-lg font-bold font-mono tabular-nums mt-1.5">
-                {openCount ? formatDuration(plan.plannedMinutes) : '0m'}
-              </div>
-              <div className="text-[10px] text-fg-subtle font-mono">{openCount} open tasks</div>
-            </div>
-
-            <div className="rounded-2xl border border-line bg-surface-2 p-3.5">
-              <div className="flex items-center justify-between text-fg-muted">
-                <span className="text-[10px] font-mono uppercase tracking-wider">Habits</span>
-                <Flame size={13} className="text-amber-500" />
-              </div>
-              <div className="text-lg font-bold font-mono tabular-nums mt-1.5">
-                {habitsDone}/{habits.length}
-              </div>
-              <div className="text-[10px] text-fg-subtle font-mono">done today</div>
-            </div>
-
-            {onNavigate && (
-              <button
-                onClick={() => onNavigate('review')}
-                className="rounded-2xl border border-line bg-surface-2 hover:bg-hover p-3.5 text-left transition flex flex-col justify-between group keycap"
-              >
-                <div className="flex items-center justify-between w-full text-fg-muted">
-                  <span className="text-[10px] font-mono uppercase tracking-wider">Reflection</span>
-                  <Trophy size={13} className="text-accent-text group-hover:scale-110 transition-transform" />
-                </div>
-                <div className="flex items-center justify-between w-full mt-1.5">
-                  <span className="text-xs font-semibold text-fg">Weekly Review</span>
-                  <ArrowUpRight size={14} className="text-fg-muted" />
-                </div>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Context-Aware App Dock / Command Hub */}
+      <AppDock title="Quick-Launch Workspace Apps" />
 
       {/* Main 2-Column Workspace */}
       <div className="grid xl:grid-cols-[1fr_390px] gap-6 items-start">

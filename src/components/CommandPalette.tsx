@@ -1,14 +1,16 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { BarChart3, CalendarDays, CheckSquare2, FolderKanban, Home, Keyboard, Moon, Plus, Search, Settings, Timer, Trophy, X, FileText, type LucideIcon } from 'lucide-react';
+import { BarChart3, CalendarDays, CheckSquare2, ExternalLink, FolderKanban, Home, Keyboard, Moon, Plus, Search, Settings, Timer, Trophy, X, FileText, type LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { db } from '../db/db';
 import { timer } from '../lib/timer';
+import { launchTarget } from '../lib/launcher';
+import { storage } from '../lib/utils';
 import { richTextSnippet } from '../lib/richtext';
-import type { Category, JournalEntry, Page, Task } from '../types';
+import type { Category, JournalEntry, LaunchLink, Page, Task } from '../types';
 
 interface Item {
   id: string;
-  group: 'Actions' | 'Go to' | 'Pages' | 'Tasks';
+  group: 'Actions' | 'Go to' | 'Apps & Workspaces' | 'Pages' | 'Tasks';
   label: string;
   hint?: string;
   icon: LucideIcon;
@@ -68,9 +70,35 @@ export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onO
           .slice(0, 6)
           .map(p => ({ id: `page-${p.id}`, group: 'Pages', label: p.title.trim() || 'Untitled', hint: categories.find(c => c.id === p.categoryId)?.name ?? richTextSnippet(entriesByPage.get(p.id)?.[0]?.content ?? { type: 'doc', content: [] }, 24), icon: FileText, run: () => onOpenPage(p) }))
       : [];
+    const allLinksMap = new Map<string, LaunchLink>();
+    categories.forEach(c => (c.launchLinks ?? []).forEach(l => allLinksMap.set(`${l.label}-${l.url}`, l)));
+    tasks.forEach(t => (t.launchLinks ?? []).forEach(l => allLinksMap.set(`${l.label}-${l.url}`, l)));
+    try {
+      const saved = storage.get('focusspace-global-appdock');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) parsed.forEach((l: LaunchLink) => allLinksMap.set(`${l.label}-${l.url}`, l));
+      }
+    } catch { /* fallback */ }
+
+    const appItems: Item[] = q
+      ? Array.from(allLinksMap.values())
+          .filter(l => l.label.toLowerCase().includes(q) || l.url.toLowerCase().includes(q))
+          .sort((a, b) => rank(a.label, q) - rank(b.label, q))
+          .slice(0, 5)
+          .map(l => ({
+            id: `launch-${l.id}`,
+            group: 'Apps & Workspaces',
+            label: `Launch ${l.label}`,
+            hint: l.url,
+            icon: ExternalLink,
+            run: () => launchTarget(l.url, l.label),
+          }))
+      : [];
+
     // Keep groups together in a stable order so the highlighted row matches what is drawn.
-    const order = { Actions: 0, 'Go to': 1, Pages: 2, Tasks: 3 } as const;
-    return [...matched, ...pageItems, ...taskItems].sort((a, b) => order[a.group] - order[b.group]);
+    const order = { Actions: 0, 'Go to': 1, 'Apps & Workspaces': 2, Pages: 3, Tasks: 4 } as const;
+    return [...matched, ...appItems, ...pageItems, ...taskItems].sort((a, b) => order[a.group] - order[b.group]);
   }, [query, tasks, pages, journalEntries, categories, onNavigate, onNewTask, onOpenTask, onOpenPage, onCycleTheme]);
 
   useEffect(() => { setSelected(0); }, [query]);

@@ -1,14 +1,15 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Play, Plus, Trash2, X } from 'lucide-react';
+import { ExternalLink, Play, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { db } from '../db/db';
 import { REPEAT_OPTIONS, presetOf, ruleFromPreset, type RepeatPreset } from '../lib/recurrence';
+import { APP_PRESETS, detectLaunchKind } from '../lib/launcher';
 import { closeTaskEditor, useTaskEditorTarget } from '../lib/taskEditor';
 import { changeStatus, deleteTask } from '../lib/tasks';
 import { focusOnTask } from '../lib/timer';
 import { toast } from '../lib/toast';
 import { formatDuration, uid } from '../lib/utils';
-import type { Category, Priority, Recurrence, Status, Subtask, Task } from '../types';
+import type { Category, LaunchLink, Priority, Recurrence, Status, Subtask, Task } from '../types';
 import { ConfirmDialog } from './ui';
 
 const PRIORITIES: Priority[] = ['Low', 'Medium', 'High', 'Urgent'];
@@ -18,12 +19,14 @@ const field = 'mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line px-3 
 interface Draft {
   title: string; categoryId: string; projectTag: string; priority: Priority; status: Status;
   estimate: string; dueDate: string; dueTime: string; notes: string; subtasks: Subtask[]; repeat: RepeatPreset;
+  launchLinks: LaunchLink[];
 }
 
 const toDraft = (t: Task): Draft => ({
   title: t.title, categoryId: t.categoryId, projectTag: t.projectTag ?? '', priority: t.priority, status: t.status,
   estimate: String(t.estimatedDuration), dueDate: t.dueDate, dueTime: t.dueTime, notes: t.notes ?? '', subtasks: t.subtasks.map(s => ({ ...s })),
   repeat: presetOf(t.recurrence),
+  launchLinks: (t.launchLinks ?? []).map(l => ({ ...l })),
 });
 
 /** Draft -> values that would be saved (used for both saving and "has anything changed?"). */
@@ -39,6 +42,7 @@ const clean = (d: Draft, existing?: Recurrence) => ({
   notes: d.notes,
   subtasks: d.subtasks.map(s => ({ id: s.id, title: s.title.trim(), completed: s.completed })).filter(s => s.title),
   recurrence: d.dueDate ? ruleFromPreset(d.repeat, d.dueDate, existing) : undefined,
+  launchLinks: d.launchLinks.filter(l => l.label.trim() && l.url.trim()),
 });
 
 /** Mounted once in the app shell; opens on whichever task `openTaskEditor` was last called with. */
@@ -59,8 +63,27 @@ function Loader({ taskId }: { taskId: string }) {
 function Panel({ task, categories }: { task: Task; categories: Category[] }) {
   const [draft, setDraft] = useState<Draft>(() => toDraft(task));
   const [newSubtask, setNewSubtask] = useState('');
+  const [newLinkLabel, setNewLinkLabel] = useState('');
+  const [newLinkUrl, setNewLinkUrl] = useState('');
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const addLaunchLink = (label = newLinkLabel, url = newLinkUrl) => {
+    if (!label.trim() || !url.trim()) return;
+    const link: LaunchLink = {
+      id: uid(),
+      label: label.trim(),
+      url: url.trim(),
+      kind: detectLaunchKind(url),
+    };
+    set('launchLinks', [...draft.launchLinks, link]);
+    setNewLinkLabel('');
+    setNewLinkUrl('');
+  };
+
+  const removeLaunchLink = (id: string) => {
+    set('launchLinks', draft.launchLinks.filter(l => l.id !== id));
+  };
 
   const focusLogs = useLiveQuery(async () => db.focusLogs.where('taskId').equals(task.id).toArray(), [task.id]) ?? [];
   const focusMinutes = focusLogs.filter(l => l.mode === 'focus').reduce((sum, l) => sum + l.durationMinutes, 0);
@@ -205,6 +228,80 @@ function Panel({ task, categories }: { task: Task; categories: Category[] }) {
                 className="flex-1 min-w-0 h-10 rounded-lg bg-surface-2 border border-line px-3 text-sm outline-none"
               />
               <button type="button" onClick={addSubtask} disabled={!newSubtask.trim()} aria-label="Add subtask" className="size-10 grid place-items-center rounded-lg border border-line text-fg-muted hover:text-fg hover:bg-hover disabled:opacity-40"><Plus size={16} /></button>
+            </div>
+          </section>
+
+          {/* Workspace & Launch Links */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Workspace & Launch Links</span>
+              <span className="text-xs text-fg-muted font-mono">{draft.launchLinks.length} linked</span>
+            </div>
+
+            {draft.launchLinks.length > 0 && (
+              <div className="space-y-1.5">
+                {draft.launchLinks.map(link => (
+                  <div key={link.id} className="flex items-center gap-2 p-2 rounded-lg bg-surface-2 border border-line">
+                    <ExternalLink size={13} className="text-accent-text shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold text-fg truncate">{link.label}</div>
+                      <div className="text-[10px] font-mono text-fg-subtle truncate">{link.url}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeLaunchLink(link.id)}
+                      className="size-7 grid place-items-center rounded-lg text-fg-muted hover:text-rose-500 hover:bg-rose-500/10"
+                      aria-label="Remove link"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Quick App Presets */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-mono text-fg-subtle uppercase">Presets:</span>
+              {APP_PRESETS.slice(0, 8).map(preset => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => addLaunchLink(preset.label, preset.url)}
+                  className="px-2 py-0.5 rounded-md bg-surface border border-line text-[11px] text-fg-soft hover:bg-hover hover:text-fg transition"
+                >
+                  + {preset.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                value={newLinkLabel}
+                onChange={e => setNewLinkLabel(e.target.value)}
+                placeholder="Label (e.g. VS Code)"
+                className="flex-1 h-9 rounded-lg bg-surface-2 border border-line px-3 text-xs outline-none"
+              />
+              <input
+                value={newLinkUrl}
+                onChange={e => setNewLinkUrl(e.target.value)}
+                placeholder="URI or URL (vscode://..., https://...)"
+                className="flex-1 h-9 rounded-lg bg-surface-2 border border-line px-3 text-xs outline-none font-mono"
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addLaunchLink();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => addLaunchLink()}
+                disabled={!newLinkLabel.trim() || !newLinkUrl.trim()}
+                className="h-9 px-3 rounded-lg border border-line bg-surface text-xs font-semibold hover:bg-hover disabled:opacity-40 shrink-0 keycap"
+              >
+                Add Link
+              </button>
             </div>
           </section>
 
