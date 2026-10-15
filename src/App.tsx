@@ -193,7 +193,7 @@ export default function App() {
   return (
     <div className={`h-screen overflow-hidden flex flex-col ${layoutMode === 'orbital' ? 'p-2 sm:p-4 gap-3' : 'p-0'}`}>
       <div
-        className={`w-full h-full max-w-[1680px] mx-auto bg-[var(--app-bg)] backdrop-blur-2xl text-fg flex overflow-hidden relative transition-all duration-300 ${
+        className={`w-full h-full max-w-[1680px] mx-auto bg-[var(--app-bg)] backdrop-blur-md text-fg flex overflow-hidden relative transition-[border-radius,box-shadow,gap,padding] duration-200 ease-out ${
           layoutMode === 'orbital'
             ? 'rounded-[28px] shadow-pop border border-line sm:gap-3 sm:p-3'
             : 'rounded-none border-x border-line'

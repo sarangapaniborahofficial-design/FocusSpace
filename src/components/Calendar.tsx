@@ -133,18 +133,22 @@ export function Calendar() {
     await persistEvent(taskId, new Date(info.event.start), duration);
   };
 
-  const events = scheduled.map(task => ({
-    id: task.id,
-    title: task.title,
-    start: `${task.dueDate}T${task.dueTime}:00`,
-    duration: durationString(task.estimatedDuration),
-    backgroundColor: categoryColor(task, categories),
-    borderColor: categoryColor(task, categories),
-    textColor: '#09090b',
-    editable: true,
-    classNames: task.status === 'Submitted/Done' ? ['focusspace-event-done'] : [],
-    extendedProps: { taskId: task.id, categoryId: task.categoryId },
-  }));
+  const events = useMemo(
+    () =>
+      scheduled.map(task => ({
+        id: task.id,
+        title: task.title,
+        start: `${task.dueDate}T${task.dueTime}:00`,
+        duration: durationString(task.estimatedDuration),
+        backgroundColor: categoryColor(task, categories),
+        borderColor: categoryColor(task, categories),
+        textColor: '#09090b',
+        editable: true,
+        classNames: task.status === 'Submitted/Done' ? ['focusspace-event-done'] : [],
+        extendedProps: { taskId: task.id, categoryId: task.categoryId },
+      })),
+    [scheduled, categories]
+  );
 
   return (
     <div className="p-4 lg:p-6 max-w-[1600px] mx-auto h-full min-h-[calc(100vh-64px)] flex flex-col">

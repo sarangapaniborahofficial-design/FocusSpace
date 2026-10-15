@@ -17,6 +17,24 @@ import {
 } from '../lib/timer';
 import { addDays, formatDuration, toISODate } from '../lib/utils';
 
+const DIAL_SIZE = 212;
+const DIAL_STROKE = 8;
+const DIAL_R = (DIAL_SIZE - DIAL_STROKE * 2) / 2;
+const DIAL_CIRCUMFERENCE = 2 * Math.PI * (DIAL_R - 6);
+
+const PRECOMPUTED_TICKS = Array.from({ length: 36 }, (_, i) => {
+  const angle = (i * 10 * Math.PI) / 180;
+  return {
+    i,
+    threshold: i / 36,
+    x1: DIAL_SIZE / 2 + (DIAL_R + 6) * Math.cos(angle),
+    y1: DIAL_SIZE / 2 + (DIAL_R + 6) * Math.sin(angle),
+    x2: DIAL_SIZE / 2 + (DIAL_R + (i % 3 === 0 ? 1 : 3)) * Math.cos(angle),
+    y2: DIAL_SIZE / 2 + (DIAL_R + (i % 3 === 0 ? 1 : 3)) * Math.sin(angle),
+    strokeWidth: i % 3 === 0 ? 2 : 1,
+  };
+});
+
 export function Pomodoro() {
   const s = useTimer();
   const today = useToday();
@@ -49,10 +67,6 @@ export function Pomodoro() {
     setSoundOn(sound);
     setCustomizing(false);
   };
-
-  const size = 212;
-  const stroke = 8;
-  const r = (size - stroke * 2) / 2;
 
   return (
     <div className="atelier-card rounded-3xl p-5 overflow-hidden relative">
@@ -170,48 +184,40 @@ export function Pomodoro() {
       </div>
 
       {/* Tactile 36-Tick Rotary Dial */}
-      <div className="relative mx-auto flex items-center justify-center my-2" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
-          {Array.from({ length: 36 }, (_, i) => {
-            const angle = (i * 10 * Math.PI) / 180;
-            const activeTick = i / 36 <= progress;
-            const x1 = size / 2 + (r + 6) * Math.cos(angle);
-            const y1 = size / 2 + (r + 6) * Math.sin(angle);
-            const x2 = size / 2 + (r + (i % 3 === 0 ? 1 : 3)) * Math.cos(angle);
-            const y2 = size / 2 + (r + (i % 3 === 0 ? 1 : 3)) * Math.sin(angle);
-            return (
-              <line
-                key={i}
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
-                stroke={activeTick ? 'var(--ring-fill)' : 'var(--c-line-strong)'}
-                strokeWidth={i % 3 === 0 ? 2 : 1}
-                strokeLinecap="round"
-              />
-            );
-          })}
+      <div className="relative mx-auto flex items-center justify-center my-2" style={{ width: DIAL_SIZE, height: DIAL_SIZE }}>
+        <svg width={DIAL_SIZE} height={DIAL_SIZE} className="-rotate-90" aria-hidden="true">
+          {PRECOMPUTED_TICKS.map(t => (
+            <line
+              key={t.i}
+              x1={t.x1}
+              y1={t.y1}
+              x2={t.x2}
+              y2={t.y2}
+              stroke={t.threshold <= progress ? 'var(--ring-fill)' : 'var(--c-line-strong)'}
+              strokeWidth={t.strokeWidth}
+              strokeLinecap="round"
+            />
+          ))}
           <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={r - 6}
+            cx={DIAL_SIZE / 2}
+            cy={DIAL_SIZE / 2}
+            r={DIAL_R - 6}
             fill="none"
-            strokeWidth={stroke}
+            strokeWidth={DIAL_STROKE}
             style={{ stroke: 'var(--ring-track)' }}
           />
           <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={r - 6}
+            cx={DIAL_SIZE / 2}
+            cy={DIAL_SIZE / 2}
+            r={DIAL_R - 6}
             fill="none"
-            strokeWidth={stroke}
+            strokeWidth={DIAL_STROKE}
             strokeLinecap="round"
-            strokeDasharray={2 * Math.PI * (r - 6)}
-            strokeDashoffset={2 * Math.PI * (r - 6) * (1 - progress)}
+            strokeDasharray={DIAL_CIRCUMFERENCE}
+            strokeDashoffset={DIAL_CIRCUMFERENCE * (1 - progress)}
             style={{
               stroke: 'var(--ring-fill)',
-              transition: 'stroke-dashoffset .4s cubic-bezier(0.16, 1, 0.3, 1)',
+              transition: 'stroke-dashoffset .3s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
           />
         </svg>

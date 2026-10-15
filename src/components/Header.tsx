@@ -11,6 +11,27 @@ const THEME_META: Record<string, { label: string; short: string }> = {
 
 const THEMES = ['nocturne', 'onyx', 'solaris', 'bauhaus'];
 
+function HeaderTimerPill() {
+  const s = useTimer();
+  return (
+    <div className="hidden xl:flex items-center gap-3 px-3 py-1 rounded-xl border border-line bg-surface-2">
+      <span className="text-xs text-fg-muted">{MODE_LABELS[s.mode]}</span>
+      <button
+        onClick={() => timer.toggle()}
+        title={s.running ? 'Pause timer (Space)' : 'Start timer (Space)'}
+        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono transition ${
+          s.running
+            ? 'bg-accent text-accent-fg font-semibold shadow-xs'
+            : 'text-fg-soft hover:bg-hover'
+        }`}
+      >
+        {s.running ? <Pause size={12} /> : <Play size={12} fill="currentColor" />}
+        <span className="tabular-nums">{formatClock(s.remainingMs)}</span>
+      </button>
+    </div>
+  );
+}
+
 export function Header({
   title,
   onMenu,
@@ -32,7 +53,6 @@ export function Header({
   layoutMode?: LayoutMode;
   setLayoutMode?: (m: LayoutMode) => void;
 }) {
-  const s = useTimer();
   const currentTheme = THEMES.includes(theme) ? theme : 'nocturne';
   const next = THEMES[(THEMES.indexOf(currentTheme) + 1) % THEMES.length];
 
@@ -57,21 +77,7 @@ export function Header({
       </div>
 
       {/* Center: Quick Timer Control Pill (Desktop) */}
-      <div className="hidden xl:flex items-center gap-3 px-3 py-1 rounded-xl border border-line bg-surface-2">
-        <span className="text-xs text-fg-muted">{MODE_LABELS[s.mode]}</span>
-        <button
-          onClick={() => timer.toggle()}
-          title={s.running ? 'Pause timer (Space)' : 'Start timer (Space)'}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono transition ${
-            s.running
-              ? 'bg-accent text-accent-fg font-semibold shadow-xs'
-              : 'text-fg-soft hover:bg-hover'
-          }`}
-        >
-          {s.running ? <Pause size={12} /> : <Play size={12} fill="currentColor" />}
-          <span className="tabular-nums">{formatClock(s.remainingMs)}</span>
-        </button>
-      </div>
+      <HeaderTimerPill />
 
       {/* Right: Search, Quick Add, Layout Switcher, Shortcuts, Theme Switcher */}
       <div className="flex items-center gap-2 shrink-0">

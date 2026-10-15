@@ -1,5 +1,5 @@
 import { Check, ChevronDown, ChevronRight, Clock3, Copy, GripVertical, Pencil, Play, Repeat, Trash2 } from 'lucide-react';
-import { useRef, useState, type DragEvent, type TouchEvent } from 'react';
+import { memo, useRef, useState, type DragEvent, type TouchEvent } from 'react';
 import { openTaskEditor } from '../lib/taskEditor';
 import { changeStatus, duplicateTask } from '../lib/tasks';
 import { isoToday, priorityTone, relativeDay } from '../lib/utils';
@@ -10,7 +10,7 @@ const STATUS_LABEL: Record<Status, string> = { 'To Do': 'To do', 'In Progress': 
 
 const SWIPE_THRESHOLD = 75;
 
-export function TaskCard({
+export const TaskCard = memo(function TaskCard({
   task,
   category,
   onUpdate,
@@ -138,10 +138,11 @@ export function TaskCard({
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
         style={{
-          transform: `translateX(${swipeX}px)`,
+          transform: `translate3d(${swipeX}px, 0, 0)`,
           transition: isSwiping ? 'none' : 'transform 0.22s cubic-bezier(0.2, 0, 0, 1)',
+          willChange: isSwiping ? 'transform' : 'auto',
         }}
-        className={`group relative rounded-2xl border border-line bg-surface-2 hover:bg-hover hover:border-line-strong transition-all overflow-hidden pl-1.5 ${
+        className={`group relative rounded-2xl border border-line bg-surface-2 hover:bg-hover hover:border-line-strong transition-[background-color,border-color,box-shadow,opacity] duration-150 overflow-hidden pl-1.5 ${
           onDragStart ? 'cursor-grab active:cursor-grabbing' : ''
         } ${dragging ? 'opacity-40 scale-[0.99]' : ''}`}
       >
@@ -336,4 +337,4 @@ export function TaskCard({
       </div>
     </div>
   );
-}
+});

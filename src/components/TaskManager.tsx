@@ -57,6 +57,7 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
   }, [all, q, sort, filters, today]);
   const listItems = hideDone ? filtered.filter(t => t.status !== 'Submitted/Done') : filtered;
 
+  const catMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
   const update = (t: Task) => db.tasks.put(t);
   const changeView = (next: 'list' | 'board') => { setView(next); storage.set(VIEW_KEY, next); };
   const exitSelectMode = () => { setSelectMode(false); setSelected(new Set()); };
@@ -65,7 +66,7 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
 
   const card = (t: Task, extra?: { dragging?: boolean; onDragStart?: (e: DragEvent<HTMLDivElement>) => void; onDragEnd?: () => void }) => (
     <TaskCard
-      key={t.id} task={t} category={categories.find(c => c.id === t.categoryId)} onUpdate={update} onDelete={() => void deleteTask(t)} onStart={() => focusOnTask(t)}
+      key={t.id} task={t} category={catMap.get(t.categoryId)} onUpdate={update} onDelete={() => void deleteTask(t)} onStart={() => focusOnTask(t)}
       selectable={selectMode} selected={selected.has(t.id)} onToggleSelect={() => toggleSelect(t.id)} {...extra}
     />
   );
@@ -213,7 +214,7 @@ export function TaskManager({ categoryId, onQuickAdd, initialQuery = '', tabs }:
                   e.preventDefault();
                   void handleListDrop(t.id);
                 }}
-                className={`transition-all rounded-lg ${overTaskId === t.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-surface' : ''}`}
+                className={`transition-[box-shadow] rounded-lg ${overTaskId === t.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-surface' : ''}`}
               >
                 {card(t, {
                   dragging: dragId === t.id,

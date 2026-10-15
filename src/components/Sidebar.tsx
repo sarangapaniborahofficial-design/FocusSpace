@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   BarChart3,
   CalendarDays,
@@ -62,9 +62,22 @@ export function Sidebar({
   const tasks = useLiveQuery(() => db.tasks.toArray(), []) ?? [];
   const compact = collapsed && !isMobile;
 
-  const openCountByCat = (catId: string) =>
-    tasks.filter(t => t.categoryId === catId && t.status !== 'Submitted/Done').length;
-  const totalOpen = tasks.filter(t => t.status !== 'Submitted/Done').length;
+  const { countByCat, totalOpen } = useMemo(() => {
+    const map: Record<string, number> = {};
+    let total = 0;
+    for (let i = 0; i < tasks.length; i++) {
+      const t = tasks[i];
+      if (t.status !== 'Submitted/Done') {
+        total++;
+        if (t.categoryId) {
+          map[t.categoryId] = (map[t.categoryId] || 0) + 1;
+        }
+      }
+    }
+    return { countByCat: map, totalOpen: total };
+  }, [tasks]);
+
+  const openCountByCat = (catId: string) => countByCat[catId] || 0;
 
   return (
     <>
@@ -234,7 +247,7 @@ function NavItem({
       title={compact ? label : undefined}
       aria-label={compact ? label : undefined}
       aria-current={active ? 'page' : undefined}
-      className={`w-full h-10 rounded-xl flex items-center gap-3 px-3.5 text-[14px] font-medium transition-all ${
+      className={`w-full h-10 rounded-xl flex items-center gap-3 px-3.5 text-[14px] font-medium transition-[background-color,color,box-shadow] duration-150 ${
         active
           ? 'bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)] font-semibold keycap'
           : 'text-fg-muted hover:bg-hover hover:text-fg'

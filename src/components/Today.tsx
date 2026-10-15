@@ -14,7 +14,7 @@ import {
   Trophy,
   Zap,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { db } from '../db/db';
 import { computeStreaks } from '../lib/analytics';
 import { toggleHabitDay } from '../lib/habitActions';
@@ -43,6 +43,7 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
   const tasks = useLiveQuery(() => db.tasks.toArray(), []);
   const habits = useLiveQuery(() => db.habits.filter(h => h.active).toArray(), []) ?? [];
   const cats = useLiveQuery(() => db.categories.toArray(), []) ?? [];
+  const catMap = useMemo(() => new Map(cats.map(c => [c.id, c])), [cats]);
 
   const plan = useMemo(() => buildTodayPlan(tasks ?? [], today, nowTime()), [tasks, today]);
   const openCount = plan.overdue.length + plan.today.length;
@@ -69,16 +70,19 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
     setOverId(null);
   };
 
-  const update = (task: Task) => db.tasks.put(task);
+  const update = useCallback((task: Task) => db.tasks.put(task), []);
+  const onDeleteTask = useCallback((t: Task) => void deleteTask(t), []);
+  const onStartTask = useCallback((t: Task) => focusOnTask(t), []);
+
   const card = (t: Task, isReorderable = false) => {
     const cardEl = (
       <TaskCard
         key={t.id}
         task={t}
-        category={cats.find(c => c.id === t.categoryId)}
+        category={catMap.get(t.categoryId)}
         onUpdate={update}
-        onDelete={() => void deleteTask(t)}
-        onStart={() => focusOnTask(t)}
+        onDelete={() => onDeleteTask(t)}
+        onStart={() => onStartTask(t)}
         dragging={dragId === t.id}
         onDragStart={
           isReorderable
@@ -118,7 +122,7 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
           e.preventDefault();
           void handleTodayDrop(t.id);
         }}
-        className={`transition-all rounded-2xl ${overId === t.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-surface' : ''}`}
+        className={`transition-[box-shadow] rounded-2xl ${overId === t.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-surface' : ''}`}
       >
         {cardEl}
       </div>
@@ -390,7 +394,7 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
                       key={h.id}
                       onClick={() => void toggleHabitDay(h.id, today)}
                       aria-pressed={done}
-                      className={`w-full text-left p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                      className={`w-full text-left p-3.5 rounded-2xl border transition-[background-color,border-color,box-shadow,opacity] duration-150 flex items-center justify-between gap-3 ${
                         done
                           ? 'border-line-strong bg-surface-2 keycap'
                           : 'border-line bg-surface hover:bg-hover'
