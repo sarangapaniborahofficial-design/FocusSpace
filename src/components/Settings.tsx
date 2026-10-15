@@ -1,8 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Bell, BookOpen, Calendar, Check, Download, Flame, Keyboard, Palette, Pencil, Plus, RefreshCw, Smartphone, Sparkles, Target, Trash2, X, Zap } from 'lucide-react';
+import { Activity, Bell, BookOpen, Calendar, Check, Download, Flame, Keyboard, Mic, Palette, Pencil, Plus, RefreshCw, ShieldCheck, Smartphone, Sparkles, Target, Trash2, X, Zap } from 'lucide-react';
 import { isNotificationSupported, getNotificationPermission, requestNotificationPermission, sendNotification } from '../lib/notifications';
 import { useEffect, useRef, useState } from 'react';
 import { db } from '../db/db';
+import { getAsrClient } from '../voice/engine/AsrClient';
 import { loadSchedulePreferences, saveSchedulePreferences } from '../lib/smartScheduler';
 import { HABIT_COLORS, addHabit, deleteHabit, updateHabit } from '../lib/habitActions';
 import { useToday, usePWAInstall } from '../lib/hooks';
@@ -130,6 +131,7 @@ export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMod
     <GoalsCard />
     <SchedulingPreferencesCard />
     <DailyJournalPreferencesCard />
+    <VoiceStudioPreferencesCard />
 
     <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
       <div className="p-5 border-b border-line flex items-center justify-between">
@@ -668,6 +670,100 @@ function DailyJournalPreferencesCard() {
         <p>
           If your machine was asleep or closed before midnight, our <strong>boot catch-up engine</strong> automatically detects and logs the missed snapshot on your next launch. You can also capture a snapshot manually at any time from the Journal tab.
         </p>
+      </div>
+    </section>
+  );
+}
+
+function VoiceStudioPreferencesCard() {
+  const [warmupStatus, setWarmupStatus] = useState<string | null>(null);
+  const [warming, setWarming] = useState(false);
+  const isIsolated = typeof window !== 'undefined' && window.crossOriginIsolated;
+
+  const runWarmup = async () => {
+    setWarming(true);
+    setWarmupStatus('Initializing on-device WASM model...');
+    const start = performance.now();
+    try {
+      const client = getAsrClient();
+      await client.load();
+      const ms = Math.round(performance.now() - start);
+      setWarmupStatus(`Engine ready! Warmup inference passed in ${ms} ms.`);
+      toast('Voice engine warmed up successfully', 'success');
+    } catch (err: any) {
+      setWarmupStatus(`Failed: ${err.message}`);
+      toast('Voice engine warmup error', 'error');
+    } finally {
+      setWarming(false);
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
+      <div className="p-5 border-b border-line flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 font-medium">
+            <Mic size={16} className="text-accent-text" /> 100% Offline Voice Typing Studio
+          </div>
+          <p className="text-xs text-fg-subtle mt-1">
+            Private, on-device Whisper WASM automatic speech recognition &amp; Silero VAD.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="px-2.5 py-1 rounded-md text-[11px] font-mono bg-emerald-500/10 text-emerald-500 font-semibold border border-emerald-500/20">
+            OFFLINE · ZERO-CLOUD
+          </span>
+          <span className="px-2.5 py-1 rounded-md text-[11px] font-mono bg-accent/15 text-accent-text font-semibold">
+            {isIsolated ? 'MULTI-THREADED WASM' : 'WASM READY'}
+          </span>
+        </div>
+      </div>
+
+      <div className="p-5 space-y-4 text-xs text-fg-muted">
+        <div className="grid sm:grid-cols-3 gap-3">
+          <div className="p-3.5 rounded-xl bg-surface-2 border border-line space-y-1">
+            <div className="text-[10px] uppercase font-mono tracking-wider text-fg-subtle">Engine &amp; Model</div>
+            <div className="font-semibold text-fg">Whisper ONNX (q8)</div>
+            <div className="text-[11px] text-fg-subtle">Local WASM execution via @huggingface/transformers</div>
+          </div>
+          <div className="p-3.5 rounded-xl bg-surface-2 border border-line space-y-1">
+            <div className="text-[10px] uppercase font-mono tracking-wider text-fg-subtle">Voice Detection</div>
+            <div className="font-semibold text-fg">Silero VAD</div>
+            <div className="text-[11px] text-fg-subtle">16 kHz AudioWorklet with 1s redemption pause</div>
+          </div>
+          <div className="p-3.5 rounded-xl bg-surface-2 border border-line space-y-1">
+            <div className="text-[10px] uppercase font-mono tracking-wider text-fg-subtle">Disfluency Engine</div>
+            <div className="font-semibold text-fg">Light Sanitizer</div>
+            <div className="text-[11px] text-fg-subtle">Strips fillers, collapses stutters, handles voice commands</div>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-line">
+          <div>
+            <div className="font-medium text-fg flex items-center gap-1.5">
+              <ShieldCheck size={14} className="text-emerald-500" /> Strict Privacy Invariant
+            </div>
+            <p className="text-[11px] text-fg-subtle mt-0.5">
+              No audio ever leaves your computer or gets saved to disk. Audio exists strictly in volatile RAM as Float32Array during dictation.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            disabled={warming}
+            onClick={runWarmup}
+            className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-xs font-semibold text-fg hover:bg-hover flex items-center gap-1.5 shrink-0 keycap cursor-pointer"
+          >
+            <Activity size={13} className={warming ? 'animate-spin text-accent' : 'text-accent'} />
+            {warming ? 'Warming up...' : 'Test Engine Warmup'}
+          </button>
+        </div>
+
+        {warmupStatus && (
+          <div className="p-2.5 rounded-lg bg-surface-2/80 border border-line font-mono text-[11px] text-fg">
+            {warmupStatus}
+          </div>
+        )}
       </div>
     </section>
   );

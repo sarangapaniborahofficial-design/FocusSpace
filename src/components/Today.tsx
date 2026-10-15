@@ -31,7 +31,6 @@ import { buildTodayPlan } from '../lib/todayPlan';
 import { focusOnTask } from '../lib/timer';
 import { addDays, formatDuration, uid } from '../lib/utils';
 import type { Category, Task } from '../types';
-import { AppDock } from './AppDock';
 import { DailyBriefing } from './DailyBriefing';
 import { Pomodoro } from './Pomodoro';
 import { SmartScheduleModal } from './SmartScheduleModal';
@@ -410,9 +409,6 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
         today={today}
         categories={cats}
       />
-
-      {/* Floating Bottom Workspace Dock Tray */}
-      <AppDock floating />
     </div>
   );
 }

@@ -7,6 +7,11 @@ import { Bold, Italic, Link2, List, ListChecks, ListOrdered, Quote, Strikethroug
 import { useEffect, useRef, useState } from 'react';
 import { sanitizeDoc } from '../lib/richtext';
 import type { RichTextDoc } from '../types';
+import { useDictation } from '../voice/useDictation';
+import { createTipTapTarget } from '../voice/target/tiptapTarget';
+import type { DictationTarget } from '../voice/target/DictationTarget';
+import { MicButton } from '../voice/ui/MicButton';
+import { DictationHud } from '../voice/ui/DictationHud';
 
 /**
  * True rich-text editing (TipTap/ProseMirror), scoped to what Pages needs: headings (2-3), paragraphs,
@@ -54,19 +59,35 @@ export function RichTextEditor({ content, onChange, placeholder = 'Write todayâ€
     if (incoming !== JSON.stringify(editor.getJSON())) editor.commands.setContent(content as object, { emitUpdate: false });
   }, [editor, content]);
 
+  const [tiptapTarget, setTiptapTarget] = useState<DictationTarget | null>(null);
+
+  useEffect(() => {
+    if (editor) {
+      setTiptapTarget(createTipTapTarget(editor));
+    }
+  }, [editor]);
+
+  const dictation = useDictation({ target: tiptapTarget });
+
   if (!editor) return null;
 
   return (
-    <div className="rounded-xl border border-line bg-surface-2 focus-within:border-accent">
-      <Toolbar editor={editor} />
+    <div className="rounded-xl border border-line bg-surface-2 focus-within:border-accent relative">
+      <Toolbar editor={editor} dictation={dictation} />
       <EditorContent editor={editor} placeholder={placeholder} />
+      <DictationHud
+        state={dictation.state}
+        audioLevel={dictation.audioLevel}
+        modelProgress={dictation.modelProgress}
+        onStop={dictation.stop}
+      />
     </div>
   );
 }
 
 const btn = (active: boolean) => `h-8 min-w-8 px-2 rounded-md text-sm grid place-items-center ${active ? 'bg-surface-3 text-fg' : 'text-fg-muted hover:text-fg hover:bg-hover'}`;
 
-function Toolbar({ editor }: { editor: Editor }) {
+function Toolbar({ editor, dictation }: { editor: Editor; dictation: ReturnType<typeof useDictation> }) {
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
 
@@ -125,6 +146,15 @@ function Toolbar({ editor }: { editor: Editor }) {
           <button type="button" onClick={() => setLinkOpen(false)} aria-label="Close" className="size-8 grid place-items-center rounded-lg text-fg-muted hover:text-fg hover:bg-hover"><X size={14} /></button>
         </div>
       )}
+
+      <div className="ml-auto flex items-center gap-1.5">
+        <MicButton
+          size="sm"
+          state={dictation.state}
+          onClick={dictation.toggle}
+          title="Dictate into editor offline (Voice commands: 'scratch that' to undo, 'new line')"
+        />
+      </div>
     </div>
   );
 }

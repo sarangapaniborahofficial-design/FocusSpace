@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ExternalLink, Play, Plus, Trash2, X } from 'lucide-react';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { db } from '../db/db';
 import { REPEAT_OPTIONS, presetOf, ruleFromPreset, type RepeatPreset } from '../lib/recurrence';
 import { APP_PRESETS, detectLaunchKind } from '../lib/launcher';
@@ -11,6 +11,11 @@ import { toast } from '../lib/toast';
 import { formatDuration, uid } from '../lib/utils';
 import type { Category, LaunchLink, Priority, Recurrence, Status, Subtask, Task } from '../types';
 import { ConfirmDialog } from './ui';
+import { useDictation } from '../voice/useDictation';
+import { createInputTarget } from '../voice/target/inputTarget';
+import type { DictationTarget } from '../voice/target/DictationTarget';
+import { MicButton } from '../voice/ui/MicButton';
+import { DictationHud } from '../voice/ui/DictationHud';
 
 const PRIORITIES: Priority[] = ['Low', 'Medium', 'High', 'Urgent'];
 const STATUSES: { id: Status; label: string }[] = [{ id: 'To Do', label: 'To do' }, { id: 'In Progress', label: 'In progress' }, { id: 'Submitted/Done', label: 'Done' }];
@@ -67,6 +72,19 @@ function Panel({ task, categories }: { task: Task; categories: Category[] }) {
   const [newLinkUrl, setNewLinkUrl] = useState('');
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const [dictationTarget, setDictationTarget] = useState<DictationTarget | null>(null);
+
+  useEffect(() => {
+    if (titleInputRef.current) {
+      setDictationTarget(createInputTarget(titleInputRef.current));
+    }
+  }, []);
+
+  const dictation = useDictation({
+    target: dictationTarget,
+  });
 
   const addLaunchLink = (label = newLinkLabel, url = newLinkUrl) => {
     if (!label.trim() || !url.trim()) return;
@@ -160,10 +178,23 @@ function Panel({ task, categories }: { task: Task; categories: Category[] }) {
 
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
           <div>
-            <input
-              autoFocus value={draft.title} onChange={e => set('title', e.target.value)} placeholder="Task title" aria-label="Title" aria-invalid={!valid}
-              className={`w-full h-12 rounded-xl bg-surface-2 border px-4 text-base outline-none ${valid ? 'border-line' : 'border-line-strong'}`}
-            />
+            <div className="flex items-center gap-2">
+              <input
+                ref={titleInputRef}
+                autoFocus
+                value={draft.title}
+                onChange={e => set('title', e.target.value)}
+                placeholder="Task title"
+                aria-label="Title"
+                aria-invalid={!valid}
+                className={`flex-1 h-12 rounded-xl bg-surface-2 border px-4 text-base outline-none ${valid ? 'border-line' : 'border-line-strong'}`}
+              />
+              <MicButton
+                state={dictation.state}
+                onClick={dictation.toggle}
+                title="Dictate task title offline"
+              />
+            </div>
             {!valid && <p className="text-xs text-fg-soft mt-1.5">A task needs a title.</p>}
           </div>
 
@@ -326,6 +357,13 @@ function Panel({ task, categories }: { task: Task; categories: Category[] }) {
             <button type="submit" disabled={!valid || !dirty || saving} title="Ctrl/⌘ + Enter" className="h-8 px-3 rounded-xl bg-accent text-accent-fg font-semibold text-sm hover:bg-accent-hover disabled:opacity-40 keycap">Save</button>
           </div>
         </div>
+
+        <DictationHud
+          state={dictation.state}
+          audioLevel={dictation.audioLevel}
+          modelProgress={dictation.modelProgress}
+          onStop={dictation.stop}
+        />
       </form>
 
       {confirmDiscard && (

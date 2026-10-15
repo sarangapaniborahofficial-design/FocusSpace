@@ -54,27 +54,43 @@ This document maintains the persistent, prioritized queue of upcoming sprints, f
 
 ---
 
-## ⏳ Sprint 3: Native Windows Shell (Tauri v2) & Offline Voice Studio
+## 🎯 Sprint 3: Universal Floating Dock & Offline Voice Typing Studio (✅ COMPLETED)
 
-### 3.1 Tauri v2 Native Windows Flagship Wrapper
-- Sub-15MB installer, ~40MB RAM footprint.
-- Native Windows system tray with timer badge and global hotkey `Ctrl+Shift+Space`.
-- True frameless, transparent, draggable Always-on-Top HUD window (`WebviewWindow('hud')`).
-- Direct local JSON/SQLite backup folder write (`C:\Users\<User>\FocusSpace\Backups\`).
+### 3.1 Universal Persistent Floating Dock & Official Vector Logos (✅ DONE)
+- **Resolved**: App Dock is now mounted globally at root `App.tsx` level (`fixed bottom-4 left-1/2 -translate-x-1/2 z-40`) with `pb-28 sm:pb-24` clearance across all tab views.
+- **Official Vector Logos (`BrandIcons.tsx`)**: Replaced generic Lucide icons with authentic brand geometry and hex palettes for VS Code, Cursor, Spotify, YouTube, Discord, Antigravity, GitHub, Obsidian, Figma, Slack, Notion, and Terminal.
+- **Physics**: 60fps spring-physics Gaussian hover magnification wave ($\text{scale}(d) = 1 + 0.35 \times \exp(-d^2 / (2 \cdot 55^2))$) and active task workspace glowing indicator.
 
-### 3.2 100% Offline Voice Typing Studio (`voiceEngine.ts`, `disfluency.ts`, `VoiceDock.tsx`)
-- Whisper WASM (Transformers.js) / Web Speech fallback running in Web Worker.
-- Real-time 4-pass Disfluency Sanitizer: strips acoustic fillers ("um", "ah"), discourse hedges ("like", "you know"), collapses stutters ("the the"), and auto-capitalizes/punctuates.
-- Floating Live Review Dock with 1-click routing to Task, Journal, or Page Note.
+### 3.2 100% Offline Voice Typing Studio (`src/voice/`) (✅ DONE)
+- **Strict Privacy Invariant**: 100% on-device WASM only. Zero third-party network calls. Audio exists strictly in volatile RAM as 16 kHz Float32Array and is never persisted to disk or IndexedDB.
+- **Components Built**:
+  - `engine/asr.worker.ts`: Dedicated Web Worker running `@huggingface/transformers` ONNX Runtime WASM backend (q8 quantized).
+  - `engine/AsrClient.ts`: Single-flight FIFO queue, automatic crash restart recovery, pre-inference RMS check and post-inference hallucination filter.
+  - `capture/vad.ts`: Silero VAD (`@ricky0123/vad-web`) with 1000ms redemption silence pause, 400ms min speech, and 300ms pre-speech padding.
+  - `cleanup/disfluency.ts`: Pure Light Disfluency Cleaner stripping whitelist fillers (`um`, `uh`), collapsing whitelist duplicate stutters, and executing voice commands (`"scratch that"`, `"new line"`, `"new paragraph"`).
+  - `cleanup/disfluency.test.ts`: 10 comprehensive unit tests integrated into CI.
+  - `target/DictationTarget.ts`, `inputTarget.ts`, `tiptapTarget.ts`: Pluggable targets for task inputs, quick add, and rich-text TipTap journal notes.
+  - `ui/MicButton.tsx` & `DictationHud.tsx`: Sleek keycap microphone button and real-time audio waveform equalizer HUD.
+  - `Settings.tsx`: Voice Studio telemetry, architecture overview, and 1-click engine warmup test.
+  - `scripts/fetch-models.mjs`: Dev-time provisioning script for offline ONNX weights.
+
+### 3.3 Native Windows Shell (Tauri v2) (⏳ DEFERRED PER DIRECTIVE)
+- **Status**: Deferred past Sprint 3 per explicit user directive ("no need to get the windows wrapper this sprint. defer it and note it down"). Moved to Sprint 4 / Backlog.
 
 ---
 
-## ⏳ Sprint 4: Mobile Companion (Android Capture Feeder)
+## ⏳ Sprint 4: Mobile Companion & Windows Native Shell
 
 ### 4.1 One-Way Android Feeder App & Windows Triage Tray
 - Mobile quick-capture envelope (`FocusSpaceDropEnvelope`).
 - Zero-cloud local transport: Local Wi-Fi Direct push (QR code scan, <50ms) or `.fsdrop` file drop.
 - Windows Flagship Morning/Evening Briefing "Phone Drop Triage Tray" (Enter to Task, J to Journal, P to Page).
+
+### 4.2 Tauri v2 Native Windows Flagship Wrapper (Deferred from Sprint 3)
+- Sub-15MB installer, ~40MB RAM footprint.
+- Native Windows system tray with timer badge and global hotkey `Ctrl+Shift+Space`.
+- True frameless, transparent, draggable Always-on-Top HUD window (`WebviewWindow('hud')`).
+- Direct local JSON/SQLite backup folder write (`C:\Users\<User>\FocusSpace\Backups\`).
 
 ---
 
@@ -94,6 +110,7 @@ This document maintains the persistent, prioritized queue of upcoming sprints, f
 | Dedicated Journal Tab (11:59 PM Auto-Save) | 11 (Sprint 2) | ✅ Done | Auto daily snapshot at deadline + catch-up, TipTap editor |
 | Pages Tab Category Grouping & Sorting | 11 (Sprint 2) | ✅ Done | Strict category pages only, hierarchical group & date sorting |
 | Flowy 3-Slide Welcome Onboarding | 11 (Sprint 2) | ✅ Done | Dual-mode daily flow, live NLP & theme picker, GPU morph |
-| Native Windows Tauri v2 Wrapper | 12 (Sprint 3) | ⏳ Queued | Tauri v2 desktop shell with tray & global hotkeys |
-| 100% Offline Voice Typing Studio | 12 (Sprint 3) | ⏳ Queued | Client-side transcription, 4-pass disfluency sanitizer, review dock |
+| Universal Floating App Dock & Vector Logos | 12 (Sprint 3) | ✅ Done | Persistent bottom dock across all views + official vector SVGs |
+| 100% Offline Voice Typing Studio | 12 (Sprint 3) | ✅ Done | On-device WASM Whisper, Silero VAD, Light disfluency engine, HUD |
+| Native Windows Tauri v2 Wrapper | 12 (Sprint 3) | ⏸️ Deferred | Deferred past Sprint 3 per user instruction; queued for Sprint 4 |
 | One-Way Android Capture Feeder | 13 (Sprint 4) | ⏳ Queued | Phone → Laptop capture, local Wi-Fi push, triage tray |

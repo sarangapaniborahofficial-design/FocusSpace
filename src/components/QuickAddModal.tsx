@@ -1,11 +1,16 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Calendar, Clock, Hash, Sparkles, Tag, X } from 'lucide-react';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { db } from '../db/db';
 import { parseTaskInput } from '../lib/taskParser';
 import { toast } from '../lib/toast';
 import { isoToday, uid } from '../lib/utils';
 import type { Priority, Task } from '../types';
+import { useDictation } from '../voice/useDictation';
+import { createInputTarget } from '../voice/target/inputTarget';
+import type { DictationTarget } from '../voice/target/DictationTarget';
+import { MicButton } from '../voice/ui/MicButton';
+import { DictationHud } from '../voice/ui/DictationHud';
 
 const PRIORITIES: Priority[] = ['Low', 'Medium', 'High', 'Urgent'];
 const field = 'mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line px-3 text-sm text-fg-soft';
@@ -18,6 +23,19 @@ export function QuickAddModal({ open, onClose, defaultCategory }: { open: boolea
   const [duration, setDuration] = useState(30);
   const [dueDate, setDueDate] = useState(isoToday());
   const [dueTime, setDueTime] = useState('');
+
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dictationTarget, setDictationTarget] = useState<DictationTarget | null>(null);
+
+  useEffect(() => {
+    if (inputRef.current) {
+      setDictationTarget(createInputTarget(inputRef.current));
+    }
+  }, [open]);
+
+  const dictation = useDictation({
+    target: dictationTarget,
+  });
 
   // Start from a clean form every time the modal opens, defaulting to the category you're looking at.
   useEffect(() => {
@@ -96,14 +114,22 @@ export function QuickAddModal({ open, onClose, defaultCategory }: { open: boolea
           <button type="button" onClick={onClose} aria-label="Close" className="text-fg-muted hover:text-fg"><X size={18} /></button>
         </div>
         <div className="p-5 space-y-4">
-          <input
-            autoFocus
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder="e.g. Finish essay @academics #CS101 !urgent ~90m tomorrow 5pm"
-            aria-label="Task title"
-            className="w-full h-12 rounded-xl bg-surface-2 border border-line px-4 outline-none focus:border-accent text-sm text-fg"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              ref={inputRef}
+              autoFocus
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="e.g. Finish essay @academics #CS101 !urgent ~90m tomorrow 5pm"
+              aria-label="Task title"
+              className="flex-1 h-12 rounded-xl bg-surface-2 border border-line px-4 outline-none focus:border-accent text-sm text-fg"
+            />
+            <MicButton
+              state={dictation.state}
+              onClick={dictation.toggle}
+              title="Dictate task with natural language"
+            />
+          </div>
 
           {hasTokens && (
             <div className="flex flex-wrap items-center gap-1.5 p-2.5 rounded-xl bg-surface-2/60 border border-line text-xs">
@@ -170,6 +196,13 @@ export function QuickAddModal({ open, onClose, defaultCategory }: { open: boolea
           <button type="button" onClick={onClose} className="h-8 px-3 rounded-md text-sm text-fg-muted hover:bg-hover">Cancel</button>
           <button disabled={!title.trim() || !selected} className="h-8 px-4 rounded-xl bg-accent text-accent-fg font-medium text-sm disabled:opacity-40 keycap hover:bg-accent-hover transition">Create task</button>
         </div>
+
+        <DictationHud
+          state={dictation.state}
+          audioLevel={dictation.audioLevel}
+          modelProgress={dictation.modelProgress}
+          onStop={dictation.stop}
+        />
       </form>
     </div>
   );

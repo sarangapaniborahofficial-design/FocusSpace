@@ -21,6 +21,7 @@ import { ReloadPrompt } from './components/ReloadPrompt';
 import { Review } from './components/Review';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { Today } from './components/Today';
+import { AppDock } from './components/AppDock';
 import { FloatingHUDPortal } from './components/FloatingHUD';
 import { ErrorBoundary } from './components/ui';
 import { OnboardingWelcome, useWelcomeFlow, type WelcomeTask, type WelcomeHabit } from './components/OnboardingWelcome';
@@ -326,7 +327,7 @@ export default function App() {
           />
 
           <div className="flex-1 min-h-0 flex overflow-hidden gap-3">
-            <main className="flex-1 min-w-0 overflow-y-auto pb-24 sm:pb-12">
+            <main className="flex-1 min-w-0 overflow-y-auto pb-28 sm:pb-24">
               <div key={nav.n} className="view-in">
                 <ErrorBoundary onReset={goHome}>
                   {active === 'home' ? <Today onQuickAdd={openQuick} onNavigate={go} />
@@ -366,6 +367,7 @@ export default function App() {
         <ShortcutsModal open={shortcuts} onClose={() => setShortcuts(false)} />
         {search && <CommandPalette categories={categories} onClose={closeSearch} onNavigate={go} onNewTask={openQuick} onOpenTask={openTask} onOpenPage={openPage} onCycleTheme={cycleTheme} onOpenShortcuts={() => setShortcuts(true)} onReplayWelcome={() => triggerWelcome('full-daily')} />}
         {active !== 'home' && layoutMode !== 'cockpit' && <MiniTimer onOpen={goHome} />}
+        <AppDock floating />
         <FloatingHUDPortal />
         <OnboardingWelcome
           open={welcomeOpen}

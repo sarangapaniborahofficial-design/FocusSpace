@@ -28,3 +28,7 @@ dist-ssr/
 *.njsproj
 *.sln
 *.sw?
+
+# Offline Voice Models & VAD WASM binaries (downloaded via scripts/fetch-models.mjs)
+public/models/
+public/vad/

@@ -1,63 +1,25 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import {
-  Book,
-  Code2,
-  ExternalLink,
-  Globe,
-  MessageSquare,
-  Music,
-  Plus,
-  Rocket,
-  Sparkles,
-  SquarePlay,
-  Terminal,
-  Trash2,
-  X,
-  type LucideIcon,
-} from 'lucide-react';
 import React, { useRef, useState } from 'react';
+import { Plus, Rocket, Trash2, X } from 'lucide-react';
 import { db } from '../db/db';
 import { APP_PRESETS, detectLaunchKind, launchTarget } from '../lib/launcher';
 import { useTimer } from '../lib/timer';
 import { storage, uid } from '../lib/utils';
 import type { LaunchLink, Task } from '../types';
+import { resolveBrandLogo } from './BrandIcons';
 
 const GLOBAL_DOCK_STORAGE_KEY = 'focusspace-global-appdock';
 
 const DEFAULT_GLOBAL_APPS: LaunchLink[] = [
-  { id: 'app-spotify', label: 'Spotify', url: 'spotify://', kind: 'app', icon: 'music' },
+  { id: 'app-vscode', label: 'VS Code', url: 'vscode://file/', kind: 'app', icon: 'code' },
+  { id: 'app-cursor', label: 'Cursor', url: 'cursor://file/', kind: 'app', icon: 'cursor' },
+  { id: 'app-obsidian', label: 'Obsidian', url: 'obsidian://open', kind: 'app', icon: 'obsidian' },
+  { id: 'app-spotify', label: 'Spotify', url: 'spotify://', kind: 'app', icon: 'spotify' },
   { id: 'app-youtube', label: 'YouTube', url: 'https://youtube.com', kind: 'web', icon: 'youtube' },
   { id: 'app-discord', label: 'Discord', url: 'discord://', kind: 'app', icon: 'discord' },
   { id: 'app-antigravity', label: 'Antigravity', url: 'antigravity://open', kind: 'app', icon: 'sparkles' },
-  { id: 'app-vscode', label: 'VS Code', url: 'vscode://file/', kind: 'app', icon: 'code' },
-  { id: 'app-github', label: 'GitHub', url: 'https://github.com', kind: 'web', icon: 'globe' },
+  { id: 'app-github', label: 'GitHub', url: 'https://github.com', kind: 'web', icon: 'github' },
 ];
-
-const iconMap: Record<string, LucideIcon> = {
-  music: Music,
-  spotify: Music,
-  youtube: SquarePlay,
-  discord: MessageSquare,
-  sparkles: Sparkles,
-  antigravity: Sparkles,
-  code: Code2,
-  terminal: Terminal,
-  book: Book,
-  globe: Globe,
-};
-
-const resolveIcon = (link: LaunchLink): LucideIcon => {
-  if (link.icon && iconMap[link.icon.toLowerCase()]) return iconMap[link.icon.toLowerCase()];
-  const lower = link.label.toLowerCase();
-  if (lower.includes('spotify') || lower.includes('music')) return Music;
-  if (lower.includes('youtube') || lower.includes('video')) return SquarePlay;
-  if (lower.includes('discord')) return MessageSquare;
-  if (lower.includes('antigravity')) return Sparkles;
-  if (lower.includes('code') || lower.includes('vs')) return Code2;
-  if (lower.includes('terminal') || lower.includes('cursor')) return Terminal;
-  if (lower.includes('obsidian') || lower.includes('notes')) return Book;
-  return ExternalLink;
-};
 
 function isAppAttached(link: LaunchLink, task?: Task): boolean {
   if (!task) return false;
@@ -174,7 +136,6 @@ export function AppDock({
           style={{ willChange: 'transform' }}
         >
           {links.map((link, index) => {
-            const Icon = resolveIcon(link);
             const isAttached = isAppAttached(link, activeTask);
 
             // Gaussian hover magnification: scale(d) = 1 + 0.35 * exp(-d^2 / (2 * 55^2))
@@ -201,13 +162,13 @@ export function AppDock({
                 <button
                   onClick={() => launchTarget(link.url, link.label)}
                   title={`Launch ${link.label} (${link.url})`}
-                  className={`size-10 rounded-xl border flex items-center justify-center transition ${
+                  className={`size-10 rounded-xl border flex items-center justify-center transition cursor-pointer ${
                     isAttached
-                      ? 'bg-accent/15 border-accent text-accent-text shadow-sm'
-                      : 'bg-surface-2 border-line text-fg hover:border-line-strong hover:bg-hover'
+                      ? 'bg-accent/15 border-accent shadow-sm'
+                      : 'bg-surface-2 border-line hover:border-line-strong hover:bg-hover'
                   }`}
                 >
-                  <Icon size={18} className={isAttached ? 'text-accent-text' : 'text-fg-soft'} />
+                  {resolveBrandLogo(link, 20)}
                 </button>
 
                 {/* Active workspace indicator dot */}
@@ -378,7 +339,6 @@ export function AppDock({
       ) : (
         <div className="flex flex-wrap items-center gap-2">
           {links.map(link => {
-            const Icon = resolveIcon(link);
             const isAttached = isAppAttached(link, activeTask);
             return (
               <div
@@ -392,9 +352,9 @@ export function AppDock({
                 <button
                   onClick={() => launchTarget(link.url, link.label)}
                   title={`Launch ${link.label} (${link.url})`}
-                  className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-fg"
+                  className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-fg cursor-pointer"
                 >
-                  <Icon size={14} className={isAttached ? 'text-accent-text' : 'text-fg-soft'} />
+                  {resolveBrandLogo(link, 15)}
                   <span className="font-semibold tracking-tight">{link.label}</span>
                 </button>
 
