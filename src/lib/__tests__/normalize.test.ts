@@ -46,4 +46,18 @@ describe('normalize data helpers', () => {
     expect(items).toHaveLength(2);
     expect(skipped).toBe(2);
   });
+
+  it('preserves manual task order and launchLinks when valid', () => {
+    const raw = {
+      id: 'task-ordered',
+      title: 'Ordered Task',
+      categoryId: 'cat-1',
+      order: 42,
+      launchLinks: [{ id: 'link-1', label: 'Spotify', url: 'spotify://' }],
+    };
+    const task = normalizeTask(raw);
+    expect(task?.order).toBe(42);
+    expect(task?.launchLinks).toHaveLength(1);
+    expect(task?.launchLinks?.[0].label).toBe('Spotify');
+  });
 });

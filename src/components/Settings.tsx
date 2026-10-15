@@ -1,24 +1,17 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Bell, Calendar, Check, Download, Flame, Folder, FolderSync, Keyboard, Palette, Pencil, Plus, RefreshCw, Smartphone, Target, Trash2, Upload, X, Zap } from 'lucide-react';
+import { Bell, Calendar, Check, Download, Flame, Keyboard, Palette, Pencil, Plus, RefreshCw, Smartphone, Target, Trash2, X, Zap } from 'lucide-react';
 import { isNotificationSupported, getNotificationPermission, requestNotificationPermission, sendNotification } from '../lib/notifications';
 import { useEffect, useRef, useState } from 'react';
 import { db } from '../db/db';
-import { clearDirectoryHandle, getLastSyncTime, getSavedDirectoryHandle, isFileSystemAccessSupported, saveDirectoryHandle, syncToDirectory } from '../lib/folderSync';
 import { loadSchedulePreferences, saveSchedulePreferences } from '../lib/smartScheduler';
-import { exportBackup, currentReminderState, daysSince, shouldRemindBackup, snoozeBackupReminder } from '../lib/backupExport';
-import { base64ToBlob, formatBytes } from '../lib/files';
 import { HABIT_COLORS, addHabit, deleteHabit, updateHabit } from '../lib/habitActions';
 import { useToday, usePWAInstall } from '../lib/hooks';
 import { buildICS, scheduledTasks } from '../lib/ics';
-import { GOALS_KEY } from '../lib/goals';
-import { normalizeCategory, normalizeFile, normalizeHabit, normalizeJournalEntry, normalizeList, normalizeLog, normalizePage, normalizePageLink, normalizeTask } from '../lib/normalize';
 import { computeStreaks } from '../lib/analytics';
 import { DURATIONS_KEY, timer } from '../lib/timer';
 import { toast } from '../lib/toast';
 import { storage, uid } from '../lib/utils';
 import type { Category, GoalType, Habit } from '../types';
-
-import { ConfirmDialog } from './ui';
 
 const themes = [
   { id: 'nocturne', name: 'Nocturne Solaris (Dark)', description: 'Pitch-black anodized dot-matrix, warm stone borders & vermilion orange' },
@@ -42,13 +35,6 @@ export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMod
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const [moveTo, setMoveTo] = useState('');
   const [busy, setBusy] = useState(false);
-  const [includeFiles, setIncludeFiles] = useState(true);
-  const [pendingImport, setPendingImport] = useState<{
-    summary: string;
-    note: string;
-    counts: { tasks: number; categories: number; habits: number; logs: number; pages: number; files: number };
-    action: () => Promise<void>;
-  } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -76,107 +62,19 @@ export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMod
     if (!moveTo) return;
     setBusy(true);
     try {
-      await db.transaction('rw', db.categories, db.tasks, db.pages, async () => {
+      await db.transaction('rw', [db.categories, db.tasks, db.pages, db.goals], async () => {
         await db.tasks.where('categoryId').equals(deleteTarget.id).modify({ categoryId: moveTo });
         await db.pages.where('categoryId').equals(deleteTarget.id).modify({ categoryId: moveTo });
+        await db.goals.where('categoryId').equals(deleteTarget.id).modify({ categoryId: moveTo });
         await db.categories.delete(deleteTarget.id);
       });
       setDeleteTarget(null); setMoveTo('');
     } finally { setBusy(false); }
   };
 
-  const exportData = async () => {
-    setBusy(true);
-    try { await exportBackup({ includeFiles, theme }); }
-    finally { setBusy(false); }
-  };
-
-  const importData = async (file?: File) => {
-    if (!file) return;
-    setBusy(true);
-    try {
-      let raw: any;
-      try { raw = JSON.parse(await file.text()); } catch { throw new Error('That file is not valid JSON.'); }
-      if (raw?.app !== 'FocusSpace' || !Array.isArray(raw.categories) || !Array.isArray(raw.tasks) || !Array.isArray(raw.habits) || !Array.isArray(raw.focusLogs)) throw new Error('This is not a FocusSpace backup file.');
-
-      // Repair what can be repaired and drop the rest, so one bad record can't break the app after import.
-      const cats = normalizeList(raw.categories, normalizeCategory);
-      if (!cats.items.length) throw new Error('Backup contains no valid categories.');
-      const categoryIds = new Set(cats.items.map(c => c.id));
-      const tasks = normalizeList(raw.tasks, normalizeTask);
-      const habits = normalizeList(raw.habits, normalizeHabit);
-      const logs = normalizeList(raw.focusLogs, normalizeLog);
-      const hasPages = Array.isArray(raw.pages); // backups from before pages existed have none
-      const hasJournal = Array.isArray(raw.journalEntries); // backups from before rich-text pages (v2) have none
-      const pagesRaw = normalizeList(raw.pages, normalizePage);
-      const backupFiles = normalizeList(raw.files, normalizeFile);
-      const entriesRaw = normalizeList(raw.journalEntries, normalizeJournalEntry);
-      const linksRaw = normalizeList(raw.pageLinks, normalizePageLink);
-
-      const validTasks = tasks.items.filter(t => categoryIds.has(t.categoryId));
-      const validTaskIds = new Set(validTasks.map(t => t.id));
-      const validHabitIds = new Set(habits.items.map(h => h.id));
-      // A page with no category, or one that no longer exists, still stands on its own (categories are optional).
-      const validPages = pagesRaw.items.map(p => (p.categoryId && !categoryIds.has(p.categoryId) ? { ...p, categoryId: undefined } : p));
-      const pageIds = new Set(validPages.map(p => p.id));
-      const validFiles = backupFiles.items.filter(f => pageIds.has(f.pageId));
-      const validEntries = entriesRaw.items.filter(e => pageIds.has(e.pageId));
-      const validLinks = linksRaw.items.filter(l => pageIds.has(l.pageId) && (l.kind === 'task' ? validTaskIds.has(l.targetId) : l.kind === 'habit' ? validHabitIds.has(l.targetId) : true));
-      const skipped = cats.skipped + tasks.skipped + (tasks.items.length - validTasks.length) + habits.skipped + logs.skipped
-        + pagesRaw.skipped + backupFiles.skipped + (backupFiles.items.length - validFiles.length)
-        + entriesRaw.skipped + (entriesRaw.items.length - validEntries.length) + linksRaw.skipped + (linksRaw.items.length - validLinks.length);
-
-      const summary = `${validTasks.length} tasks, ${cats.items.length} categories, ${habits.items.length} habits, ${logs.items.length} focus logs, ${validPages.length} pages and ${validFiles.length} files`;
-      const note = !hasPages ? ' This backup predates pages, so your current pages and files will be removed.'
-        : !hasJournal ? ' This backup predates rich-text pages, so your current pages, journal entries and links will be replaced with whatever this older backup has.'
-        : raw.filesIncluded === false ? ' Files were not included in this backup, so current attached files will be removed.' : '';
-
-      setPendingImport({
-        summary,
-        note,
-        counts: {
-          tasks: validTasks.length,
-          categories: cats.items.length,
-          habits: habits.items.length,
-          logs: logs.items.length,
-          pages: validPages.length,
-          files: validFiles.length,
-        },
-        action: async () => {
-          setBusy(true);
-          try {
-            const blobs = validFiles.flatMap(f => {
-              try { return [{ id: f.id, blob: base64ToBlob(f.data, f.type) }]; } catch { return []; }
-            });
-            const blobIds = new Set(blobs.map(b => b.id));
-            const storedFiles = validFiles.filter(f => blobIds.has(f.id)).map(({ data: _data, ...meta }) => meta);
-
-            await db.transaction('rw', [db.categories, db.tasks, db.habits, db.focusLogs, db.pages, db.files, db.fileBlobs, db.journalEntries, db.pageLinks], async () => {
-              await Promise.all([db.categories.clear(), db.tasks.clear(), db.habits.clear(), db.focusLogs.clear(), db.pages.clear(), db.files.clear(), db.fileBlobs.clear(), db.journalEntries.clear(), db.pageLinks.clear()]);
-              await db.categories.bulkAdd(cats.items); await db.tasks.bulkAdd(validTasks); await db.habits.bulkAdd(habits.items); await db.focusLogs.bulkAdd(logs.items);
-              await db.pages.bulkAdd(validPages); await db.files.bulkAdd(storedFiles); await db.fileBlobs.bulkAdd(blobs);
-              await db.journalEntries.bulkAdd(validEntries); await db.pageLinks.bulkAdd(validLinks);
-            });
-            timer.setTask(undefined); // the attached task may no longer exist
-            if (typeof raw.pomodoroDurations === 'string') { storage.set(DURATIONS_KEY, raw.pomodoroDurations); timer.reloadDurations(); }
-            if (typeof raw.goals === 'string') storage.set(GOALS_KEY, raw.goals);
-            if (typeof raw.theme === 'string') { storage.set('focusspace-theme', raw.theme); setTheme(raw.theme); }
-            const dropped = skipped + (validFiles.length - storedFiles.length);
-            toast(`Imported ${summary}${dropped ? ` (${dropped} unusable ${dropped === 1 ? 'record was' : 'records were'} skipped)` : ''}.`, 'success', { duration: 8000 });
-          } catch (error) {
-            toast(error instanceof Error ? error.message : 'Could not import backup.', 'error', { duration: 7000 });
-          } finally {
-            setBusy(false);
-          }
-        }
-      });
-    } catch (error) { toast(error instanceof Error ? error.message : 'Could not import backup.', 'error', { duration: 7000 }); }
-    finally { setBusy(false); }
-  };
-
   return <div className="p-5 lg:p-7 max-w-5xl mx-auto space-y-5">
-    <div><div className="text-xs uppercase tracking-[.18em] text-fg-subtle">System</div><h1 className="text-2xl font-semibold mt-1">Settings</h1><p className="text-sm text-fg-muted mt-1">Own the workspace. Everything stays local unless you export it.</p></div>
-    <BackupReminder onExport={() => void exportData()} />
+    <div><div className="text-xs uppercase tracking-[.18em] text-fg-subtle">System</div><h1 className="text-2xl font-semibold mt-1">Settings</h1><p className="text-sm text-fg-muted mt-1">Own the workspace. Everything stays local in your browser.</p></div>
+    
     <section className="atelier-card rounded-3xl overflow-hidden">
       <div className="p-5 border-b border-line"><div className="flex items-center gap-2 font-semibold"><Palette size={16} className="text-accent-text"/> Appearance & Layout</div><p className="text-xs text-fg-subtle mt-1">Switch between three bespoke aesthetic personas and two spatial layout architectures.</p></div>
       <div className="p-5 space-y-5">
@@ -211,10 +109,6 @@ export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMod
       {(editing || creating) && <div className="p-4 border-t border-line bg-surface/30"><div className="grid sm:grid-cols-[1fr_110px_auto] gap-2 items-end"><label className="text-xs text-fg-muted">Name<input ref={inputRef} value={newName} onChange={e=>setNewName(e.target.value)} placeholder="e.g. Valorant" className="mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line px-3 text-sm outline-none"/></label><label className="text-xs text-fg-muted">Color<input type="color" value={newColor} onChange={e=>setNewColor(e.target.value)} className="mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line p-1"/></label><div className="flex gap-2"><button onClick={()=>{setEditing(null);setCreating(false);setNewName('')}} className="h-8 px-2 rounded-xl text-sm text-fg-muted hover:bg-hover">Cancel</button><button onClick={saveCategory} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-semibold hover:bg-accent-hover keycap">Save</button></div></div></div>}
     </section>
 
-    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden"><div className="p-5 border-b border-line"><div className="font-medium">Data ownership</div><p className="text-xs text-fg-subtle mt-1">Export everything or restore a previous FocusSpace backup.</p></div><div className="p-5 flex flex-wrap gap-3"><button onClick={()=>void exportData()} disabled={busy} className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-sm flex items-center gap-2 hover:bg-hover disabled:opacity-50 keycap"><Download size={15}/> Export JSON</button><label className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-sm flex items-center gap-2 hover:bg-hover cursor-pointer keycap"><Upload size={15}/> Import JSON<input type="file" accept="application/json,.json" className="hidden" disabled={busy} onChange={e=>{void importData(e.target.files?.[0]);e.currentTarget.value=''}}/></label><button onClick={()=>{storage.remove(DURATIONS_KEY);timer.reloadDurations();toast('Timer durations reset to 25 / 5 / 15.','success')}} className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-sm text-fg-subtle hover:text-fg flex items-center gap-2 hover:bg-hover keycap"><RefreshCw size={14}/> Reset timer defaults</button></div><div className="px-5 pb-5 space-y-3"><label className="flex items-center gap-2 text-xs text-fg-muted cursor-pointer w-fit"><input type="checkbox" checked={includeFiles} onChange={e=>setIncludeFiles(e.target.checked)} className="accent-accent"/> Include attached files in the export (they are embedded, so the file gets larger)</label><StorageInfo/></div></section>
-
-    <FolderSyncCard />
-
     <IcsExportCard />
     <HabitsCard />
     <NotificationsCard />
@@ -222,197 +116,34 @@ export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMod
     <SchedulingPreferencesCard />
 
     <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
+      <div className="p-5 border-b border-line flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2 font-medium"><RefreshCw size={16}/> Timer Preferences</div>
+          <p className="text-xs text-fg-subtle mt-1">Reset Pomodoro durations back to default settings (25m focus, 5m short break, 15m long break).</p>
+        </div>
+        <button
+          onClick={() => {
+            storage.remove(DURATIONS_KEY);
+            timer.reloadDurations();
+            toast('Timer durations reset to 25 / 5 / 15.', 'success');
+          }}
+          className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-sm text-fg-subtle hover:text-fg flex items-center gap-2 hover:bg-hover keycap shrink-0"
+        >
+          <RefreshCw size={14}/> Reset timer defaults
+        </button>
+      </div>
+    </section>
+
+    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
       <div className="p-5 border-b border-line"><div className="flex items-center gap-2 font-medium"><Keyboard size={16}/> Keyboard shortcuts</div><p className="text-xs text-fg-subtle mt-1">Available from any view. Use ⌘ instead of Ctrl on a Mac.</p></div>
       <dl className="p-5 grid sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">{[['Ctrl K','Search tasks and run commands'],['Ctrl N','Quick add a task'],['Ctrl /','Open shortcuts cheatsheet'],['Space','Start or pause the timer'],['Ctrl 1-5','Quick view navigation'],['Esc','Close a dialog']].map(([keys,what])=><div key={keys} className="flex items-center justify-between gap-4"><dt className="text-fg-muted">{what}</dt><dd><kbd className="text-[11px] border border-line rounded px-1.5 py-0.5 text-fg-soft">{keys}</kbd></dd></div>)}</dl>
     </section>
 
     {deleteTarget && <div className="fade-in fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4" onMouseDown={()=>setDeleteTarget(null)}><div role="dialog" aria-modal="true" aria-label={`Delete ${deleteTarget.name}`} onMouseDown={e=>e.stopPropagation()} className="pop-in w-full max-w-md rounded-2xl border border-line bg-surface shadow-2xl p-5"><div className="flex items-start justify-between"><div><h2 className="font-semibold">Delete {deleteTarget.name}?</h2><p className="text-xs text-fg-subtle mt-1">Tasks and pages in this category must be moved before it is deleted.</p></div><button onClick={()=>setDeleteTarget(null)}><X size={17} className="text-fg-subtle"/></button></div><label className="block text-xs text-fg-muted mt-5">Move tasks and pages to<select value={moveTo} onChange={e=>setMoveTo(e.target.value)} className="mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line px-3 text-sm">{categories.filter(c=>c.id!==deleteTarget.id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><div className="flex justify-end gap-2 mt-5"><button onClick={()=>setDeleteTarget(null)} className="h-8 px-3 rounded-xl text-sm text-fg-muted">Cancel</button><button disabled={!moveTo||busy} onClick={()=>void removeCategory()} className="h-8 px-3 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium disabled:opacity-40 transition-colors">Move & delete</button></div></div></div>}
-
-    {pendingImport && (
-      <ConfirmDialog
-        title="Import Backup & Replace Data?"
-        confirmLabel="Replace & Import"
-        danger
-        onCancel={() => setPendingImport(null)}
-        onConfirm={async () => {
-          const action = pendingImport.action;
-          setPendingImport(null);
-          await action();
-        }}
-      >
-        <div className="mt-3 space-y-3">
-          <p className="text-sm text-fg-muted">
-            Existing tasks, categories, habits, pages, and logs in this browser will be replaced with this backup:
-          </p>
-          <div className="grid grid-cols-3 gap-2 p-3 rounded-xl border border-line bg-surface-2 text-center text-xs">
-            <div><span className="font-semibold text-fg text-sm block">{pendingImport.counts.tasks}</span><span className="text-fg-subtle">Tasks</span></div>
-            <div><span className="font-semibold text-fg text-sm block">{pendingImport.counts.categories}</span><span className="text-fg-subtle">Categories</span></div>
-            <div><span className="font-semibold text-fg text-sm block">{pendingImport.counts.habits}</span><span className="text-fg-subtle">Habits</span></div>
-            <div><span className="font-semibold text-fg text-sm block">{pendingImport.counts.logs}</span><span className="text-fg-subtle">Focus Logs</span></div>
-            <div><span className="font-semibold text-fg text-sm block">{pendingImport.counts.pages}</span><span className="text-fg-subtle">Pages</span></div>
-            <div><span className="font-semibold text-fg text-sm block">{pendingImport.counts.files}</span><span className="text-fg-subtle">Files</span></div>
-          </div>
-          {pendingImport.note && (
-            <div className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs text-amber-200">
-              {pendingImport.note}
-            </div>
-          )}
-        </div>
-      </ConfirmDialog>
-    )}
   </div>;
 }
 
-/** Attached-file usage plus the browser's overall storage estimate for this site. */
-function StorageInfo() {
-  const files = useLiveQuery(() => db.files.toArray(), []);
-  const [estimate, setEstimate] = useState<{ usage: number; quota: number } | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    navigator.storage?.estimate?.().then(e => { if (!cancelled && e.usage !== undefined && e.quota) setEstimate({ usage: e.usage, quota: e.quota }); }).catch(() => undefined);
-    return () => { cancelled = true; };
-  }, [files]);
-  const count = files?.length ?? 0;
-  const bytes = (files ?? []).reduce((sum, f) => sum + f.size, 0);
-  return (
-    <p className="text-xs text-fg-subtle">
-      {count ? `${count} attached ${count === 1 ? 'file' : 'files'} · ${formatBytes(bytes)}` : 'No attached files'}
-      {estimate ? ` · this site uses ${formatBytes(estimate.usage)} of roughly ${formatBytes(estimate.quota)} available in this browser` : ''}
-    </p>
-  );
-}
 
-function FolderSyncCard() {
-  const supported = isFileSystemAccessSupported();
-  const [handle, setHandle] = useState<FileSystemDirectoryHandle | null>(null);
-  const [syncing, setSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState<string | null>(() => getLastSyncTime());
-
-  useEffect(() => {
-    if (supported) {
-      getSavedDirectoryHandle().then(h => setHandle(h));
-    }
-  }, [supported]);
-
-  const selectFolder = async () => {
-    try {
-      const dirHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
-      await saveDirectoryHandle(dirHandle);
-      setHandle(dirHandle);
-      toast(`Connected to "${dirHandle.name}". Syncing backup now...`, 'info');
-      setSyncing(true);
-      await syncToDirectory(dirHandle);
-      setLastSync(getLastSyncTime());
-      toast('Backup synced to folder!', 'success');
-    } catch (err: any) {
-      if (err?.name !== 'AbortError') {
-        toast(err instanceof Error ? err.message : 'Could not connect folder', 'error');
-      }
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleSyncNow = async () => {
-    if (!handle) return;
-    setSyncing(true);
-    try {
-      await syncToDirectory(handle);
-      setLastSync(getLastSyncTime());
-      toast('Synced latest backup to folder.', 'success');
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Sync failed', 'error');
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const disconnect = async () => {
-    await clearDirectoryHandle();
-    setHandle(null);
-    toast('Disconnected folder sync.');
-  };
-
-  return (
-    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
-      <div className="p-5 border-b border-line flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 font-medium">
-            <FolderSync size={16} className="text-accent-text" /> Zero-Cloud Local Folder Auto-Sync
-          </div>
-          <p className="text-xs text-fg-subtle mt-1">
-            Automatically write daily JSON backups to your local iCloud, Dropbox, or Google Drive folder.
-          </p>
-        </div>
-      </div>
-      <div className="p-5 space-y-4">
-        {!supported ? (
-          <p className="text-xs text-fg-muted">
-            The File System Access API is not supported in this browser. On mobile or unsupported browsers, use the manual JSON Export button above.
-          </p>
-        ) : handle ? (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-line bg-surface-2">
-            <div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-fg">
-                <span className="size-2 rounded-full bg-emerald-500" />
-                <span>Connected: {handle.name}</span>
-              </div>
-              <p className="text-xs text-fg-subtle mt-1">
-                {lastSync ? `Last synced: ${new Date(lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Not synced yet'}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={handleSyncNow}
-                disabled={syncing}
-                className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-xs font-semibold hover:bg-accent-hover disabled:opacity-40 transition keycap"
-              >
-                {syncing ? 'Syncing...' : 'Sync Now'}
-              </button>
-              <button
-                onClick={disconnect}
-                className="h-8 px-3 rounded-xl border border-line bg-surface text-xs text-fg-muted hover:text-fg hover:bg-hover transition"
-              >
-                Disconnect
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <p className="text-xs text-fg-muted">
-              Choose a folder on your computer. FocusSpace will save timestamped backup snapshots directly to your disk.
-            </p>
-            <button
-              onClick={selectFolder}
-              className="h-9 px-4 rounded-xl bg-accent text-accent-fg text-xs font-semibold flex items-center gap-2 hover:bg-accent-hover transition keycap shrink-0"
-            >
-              <Folder size={14} /> Connect Local Folder
-            </button>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-/** Nudges toward a backup once there's real data and it's been a while. Dismissible for a week. */
-function BackupReminder({ onExport }: { onExport: () => void }) {
-  const taskCount = useLiveQuery(() => db.tasks.count(), []);
-  const [, forceRender] = useState(0);
-  if (taskCount === undefined) return null;
-  const { lastBackup, snoozedUntil } = currentReminderState();
-  if (!shouldRemindBackup({ records: taskCount, lastBackup, snoozedUntil })) return null;
-  const never = !lastBackup;
-  return (
-    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex flex-wrap items-center gap-3 text-sm">
-      <span className="text-amber-200 flex-1 min-w-[200px]">
-        {never ? "You haven't exported a backup yet." : `It's been a while since your last backup (${daysSince(lastBackup)} days ago).`} Your data lives only in this browser.
-      </span>
-      <button onClick={onExport} className="h-8 px-3 rounded-xl bg-amber-400 text-amber-950 text-xs font-medium">Export now</button>
-      <button onClick={() => { snoozeBackupReminder(); forceRender(n => n + 1); }} className="h-8 px-3 rounded-xl text-xs text-amber-200/80 hover:text-amber-100">Remind me later</button>
-    </div>
-  );
-}
 
 /** Download a .ics file of scheduled tasks for import into an external calendar app. */
 function IcsExportCard() {

@@ -59,6 +59,8 @@ export function normalizeTask(raw: any): Task | null {
     completedAt: status === 'Submitted/Done' && typeof raw.completedAt === 'string' && !Number.isNaN(Date.parse(raw.completedAt)) ? raw.completedAt : undefined,
     ...(normalizeRecurrence(raw.recurrence) && dateOnly(raw.dueDate) ? { recurrence: normalizeRecurrence(raw.recurrence) } : {}),
     ...(typeof raw.spawnedNextId === 'string' ? { spawnedNextId: raw.spawnedNextId } : {}),
+    ...(typeof raw.order === 'number' && !Number.isNaN(raw.order) ? { order: raw.order } : {}),
+    ...(Array.isArray(raw.launchLinks) ? { launchLinks: raw.launchLinks.filter((l: any) => l && typeof l.id === 'string' && typeof l.url === 'string') } : {}),
   };
 }
 

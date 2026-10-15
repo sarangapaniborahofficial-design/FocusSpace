@@ -66,7 +66,7 @@ export function SmartScheduleModal({
   const handleTimeBlock = async () => {
     setBusy(true);
     try {
-      await applySmartScheduleTimeBlocks(plan);
+      await applySmartScheduleTimeBlocks(plan, today);
       await applySmartScheduleOrder(plan);
       toast('Day time-blocked and scheduled into calendar!', 'success');
       onApplied?.();

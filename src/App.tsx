@@ -24,7 +24,7 @@ import { ErrorBoundary } from './components/ui';
 import { openTaskEditor } from './lib/taskEditor';
 import { timer } from './lib/timer';
 import { checkAndNotifyOverdue } from './lib/notifications';
-import { storage } from './lib/utils';
+import { isoToday, storage } from './lib/utils';
 import type { LayoutMode, Page, Task } from './types';
 
 const STATIC_VIEWS = ['home', 'calendar', 'review', 'analytics', 'pages', 'settings'];
@@ -117,7 +117,7 @@ export default function App() {
     const run = async () => {
       const enabled = (storage.get('focusspace-notify-overdue') ?? 'true') === 'true';
       if (!enabled) return;
-      const today = new Date().toISOString().slice(0, 10);
+      const today = isoToday();
       const overdue = await db.tasks.filter(t => t.status !== 'Submitted/Done' && !!t.dueDate && t.dueDate < today).count();
       void checkAndNotifyOverdue(overdue, today);
     };
@@ -128,6 +128,8 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
+      const isEditing = e.target instanceof Element && Boolean(e.target.closest('input,textarea,select,[contenteditable="true"]'));
+
       if (mod && (e.key === '/' || e.key === '?')) {
         e.preventDefault();
         setSearch(false);
@@ -135,6 +137,7 @@ export default function App() {
         setShortcuts(s => !s);
         return;
       }
+      if (isEditing && (key === 'n' || ['1', '2', '3', '4', '5'].includes(e.key))) return;
       if (mod && key === 'n') { e.preventDefault(); setSearch(false); setShortcuts(false); setQuick(true); return; }
       if (mod && key === 'k') { e.preventDefault(); setQuick(false); setShortcuts(false); setSearch(s => !s); return; }
       if (mod && e.key === '1') { e.preventDefault(); go('home'); return; }

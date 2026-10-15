@@ -197,8 +197,8 @@ export function generateSmartSchedule(
     // Check if next fixed task is ready or about to happen
     if (nextFixed && fixedMin <= cursorMin + 5) {
       const duration = nextFixed.estimatedDuration || 30;
-      const start = minutesToTime(Math.max(cursorMin, fixedMin));
-      const end = minutesToTime(Math.max(cursorMin, fixedMin) + duration);
+      const start = nextFixed.dueTime!;
+      const end = minutesToTime(fixedMin + duration);
 
       blocks.push({
         id: `fixed-${nextFixed.id}`,
@@ -210,7 +210,7 @@ export function generateSmartSchedule(
         rationale: `Scheduled appointment at ${nextFixed.dueTime}.`,
       });
 
-      cursorMin = Math.max(cursorMin, fixedMin) + duration;
+      cursorMin = fixedMin + duration;
       totalWorkMinutes += duration;
       fixedIdx++;
 
@@ -268,33 +268,38 @@ export function generateSmartSchedule(
       totalWorkMinutes += duration;
       queueIdx++;
 
-      // Insert buffer break after deep work blocks (>= 45m)
+      // Insert buffer break after deep work blocks (>= 45m), bounded by next fixed meeting
       if (item.slotType === 'deep-work' || duration >= 45) {
-        const bufStart = minutesToTime(cursorMin);
-        cursorMin += 10;
-        buffers.push({
-          id: `buf-${cursorMin}`,
-          startTime: bufStart,
-          endTime: minutesToTime(cursorMin),
-          durationMinutes: 10,
-          reason: 'Cognitive recovery break after deep work session',
-        });
-        totalBufferMinutes += 10;
+        const availableGap = Math.max(0, fixedMin - cursorMin);
+        const actualBuf = Math.min(10, availableGap);
+        if (actualBuf > 0) {
+          const bufStart = minutesToTime(cursorMin);
+          cursorMin += actualBuf;
+          buffers.push({
+            id: `buf-${cursorMin}`,
+            startTime: bufStart,
+            endTime: minutesToTime(cursorMin),
+            durationMinutes: actualBuf,
+            reason: 'Cognitive recovery break after deep work session',
+          });
+          totalBufferMinutes += actualBuf;
+        }
       }
     } else if (fixedIdx < fixedTasks.length) {
       // Only fixed tasks remain
-      cursorMin = Math.max(cursorMin, fixedMin);
       const duration = nextFixed.estimatedDuration || 30;
+      const start = nextFixed.dueTime!;
+      const end = minutesToTime(fixedMin + duration);
       blocks.push({
         id: `fixed-${nextFixed.id}`,
         task: nextFixed,
-        startTime: minutesToTime(cursorMin),
-        endTime: minutesToTime(cursorMin + duration),
+        startTime: start,
+        endTime: end,
         durationMinutes: duration,
         slotType: 'fixed-anchor',
         rationale: `Scheduled appointment at ${nextFixed.dueTime}.`,
       });
-      cursorMin += duration;
+      cursorMin = fixedMin + duration;
       totalWorkMinutes += duration;
       fixedIdx++;
     }
@@ -335,16 +340,23 @@ export async function applySmartScheduleOrder(plan: SchedulePlan): Promise<void>
 
 /**
  * Assigns the calculated dueTime to untimed tasks in Dexie so they appear time-blocked on calendar.
+ * Fixed anchor appointments are preserved and never overwritten.
+ * Overdue tasks selected for time-blocking are rescheduled to today so they appear on today's calendar grid.
  */
-export async function applySmartScheduleTimeBlocks(plan: SchedulePlan): Promise<void> {
+export async function applySmartScheduleTimeBlocks(plan: SchedulePlan, today?: string): Promise<void> {
   const now = new Date().toISOString();
   await db.transaction('rw', db.tasks, async () => {
     for (const block of plan.blocks) {
+      // Never overwrite fixed anchor appointments
+      if (block.slotType === 'fixed-anchor') continue;
+
       const task = await db.tasks.get(block.task.id);
       if (task) {
+        const isOverdue = Boolean(today && task.dueDate && task.dueDate < today);
         await db.tasks.put({
           ...task,
           dueTime: block.startTime,
+          dueDate: isOverdue && today ? today : task.dueDate,
           updatedAt: now,
         });
       }

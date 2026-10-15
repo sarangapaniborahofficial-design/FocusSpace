@@ -87,4 +87,54 @@ describe('smartScheduler', () => {
     expect(plan.isOverbooked).toBe(true);
     expect(plan.suggestedDeferrals.length).toBeGreaterThan(0);
   });
+
+  it('preserves fixed appointments as fixed-anchor blocks without reordering them into floating queue', () => {
+    const today = '2026-10-15';
+    const mockTasks: Task[] = [
+      {
+        id: 'floating-1',
+        title: 'Deep Work Code',
+        categoryId: 'work',
+        projectTag: '',
+        priority: 'High',
+        status: 'To Do',
+        estimatedDuration: 60,
+        dueDate: today,
+        dueTime: '',
+        subtasks: [],
+        notes: '',
+        colorCode: '#60a5fa',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: 'fixed-appointment',
+        title: 'Client Standup',
+        categoryId: 'work',
+        projectTag: '',
+        priority: 'High',
+        status: 'To Do',
+        estimatedDuration: 30,
+        dueDate: today,
+        dueTime: '10:00', // Immovable anchor
+        subtasks: [],
+        notes: '',
+        colorCode: '#60a5fa',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+
+    const plan = generateSmartSchedule(mockTasks, today, '09:00', {
+      workdayStart: '09:00',
+      workdayEnd: '17:00',
+      bufferMinutes: 10,
+    });
+
+    const fixedBlock = plan.blocks.find(b => b.task.id === 'fixed-appointment');
+    expect(fixedBlock).toBeDefined();
+    expect(fixedBlock?.slotType).toBe('fixed-anchor');
+    expect(fixedBlock?.startTime).toBe('10:00');
+    expect(fixedBlock?.rationale).toContain('Scheduled appointment at 10:00');
+  });
 });
