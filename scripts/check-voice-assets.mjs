@@ -8,7 +8,8 @@
  * - Silero VAD v5 ONNX model and audio worklet bundle in public/vad/
  * - Whisper tokenizer, configs, and quantized ONNX models in public/models/whisper-tiny.en/
  *
- * Returns exit code 0 if all assets pass verification, or 1 if any asset is missing.
+ * In CI/Vercel or postinstall without --strict, missing gitignored models emit
+ * a non-fatal warning so deployment builds never crash.
  */
 
 import fs from 'node:fs';
@@ -18,6 +19,12 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, '..');
+
+const isStrict = process.argv.includes('--strict');
+const isPostInstall =
+  process.env.npm_lifecycle_event === 'postinstall' ||
+  Boolean(process.env.VERCEL) ||
+  Boolean(process.env.CI);
 
 const REQUIRED_FILES = [
   // ONNX Runtime Web consolidated binaries
@@ -72,6 +79,13 @@ for (const relPath of REQUIRED_FILES) {
 }
 
 if (missingCount > 0) {
+  if (isPostInstall && !isStrict) {
+    console.warn(`\n⚠️ Notice: ${missingCount} offline model asset(s) not found in public/models/.`);
+    console.warn('  This is expected in clean checkouts and CI/Vercel environments where public/models/ is gitignored.');
+    console.warn('  Run "npm run setup:voice" locally to populate offline Whisper models.\n');
+    process.exit(0);
+  }
+
   console.error(`\n❌ Asset verification FAILED: ${missingCount} required file(s) missing or empty.`);
   console.error('Run "npm run setup:voice" or "npm run prepare-voice" to provision assets.\n');
   process.exit(1);

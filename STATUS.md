@@ -54,7 +54,7 @@ This document tracks progress towards the 1.0 release based on the project timel
      - React 19 Synthetic Input Setter: Rewrote `inputTarget.ts` using `HTMLInputElement.prototype` descriptor setter so React's internal `_valueTracker` synchronizes without reverting.
      - Hallucination Filter Hardening: Replaced dynamic `RegExp` in `isDegenerateLoop` with safe `indexOf` searching, preventing syntax error crashes on special characters.
      - VAD Callback Synchronization: Stored dynamic callbacks in `optionsRef` in `useDictation.ts` and added `setOptions` to `VadController` to fix stale closure transcript drops.
-     - Gate 0 Benchmarks: Documented CPU inference latencies (Whisper Tiny ~180-250ms vs Base ~450-600ms) in `src/voice/README.md`.
+     - Gate 0 Benchmarks: Documented target metrics in `src/voice/README.md` (UNVERIFIED pending owner recording 15 test clips).
    - **Blocker 3: Local Bundled Typography**:
      - Removed external Google Fonts CDN links from `index.html`.
      - Bundled `@fontsource` packages locally (`space-grotesk`, `instrument-serif`, `jetbrains-mono`, `geist-sans`) via `src/index.css`, bundling all `.woff`/`.woff2` fonts offline in `dist/assets/`.
@@ -140,7 +140,7 @@ This roadmap is tracked in [`TODO.md`](file:///d:/focusspace-phase75/FocusSpace/
    - **A1. Backup Fidelity**: Preserve file blob MIME type, add Dexie `schemaVersion: 4` check, add `settings` theme block, pre-restore safety snapshot in memory, and manual restore test.
    - **A2. Voice Fixes**: Replaced 25s truncation with acoustic quiet-window chunking (`splitter.ts`), deduplicated ONNX WASM & MJS loaders into `public/ort/` (shrunk public by 155 MB), created `check-voice-assets.mjs`, real Gate 0 WER benchmark in `BenchPage.tsx` and `src/voice/README.md`, cross-origin isolation (COOP/COEP in `vite.config.ts`), removed `Ctrl+Shift+V` hotkey (kept `Alt+V`), `micVad.destroy()` hardware release, safe range undo in `inputTarget.ts`.
    - **A3. Housekeeping**: Accurate test count (100/100 tests), boot-time `navigator.storage.persist()`.
-   - **Gate A Measured Results**: 100/100 tests passing in 680ms; `tsc -b && vite build` clean in 1.54s; `check-voice-assets` verified 17/17 assets (58.85 MB); public directory shrunk to 59.09 MB; awaiting owner approval before Phase B.
+   - **Gate A Results**: 100/100 tests passing in 680ms; `tsc -b && vite build` clean in 1.54s; `check-voice-assets` verified 17/17 assets (58.85 MB); public directory shrunk to 59.09 MB; Gate 0 WER benchmarks marked UNVERIFIED pending owner's test clips; awaiting owner approval to advance.
 
 2. ⏳ **Phases B–H: Desktop Hardening**:
    - **Phase B**: Empty Tauri v2 shell (`com.focusspace.desktop`, `build:tauri` mode, voice off, single instance).

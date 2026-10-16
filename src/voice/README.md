@@ -4,18 +4,21 @@
 
 FocusSpace includes a 100% offline, privacy-first voice dictation engine powered by Transformers.js (`@huggingface/transformers`), ONNX Runtime Web (`onnxruntime-web`), and Silero VAD (`@ricky0123/vad-web`).
 
-### Gate 0 Model Comparison (Measured Desktop CPU Benchmark)
+### Gate 0 Model Comparison (UNVERIFIED — Targets Pending Owner Clips)
 
-| Metric | `whisper-tiny.en` (Quantized q8) | `whisper-base.en` (Quantized q8) | Notes & Invariants |
+> [!WARNING]
+> **Status: UNVERIFIED**. The latency, real-time factor, and word error rate ranges below are design targets. Real numbers will be measured and committed once the owner runs their 15 voice clips through `BenchPage` on their machine. Only `whisper-tiny.en` is bundled locally; `whisper-base.en` is not bundled in the repo.
+
+| Metric | `whisper-tiny.en` (Quantized q8) | `whisper-base.en` (Reference only) | Notes & Invariants |
 | :--- | :--- | :--- | :--- |
-| **Asset Size** | **~43 MB** | ~74 MB | Bundled locally in `/public/models/` (zero CDN calls) |
+| **Asset Size** | **~43 MB** (Bundled in repo) | ~74 MB (Not bundled) | Bundled locally in `/public/models/` (zero CDN calls) |
 | **Parameter Count** | 39 Million | 74 Million | English-only vocab tokens |
-| **Median Latency (3s audio)** | **180 ms – 250 ms** | 450 ms – 600 ms | Tested with SIMD multi-threading (`crossOriginIsolated`) |
-| **Real-Time Factor (RTF)** | **~0.06 – 0.08** (4 threads) / **~0.18 – 0.22** (1 thread) | ~0.16 – 0.22 | $\text{RTF} = \frac{\text{Processing Time}}{\text{Audio Duration}}$ |
-| **Word Error Rate (WER)** | **~3.5% – 7.2%** (clean dictation) | ~2.5% – 5.0% | Evaluated via Levenshtein word distance in `BenchPage` |
+| **Target Latency (3s audio)** | **~180 ms – 250 ms** [UNVERIFIED] | ~450 ms – 600 ms [UNVERIFIED] | Expected SIMD multi-threaded (`crossOriginIsolated`) |
+| **Target Real-Time Factor (RTF)** | **~0.06 – 0.08** (4T) / **~0.18 – 0.22** (1T) [UNVERIFIED] | ~0.16 – 0.22 [UNVERIFIED] | $\text{RTF} = \frac{\text{Processing Time}}{\text{Audio Duration}}$ |
+| **Target Word Error Rate (WER)** | **~3.5% – 7.2%** [UNVERIFIED] | ~2.5% – 5.0% [UNVERIFIED] | Evaluated via Levenshtein word distance in `BenchPage` |
 | **Memory Footprint** | ~120 MB RAM | ~230 MB RAM | Web Worker isolated heap |
 | **Degenerate Loop Risk** | Low (mitigated by filter) | Very Low | Handled by `isDegenerateLoop` |
-| **Verdict** | **Active Production Default** | Optional High-Accuracy | Sub-second typing feedback with negligible CPU overhead |
+| **Verdict** | **Active Production Default** | Optional High-Accuracy (Unbundled) | Sub-second typing feedback with negligible CPU overhead |
 
 > [!NOTE]
 > English-only models (suffix `.en`) do not contain multilingual routing tokens. They are invoked without `language` or `task` kwargs to prevent Transformers.js pipeline rejection.

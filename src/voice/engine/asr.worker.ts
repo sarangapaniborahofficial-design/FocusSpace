@@ -36,9 +36,10 @@ self.addEventListener('message', async (e: MessageEvent<WorkerInMessage>) => {
       if (msg.model) currentModel = msg.model;
       const isEnglishOnly = currentModel.endsWith('.en');
 
-      // Initialize pipeline with progress tracking
+      // Initialize pipeline with progress tracking and explicit wasm backend
       transcriber = await pipeline('automatic-speech-recognition', currentModel, {
         dtype: 'q8',
+        device: 'wasm',
         progress_callback: (info: any) => {
           if (info.status === 'progress' && typeof info.progress === 'number') {
             self.postMessage({
