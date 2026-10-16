@@ -34,7 +34,7 @@ import { toggleHabitDay } from './lib/habitActions';
 import { computeStreaks } from './lib/analytics';
 import { checkAndNotifyOverdue } from './lib/notifications';
 import { isoToday, storage, uid } from './lib/utils';
-import { isTauri, isVoiceEnabled } from './lib/runtime';
+import { isElectron, isVoiceEnabled } from './lib/runtime';
 import { hudBridge, type TaskSnapshot } from './lib/hudBridge';
 import type { FocusLog, Habit, LayoutMode, Page, Subtask, Task, Theme } from './types';
 import { useDictation } from './voice/useDictation';
@@ -270,6 +270,7 @@ export default function App() {
           mode: tState.mode,
           remainingMs: tState.remainingMs,
           totalMs: (tState.durations[tState.mode] || 25) * 60_000,
+          durationMinutes: tState.durations[tState.mode] || 25,
           running: tState.running,
           isOvertime: Boolean(tState.isOvertime),
           overtimeMs: tState.overtimeMs || 0,
@@ -277,6 +278,8 @@ export default function App() {
           taskTitle: tState.taskTitle,
         },
         activeTask: activeTaskSnapshot,
+        theme: normalizeTheme(storage.get('focusspace-theme')),
+        hudStyleOverride: storage.get('focusspace-hud-style'),
       });
     };
 
@@ -337,35 +340,11 @@ export default function App() {
     };
   }, []);
 
-  // Listen for Tauri backend shortcuts: Ctrl+Alt+Space (Quick Add) & Ctrl+Alt+D (Universal Voice)
+  // Desktop global shortcuts are handled natively by Electron main process
   useEffect(() => {
-    if (!isTauri()) return;
-    let unlistenQuick: (() => void) | undefined;
-    let unlistenVoice: (() => void) | undefined;
-
-    import('@tauri-apps/api/event')
-      .then(({ listen }) => {
-        listen('quick-add-shortcut', () => {
-          setQuick(true);
-        }).then(un => {
-          unlistenQuick = un;
-        });
-
-        listen('toggle-dictation-shortcut', () => {
-          triggerUniversalVoice();
-        }).then(un => {
-          unlistenVoice = un;
-        });
-      })
-      .catch(err => {
-        console.warn('Could not register Tauri shortcut listeners:', err);
-      });
-
-    return () => {
-      unlistenQuick?.();
-      unlistenVoice?.();
-    };
-  }, [triggerUniversalVoice]);
+    // When running in desktop, global shortcuts (Ctrl+Alt+Space, Ctrl+Alt+H)
+    // are registered directly in electron/main.cjs
+  }, []);
 
   useEffect(() => {
     const clean = normalizeTheme(theme);
@@ -590,7 +569,7 @@ export default function App() {
         onStartFocusTask={handleWelcomeStartFocusTask}
       />
       <Toaster />
-      {!isTauri() && <ReloadPrompt />}
+      {!isElectron() && <ReloadPrompt />}
     </div>
   );
 }

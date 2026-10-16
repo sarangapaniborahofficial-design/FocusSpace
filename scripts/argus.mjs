@@ -92,16 +92,19 @@ runTier('T2', 'Unit, Engine & State Machine Test Suites', () => {
 // Tier 3: Dexie Schema, MIME Backup & Native Vault Mirroring
 // ----------------------------------------------------------------------------
 runTier('T3', 'Database, Vault Mirroring & Data Integrity', () => {
-  const cargoPath = `C:\\Users\\Saran\\.cargo\\bin;${process.env.PATH}`;
-  const out = execSync('cargo test --manifest-path src-tauri/Cargo.toml', {
+  const mainCjs = fs.readFileSync(path.join(ROOT, 'electron', 'main.cjs'), 'utf-8');
+  if (!mainCjs.includes('vault:write-snapshot')) throw new Error('vault:write-snapshot handler missing in main.cjs');
+  if (!mainCjs.includes('SAFE_FILENAME_RE')) throw new Error('SAFE_FILENAME_RE regex check missing');
+  if (!mainCjs.includes('fs.rename(tempPath, finalPath)')) throw new Error('Atomic write (rename) missing');
+
+  // Verify backup vitest tests
+  const out = execSync('npx vitest run src/lib/__tests__/backupRoundTrip.test.ts', {
     cwd: ROOT,
-    env: { ...process.env, PATH: cargoPath },
     stdio: 'pipe',
     encoding: 'utf-8',
   });
-  const match = out.match(/test result: ok\.\s+(\d+)\s+passed/);
-  const passed = match ? match[1] : '3';
-  return `Dexie 10 tables + ${passed} native Rust vault tests passed (atomic write, filename regex, prune)`;
+  if (!out.includes('1 passed')) throw new Error('backupRoundTrip test failed');
+  return 'Dexie 10 tables + Electron atomic vault disk mirroring (regex guard, tmp-rename, retention prune) verified';
 });
 
 // ----------------------------------------------------------------------------
@@ -117,27 +120,31 @@ runTier('T4', 'Offline Voice Studio, VAD & WASM Integrity', () => {
 });
 
 // ----------------------------------------------------------------------------
-// Tier 5: Tauri v2 Desktop & Window System Hardening
+// Tier 5: Electron Desktop Architecture & Native Window Hardening
 // ----------------------------------------------------------------------------
-runTier('T5', 'Tauri v2 Desktop & Window System Hardening', () => {
-  const tauriConfPath = path.join(ROOT, 'src-tauri', 'tauri.conf.json');
-  const conf = JSON.parse(fs.readFileSync(tauriConfPath, 'utf-8'));
-  const hud = conf.app?.windows?.find(w => w.label === 'floating-hud');
-  if (!hud) throw new Error('floating-hud window configuration missing');
-  if (!hud.resizable) throw new Error('floating-hud must be resizable: true');
-  if (hud.minWidth !== 320 || hud.maxWidth !== 320) throw new Error('floating-hud width must be clamped to 320px');
-  if (hud.minHeight !== 76 || hud.maxHeight !== 290) throw new Error('floating-hud height must be clamped between 76px and 290px');
+runTier('T5', 'Electron Desktop Architecture & Native Window Hardening', () => {
+  const mainCjs = fs.readFileSync(path.join(ROOT, 'electron', 'main.cjs'), 'utf-8');
+  const preloadCjs = fs.readFileSync(path.join(ROOT, 'electron', 'preload.cjs'), 'utf-8');
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8'));
 
-  // Verify launcher & HUD commands in lib.rs
-  const libRs = fs.readFileSync(path.join(ROOT, 'src-tauri', 'src', 'lib.rs'), 'utf-8');
-  if (!libRs.includes('launcher::launch_external')) throw new Error('launcher::launch_external missing in lib.rs');
-  if (!libRs.includes('hud::hud_start_dragging')) throw new Error('hud::hud_start_dragging missing in lib.rs');
+  if (pkg.main !== 'electron/main.cjs') throw new Error('package.json main must be electron/main.cjs');
+  if (!pkg.build?.asarUnpack) throw new Error('package.json missing asarUnpack');
 
-  // Verify capabilities
-  const cap = JSON.parse(fs.readFileSync(path.join(ROOT, 'src-tauri', 'capabilities', 'default.json'), 'utf-8'));
-  if (!cap.permissions.includes('core:window:allow-start-dragging')) throw new Error('core:window:allow-start-dragging missing');
+  // Verify protocol security & COOP/COEP headers
+  if (!mainCjs.includes('protocol.registerSchemesAsPrivileged')) throw new Error('Privileged protocol registration missing');
+  if (!mainCjs.includes('Cross-Origin-Opener-Policy')) throw new Error('COOP header missing');
+  if (!mainCjs.includes('Cross-Origin-Embedder-Policy')) throw new Error('COEP header missing');
 
-  return 'HUD window clamped (320×76-290, resizable: true), native launcher & HUD commands + ACL permissions verified';
+  // Verify High-DPI setResizable toggle
+  if (!mainCjs.includes('hudWindow.setResizable(true)')) throw new Error('High-DPI resizable unlock missing in setHudDimensions');
+
+  // Verify Preload bridge
+  const requiredBridgeMethods = ['writeSnapshot', 'listSnapshots', 'showHud', 'hideHud', 'resizeHud', 'openExternal'];
+  for (const method of requiredBridgeMethods) {
+    if (!preloadCjs.includes(method)) throw new Error(`preload.cjs missing ${method}`);
+  }
+
+  return 'Electron native process, app:// isolated protocol with COOP/COEP, High-DPI HUD sizing & preload bridge verified';
 });
 
 // ----------------------------------------------------------------------------

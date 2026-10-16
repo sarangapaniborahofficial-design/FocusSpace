@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 import { db } from '../db/db';
 import { downloadBackupFile, importFullBackup } from '../lib/backup';
 import { takeNativeVaultSnapshot } from '../lib/journalAutoSave';
-import { isTauri } from '../lib/runtime';
+import { isDesktop } from '../lib/runtime';
+import { hudBridge } from '../lib/hudBridge';
 import { getAsrClient } from '../voice/engine/AsrClient';
 import {
   type AudioDevice,
@@ -279,7 +280,7 @@ function DataVaultCard() {
             accept=".json,application/json"
             className="hidden"
           />
-          {isTauri() && (
+          {isDesktop() && (
             <button
               onClick={handleNativeVaultBackup}
               disabled={busy}
@@ -936,6 +937,7 @@ function VoiceStudioPreferencesCard() {
     } else {
       localStorage.removeItem('focusspace-hud-style');
     }
+    hudBridge.send({ type: 'REQUEST_SYNC', v: 1 });
     toast('Floating HUD artboard theme updated', 'info');
   };
 

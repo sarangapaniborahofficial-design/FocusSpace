@@ -1,5 +1,5 @@
 import { toast } from './toast';
-import { isTauri } from './runtime';
+import { getElectronAPI, isElectron } from './runtime';
 import type { LaunchKind, LaunchLink } from '../types';
 
 export const APP_PRESETS: { label: string; url: string; icon: string; kind: LaunchKind }[] = [
@@ -62,8 +62,9 @@ export async function launchTarget(url: string, label?: string, explicitKind?: L
   try {
     toast(`Launching ${label || target}…`, 'info');
 
-    // In native Tauri desktop app, use native OS launcher
-    if (isTauri()) {
+    // In native Electron desktop app, use native OS launcher
+    const api = getElectronAPI();
+    if (api) {
       const finalTarget = kind === 'web'
         ? normalizeWebUrl(target)
         : kind === 'file' && target.startsWith('file://')
@@ -71,22 +72,10 @@ export async function launchTarget(url: string, label?: string, explicitKind?: L
           : target;
 
       try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        await invoke('launch_external', { target: finalTarget });
+        await api.openExternal(finalTarget);
         return true;
-      } catch (invokeErr) {
-        console.warn('Native launch_external failed, trying plugin-opener fallback:', invokeErr);
-        try {
-          const { openUrl, openPath } = await import('@tauri-apps/plugin-opener');
-          if (kind === 'file') {
-            await openPath(finalTarget);
-          } else {
-            await openUrl(finalTarget);
-          }
-          return true;
-        } catch (openerErr) {
-          console.warn('plugin-opener failed:', openerErr);
-        }
+      } catch (err) {
+        console.warn('Electron openExternal failed:', err);
       }
     }
 

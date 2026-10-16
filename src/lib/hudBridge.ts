@@ -12,6 +12,7 @@ export interface TimerSnapshot {
   mode: string;
   remainingMs: number;
   totalMs: number;
+  durationMinutes?: number;
   running: boolean;
   isOvertime: boolean;
   overtimeMs: number;
@@ -23,12 +24,22 @@ export interface TaskSnapshot {
   id: string;
   title: string;
   notes?: string;
+  scratchpadNotes?: string;
   status?: string;
   subtasks?: Array<{ id: string; title: string; completed: boolean }>;
 }
 
+export interface HudStatePayload {
+  type: 'STATE_SYNC';
+  v: 1;
+  timer: TimerSnapshot;
+  activeTask: TaskSnapshot | null;
+  theme?: string;
+  hudStyleOverride?: string | null;
+}
+
 export type HudMessage =
-  | { type: 'STATE_SYNC'; v: 1; timer: TimerSnapshot; activeTask: TaskSnapshot | null }
+  | HudStatePayload
   | { type: 'REQUEST_SYNC'; v: 1 }
   | { type: 'TOGGLE_TIMER'; v: 1 }
   | { type: 'BANK_OVERTIME'; v: 1 }
@@ -36,6 +47,7 @@ export type HudMessage =
   | { type: 'COMPLETE_SUBTASK'; v: 1; taskId: string; subtaskId: string }
   | { type: 'ADD_SUBTASK'; v: 1; taskId: string; title: string }
   | { type: 'SAVE_SCRATCHPAD'; v: 1; taskId: string; text: string }
+  | { type: 'CLOSE_HUD'; v: 1 }
   | { type: 'RESIZE_HUD'; v: 1; expanded: boolean };
 
 const CHANNEL_NAME = 'focusspace-hud-bus';
@@ -77,3 +89,15 @@ class HudBridge {
 }
 
 export const hudBridge = new HudBridge();
+
+export function subscribeHudBridge(listener: (msg: HudMessage) => void): () => void {
+  return hudBridge.subscribe(listener);
+}
+
+export function sendHudCommand(msg: HudMessage): void {
+  hudBridge.send(msg);
+}
+
+export function requestHudSync(): void {
+  hudBridge.send({ type: 'REQUEST_SYNC', v: 1 });
+}

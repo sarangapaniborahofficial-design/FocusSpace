@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { toast } from './toast';
-import { isTauri } from './runtime';
+import { getElectronAPI, isElectron } from './runtime';
 import { hudBridge } from './hudBridge';
 
 export interface PipHUDState {
@@ -28,7 +28,7 @@ class PipHUDManager {
   }
 
   isSupported(): boolean {
-    if (isTauri()) return true;
+    if (isElectron()) return true;
     return typeof window !== 'undefined' && 'documentPictureInPicture' in window;
   }
 
@@ -37,7 +37,7 @@ class PipHUDManager {
   }
 
   private updateSnapshot() {
-    const nextIsOpen = isTauri()
+    const nextIsOpen = isElectron()
       ? this.nativeOpen
       : (this.pipWindow !== null && !this.pipWindow.closed);
     const nextIsSupported = this.isSupported();
@@ -73,38 +73,20 @@ class PipHUDManager {
       return false;
     }
 
-    // Tauri native window adapter
-    if (isTauri()) {
+    // Electron native window adapter
+    const api = getElectronAPI();
+    if (api) {
       try {
-        const { invoke } = await import('@tauri-apps/api/core');
         this.isExpanded = expanded;
-        await invoke('hud_set_expanded', { expanded });
-        await invoke('hud_show');
+        await api.showHud(expanded);
         this.nativeOpen = true;
         this.updateSnapshot();
         hudBridge.send({ type: 'RESIZE_HUD', v: 1, expanded });
         return true;
       } catch (err) {
-        try {
-          const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-          const { LogicalSize } = await import('@tauri-apps/api/dpi');
-          const hudWin = await WebviewWindow.getByLabel('floating-hud');
-          if (hudWin) {
-            this.isExpanded = expanded;
-            await hudWin.setSize(new LogicalSize(320, expanded ? 290 : 76));
-            await hudWin.show();
-            await hudWin.unminimize();
-            await hudWin.setFocus();
-            this.nativeOpen = true;
-            this.updateSnapshot();
-            hudBridge.send({ type: 'RESIZE_HUD', v: 1, expanded });
-            return true;
-          }
-        } catch (fallbackErr) {
-          console.warn('Could not open native floating-hud window:', fallbackErr);
-          toast('Could not open Always-on-Top Floating HUD.', 'error');
-          return false;
-        }
+        console.warn('Could not open native floating-hud window:', err);
+        toast('Could not open Always-on-Top Floating HUD.', 'error');
+        return false;
       }
     }
 
@@ -152,22 +134,11 @@ class PipHUDManager {
   }
 
   close() {
-    if (isTauri()) {
-      import('@tauri-apps/api/core').then(async ({ invoke }) => {
-        try {
-          await invoke('hud_hide');
-          this.nativeOpen = false;
-          this.updateSnapshot();
-        } catch {
-          const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-          const hudWin = await WebviewWindow.getByLabel('floating-hud');
-          if (hudWin) {
-            await hudWin.hide();
-            this.nativeOpen = false;
-            this.updateSnapshot();
-          }
-        }
-      });
+    const api = getElectronAPI();
+    if (api) {
+      void api.hideHud();
+      this.nativeOpen = false;
+      this.updateSnapshot();
       return;
     }
 
@@ -181,20 +152,10 @@ class PipHUDManager {
     if (this.isExpanded === expanded) return;
     this.isExpanded = expanded;
 
-    if (isTauri()) {
+    const api = getElectronAPI();
+    if (api) {
       hudBridge.send({ type: 'RESIZE_HUD', v: 1, expanded });
-      import('@tauri-apps/api/core').then(async ({ invoke }) => {
-        try {
-          await invoke('hud_set_expanded', { expanded });
-        } catch {
-          const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-          const { LogicalSize } = await import('@tauri-apps/api/dpi');
-          const hudWin = await WebviewWindow.getByLabel('floating-hud');
-          if (hudWin) {
-            await hudWin.setSize(new LogicalSize(320, expanded ? 290 : 76));
-          }
-        }
-      });
+      void api.resizeHud(expanded);
       this.updateSnapshot();
       return;
     }
@@ -218,52 +179,41 @@ class PipHUDManager {
   private copyStyles(targetWindow: Window) {
     const targetDoc = targetWindow.document;
 
+    // Copy style tags & link tags
+    document.querySelectorAll('style, link[rel="stylesheet"]').forEach(node => {
+      targetDoc.head.appendChild(node.cloneNode(true));
+    });
+
+    // Copy inline styles on documentElement/body
+    const srcDocEl = document.documentElement;
+    const tgtDocEl = targetDoc.documentElement;
+    tgtDocEl.className = srcDocEl.className;
+    tgtDocEl.dataset.theme = srcDocEl.dataset.theme;
+
+    // Apply transparent base for PiP window frame
     targetDoc.body.style.margin = '0';
     targetDoc.body.style.padding = '0';
+    targetDoc.body.style.background = 'transparent';
     targetDoc.body.style.overflow = 'hidden';
-    targetDoc.body.style.background = 'var(--c-canvas, #040404)';
-    targetDoc.body.style.userSelect = 'none';
+  }
 
-    Array.from(document.styleSheets).forEach((sheet) => {
-      try {
-        const rules = Array.from(sheet.cssRules)
-          .map((r) => r.cssText)
-          .join('\n');
-        const style = targetDoc.createElement('style');
-        style.textContent = rules;
-        targetDoc.head.appendChild(style);
-      } catch {
-        if (sheet.href) {
-          const link = targetDoc.createElement('link');
-          link.rel = 'stylesheet';
-          link.href = sheet.href;
-          targetDoc.head.appendChild(link);
+  private syncTheme(pipWindow: Window) {
+    const currentTheme = document.documentElement.dataset.theme || 'nocturne';
+    pipWindow.document.documentElement.dataset.theme = currentTheme;
+  }
+
+  private startThemeObserver(pipWindow: Window) {
+    this.observer = new MutationObserver(mutations => {
+      mutations.forEach(mutation => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+          this.syncTheme(pipWindow);
         }
-      }
-    });
-  }
-
-  private syncTheme(targetWindow: Window) {
-    const mainHtml = document.documentElement;
-    const targetHtml = targetWindow.document.documentElement;
-    const currentTheme = mainHtml.getAttribute('data-theme') || 'solaris';
-    targetHtml.setAttribute('data-theme', currentTheme);
-    targetHtml.className = mainHtml.className;
-    targetWindow.document.body.style.background = 'var(--c-canvas)';
-  }
-
-  private startThemeObserver(targetWindow: Window) {
-    if (this.observer) this.observer.disconnect();
-
-    this.observer = new MutationObserver(() => {
-      if (this.pipWindow && !this.pipWindow.closed) {
-        this.syncTheme(this.pipWindow);
-      }
+      });
     });
 
     this.observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['data-theme', 'class'],
+      attributeFilter: ['data-theme'],
     });
   }
 
@@ -273,7 +223,6 @@ class PipHUDManager {
       this.observer = null;
     }
     this.pipWindow = null;
-    this.nativeOpen = false;
     this.updateSnapshot();
   }
 }
@@ -282,7 +231,8 @@ export const pipHUD = new PipHUDManager();
 
 export function usePipHUD(): PipHUDState {
   return useSyncExternalStore(
-    onStoreChange => pipHUD.subscribe(onStoreChange),
+    cb => pipHUD.subscribe(cb),
+    () => pipHUD.getState(),
     () => pipHUD.getState()
   );
 }

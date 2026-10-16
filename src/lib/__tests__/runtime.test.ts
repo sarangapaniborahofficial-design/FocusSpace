@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { isTauri, isWeb, isVoiceEnabled } from '../runtime';
+import { describe, it, expect, afterEach } from 'vitest';
+import { isElectron, isDesktop, isTauri, isWeb, isVoiceEnabled, getElectronAPI, ElectronAPI } from '../runtime';
 
 describe('runtime detector', () => {
   const hadWindow = typeof (globalThis as any).window !== 'undefined';
@@ -13,24 +13,24 @@ describe('runtime detector', () => {
     }
   });
 
-  it('reports false for isTauri(), true for isWeb(), and true for isVoiceEnabled() in standard web/node environment', () => {
+  it('reports false for isElectron() and isDesktop(), true for isWeb() in standard web/node environment', () => {
     (globalThis as any).window = {};
+    expect(isElectron()).toBe(false);
+    expect(isDesktop()).toBe(false);
     expect(isTauri()).toBe(false);
     expect(isWeb()).toBe(true);
     expect(isVoiceEnabled()).toBe(true);
+    expect(getElectronAPI()).toBeUndefined();
   });
 
-  it('reports true for isTauri(), false for isWeb(), and true for isVoiceEnabled() when __TAURI_INTERNALS__ is present', () => {
-    (globalThis as any).window = { __TAURI_INTERNALS__: { version: '2.0.0' } };
+  it('reports true for isElectron() and isDesktop() when window.electronAPI is present', () => {
+    const mockAPI = { isElectron: true } as ElectronAPI;
+    (globalThis as any).window = { electronAPI: mockAPI };
+    expect(isElectron()).toBe(true);
+    expect(isDesktop()).toBe(true);
     expect(isTauri()).toBe(true);
     expect(isWeb()).toBe(false);
     expect(isVoiceEnabled()).toBe(true);
-  });
-
-  it('reports true for isTauri() and true for isVoiceEnabled() when __TAURI__ is present', () => {
-    (globalThis as any).window = { __TAURI__: {} };
-    expect(isTauri()).toBe(true);
-    expect(isWeb()).toBe(false);
-    expect(isVoiceEnabled()).toBe(true);
+    expect(getElectronAPI()).toBe(mockAPI);
   });
 });

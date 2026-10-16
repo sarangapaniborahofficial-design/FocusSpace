@@ -3,7 +3,7 @@ import { generateDailySummaryDoc } from './journalSummary';
 import { richTextToPlainText } from './richtext';
 import { toast } from './toast';
 import { isoToday, storage, uid } from './utils';
-import { isTauri } from './runtime';
+import { getElectronAPI, isElectron } from './runtime';
 import type { JournalEntry } from '../types';
 
 /** Reserved page identifier for all automated & manual daily journal reviews */
@@ -157,18 +157,18 @@ export async function checkMissedMidnightSnapshot(): Promise<boolean> {
  * Takes an automated native desktop vault snapshot into app_data/Backups.
  */
 export async function takeNativeVaultSnapshot(): Promise<string | null> {
-  if (!isTauri()) return null;
+  const api = getElectronAPI();
+  if (!api) return null;
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
     const { exportFullBackup } = await import('./backup');
     const payload = await exportFullBackup();
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
     const timeStr = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     const filename = `focusspace-${isoToday()}-${timeStr}.json`;
-    const res = await invoke<string>('write_vault_snapshot', { filename, payload });
+    const res = await api.writeSnapshot(filename, payload);
     storage.set('focusspace-last-native-backup', now.toISOString());
-    return res;
+    return res.path;
   } catch (err) {
     console.error('Failed to take native vault snapshot:', err);
     return null;
@@ -179,7 +179,7 @@ export async function takeNativeVaultSnapshot(): Promise<string | null> {
  * Boot check: Takes a snapshot on boot if the newest snapshot is older than 24h.
  */
 export async function checkBootVaultSnapshot(): Promise<void> {
-  if (!isTauri()) return;
+  if (!isElectron()) return;
   try {
     const lastBackupStr = storage.get('focusspace-last-native-backup');
     const now = Date.now();
@@ -207,7 +207,7 @@ export function initJournalAutoSave(): () => void {
     console.error('Failed to run missed midnight journal catch-up:', err);
   });
 
-  if (isTauri()) {
+  if (isElectron()) {
     void checkBootVaultSnapshot();
   }
 
@@ -217,7 +217,7 @@ export function initJournalAutoSave(): () => void {
     timerId = setTimeout(async () => {
       try {
         await saveDailyJournalSnapshot(isoToday(), false);
-        if (isTauri()) {
+        if (isElectron()) {
           await takeNativeVaultSnapshot();
         }
       } catch (err) {

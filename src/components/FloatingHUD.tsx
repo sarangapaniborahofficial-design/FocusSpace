@@ -1,32 +1,26 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import {
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Coffee,
-  Mic,
-  Pause,
-  PictureInPicture2,
-  Play,
-  Plus,
-  Send,
-  X,
-} from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { db, withStatus } from '../db/db';
+import { PictureInPicture2 } from 'lucide-react';
+import { getElectronAPI } from '../lib/runtime';
+import { subscribeHudBridge, sendHudCommand, requestHudSync, HudStatePayload } from '../lib/hudBridge';
 import { pipHUD, usePipHUD } from '../lib/pipHud';
-import { formatClock, formatOvertimeClock, timer, useTimer } from '../lib/timer';
-import { toast } from '../lib/toast';
-import { uid } from '../lib/utils';
-import { hudBridge, type TimerSnapshot, type TaskSnapshot } from '../lib/hudBridge';
-import type { Subtask, Task } from '../types';
 import { useDictation } from '../voice/useDictation';
-import { createInputTarget } from '../voice/target/inputTarget';
-import type { DictationTarget } from '../voice/target/DictationTarget';
-import { DictationHud } from '../voice/ui/DictationHud';
-import { isAudioConfigured } from '../voice/audioDevices';
-import { AudioDeviceSetupModal } from './AudioDeviceSetupModal';
+
+export type HudArtboardId = '01' | '02' | '03' | '04' | '05' | '06';
+
+const THEME_TO_ARTBOARD: Record<string, HudArtboardId> = {
+  nocturne: '01',
+  onyx: '02',
+  bauhaus: '03',
+  solaris: '04',
+};
+
+export function resolveHudArtboard(theme?: string, override?: string | null): HudArtboardId {
+  if (override && ['01', '02', '03', '04', '05', '06'].includes(override)) {
+    return override as HudArtboardId;
+  }
+  return THEME_TO_ARTBOARD[theme || 'nocturne'] || '01';
+}
 
 export function FloatingHUDTrigger({ className = '' }: { className?: string }) {
   const { isOpen, isSupported } = usePipHUD();
@@ -64,509 +58,262 @@ export function FloatingHUDPortal() {
   try {
     const body = pipWindow.document?.body;
     if (!body) return null;
-    return createPortal(<FloatingHUDContent isNativeWindow={false} />, body);
+    return createPortal(<FloatingHUD isNativeWindow={false} />, body);
   } catch {
     return null;
   }
 }
 
-export function FloatingHUD({ isNativeWindow = false }: { isNativeWindow?: boolean }) {
-  return <FloatingHUDContent isNativeWindow={isNativeWindow} />;
-}
+export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWindow = false }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [hudState, setHudState] = useState<HudStatePayload | null>(null);
+  const [scratchpad, setScratchpad] = useState('');
+  const noteRef = useRef<HTMLTextAreaElement | null>(null);
 
-function FloatingHUDContent({ isNativeWindow = false }: { isNativeWindow?: boolean }) {
-  const localTimerState = useTimer();
-  const { isExpanded: pipExpanded } = usePipHUD();
-
-  const [syncedTimer, setSyncedTimer] = useState<TimerSnapshot | null>(null);
-  const [syncedTask, setSyncedTask] = useState<TaskSnapshot | null>(null);
-  const [nativeExpanded, setNativeExpanded] = useState(false);
-  const [showAudioSetup, setShowAudioSetup] = useState(false);
-
-  // Initialize native window styles & theme
-  useEffect(() => {
-    if (!isNativeWindow) return;
-    const currentTheme = localStorage.getItem('focusspace-theme') || 'nocturne';
-    document.documentElement.dataset.theme = currentTheme;
-    document.documentElement.style.background = 'transparent';
-    document.documentElement.style.overflow = 'hidden';
-    document.documentElement.style.height = '100%';
-    document.body.style.margin = '0';
-    document.body.style.padding = '0';
-    document.body.style.background = 'transparent';
-    document.body.style.overflow = 'hidden';
-    document.body.style.height = '100%';
-    document.body.style.minWidth = '0';
-    document.body.style.userSelect = 'none';
-
-    const rootEl = document.getElementById('root');
-    if (rootEl) {
-      rootEl.style.background = 'transparent';
-      rootEl.style.height = '100%';
-      rootEl.style.overflow = 'hidden';
-    }
-
-    // Set initial size
-    import('@tauri-apps/api/core').then(async ({ invoke }) => {
-      try {
-        await invoke('hud_set_expanded', { expanded: false });
-      } catch {
-        const { getCurrentWindow } = await import('@tauri-apps/api/window');
-        const { LogicalSize } = await import('@tauri-apps/api/dpi');
-        await getCurrentWindow().setSize(new LogicalSize(320, 76));
+  const { isListening, toggle: toggleDictation } = useDictation({
+    onTranscript: (_raw, cleanedText) => {
+      const next = scratchpad ? `${scratchpad} ${cleanedText}` : cleanedText;
+      setScratchpad(next);
+      if (hudState?.activeTask?.id) {
+        sendHudCommand({ type: 'SAVE_SCRATCHPAD', v: 1, taskId: hudState.activeTask.id, text: next });
       }
-    }).catch(() => {});
+    },
+  });
 
-    // Request immediate sync from main window
-    hudBridge.send({ type: 'REQUEST_SYNC', v: 1 });
-
-    const unsub = hudBridge.subscribe((msg) => {
+  useEffect(() => {
+    if (isNativeWindow) {
+      document.documentElement.classList.add('hud-window-mode');
+    }
+    const unsub = subscribeHudBridge((msg) => {
       if (msg.type === 'STATE_SYNC') {
-        setSyncedTimer(msg.timer);
-        setSyncedTask(msg.activeTask);
-      } else if (msg.type === 'RESIZE_HUD') {
-        setNativeExpanded(msg.expanded);
-        if (isNativeWindow) {
-          import('@tauri-apps/api/core').then(async ({ invoke }) => {
-            try {
-              await invoke('hud_set_expanded', { expanded: msg.expanded });
-            } catch {
-              const { getCurrentWindow } = await import('@tauri-apps/api/window');
-              const { LogicalSize } = await import('@tauri-apps/api/dpi');
-              await getCurrentWindow().setSize(new LogicalSize(320, msg.expanded ? 290 : 76));
-            }
-          }).catch(() => {});
+        setHudState(msg);
+        if (msg.activeTask?.scratchpadNotes !== undefined) {
+          setScratchpad(msg.activeTask.scratchpadNotes || '');
         }
       }
     });
-
-    return unsub;
+    requestHudSync();
+    return () => {
+      unsub();
+      if (isNativeWindow) {
+        document.documentElement.classList.remove('hud-window-mode');
+      }
+    };
   }, [isNativeWindow]);
 
-  const isExpanded = isNativeWindow ? nativeExpanded : pipExpanded;
+  const handleToggleExpand = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const next = !expanded;
+    setExpanded(next);
+    const api = getElectronAPI();
+    if (api) {
+      await api.resizeHud(next);
+    } else {
+      sendHudCommand({ type: 'RESIZE_HUD', v: 1, expanded: next });
+    }
+  };
 
-  const timerState = isNativeWindow && syncedTimer
-    ? {
-        mode: syncedTimer.mode as any,
-        remainingMs: syncedTimer.remainingMs,
-        totalMs: syncedTimer.totalMs,
-        running: syncedTimer.running,
-        isOvertime: syncedTimer.isOvertime,
-        overtimeMs: syncedTimer.overtimeMs,
-        taskId: syncedTimer.taskId,
-        taskTitle: syncedTimer.taskTitle,
-      }
-    : localTimerState;
+  const handleClose = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const api = getElectronAPI();
+    if (api) {
+      await api.hideHud();
+    } else {
+      sendHudCommand({ type: 'CLOSE_HUD', v: 1 });
+    }
+  };
 
-  const liveTask = useLiveQuery(
-    async () => {
-      if (!timerState.taskId) return undefined;
-      return await db.tasks.get(timerState.taskId);
-    },
-    [timerState.taskId]
+  const handleToggleTimer = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    sendHudCommand({ type: 'TOGGLE_TIMER', v: 1 });
+  };
+
+  const handleToggleSubtask = (subtaskId: string) => {
+    if (!hudState?.activeTask?.id) return;
+    sendHudCommand({
+      type: 'COMPLETE_SUBTASK',
+      v: 1,
+      taskId: hudState.activeTask.id,
+      subtaskId,
+    });
+  };
+
+  const handleScratchpadChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setScratchpad(val);
+    if (hudState?.activeTask?.id) {
+      sendHudCommand({
+        type: 'SAVE_SCRATCHPAD',
+        v: 1,
+        taskId: hudState.activeTask.id,
+        text: val,
+      });
+    }
+  };
+
+  // Format Clock & Progress
+  const timer = hudState?.timer;
+  const isOvertime = Boolean(timer?.isOvertime);
+  const totalSec = isOvertime
+    ? Math.floor((timer?.overtimeMs || 0) / 1000)
+    : Math.max(0, Math.ceil((timer?.remainingMs ?? 25 * 60 * 1000) / 1000));
+  const mm = String(Math.floor(totalSec / 60)).padStart(2, '0');
+  const ss = String(totalSec % 60).padStart(2, '0');
+  const prefix = isOvertime ? '+' : '';
+  const fullClock = `${prefix}${mm}:${ss}`;
+
+  const durationSec = (timer?.durationMinutes || 25) * 60;
+  const progressPct = isOvertime
+    ? 100
+    : Math.min(100, Math.max(0, Math.round(((durationSec - totalSec) / durationSec) * 100)));
+
+  const artboardId = resolveHudArtboard(
+    hudState?.theme || localStorage.getItem('focusspace-theme') || 'nocturne',
+    hudState?.hudStyleOverride || localStorage.getItem('focusspace-hud-style')
   );
 
-  const task: Task | TaskSnapshot | undefined = liveTask ?? (isNativeWindow && syncedTask ? syncedTask : undefined);
-
-  const [scratchText, setScratchText] = useState('');
-  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
-  const [isAddingSubtask, setIsAddingSubtask] = useState(false);
-
-  const scratchTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const subtaskInputRef = useRef<HTMLInputElement>(null);
-  const [dictationTarget, setDictationTarget] = useState<DictationTarget | null>(null);
-
-  const dictation = useDictation({
-    target: dictationTarget,
-  });
-
-  const handleTopRowMouseDown = async (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (target.closest('button, input, textarea, a, [role="button"]')) {
-      return;
-    }
-    if (e.button === 0 && isNativeWindow) {
-      try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        await invoke('hud_start_dragging');
-      } catch {
-        try {
-          const { getCurrentWindow } = await import('@tauri-apps/api/window');
-          await getCurrentWindow().startDragging();
-        } catch (err) {
-          console.warn('startDragging failed:', err);
-        }
-      }
-    }
-  };
-
-  const handleTopRowDoubleClick = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (target.closest('button, input, textarea, a, [role="button"]')) {
-      return;
-    }
-    void handleToggleExpand();
-  };
-
-  const handleToggleExpand = async () => {
-    const next = !isExpanded;
-    if (isNativeWindow) {
-      setNativeExpanded(next);
-      try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        await invoke('hud_set_expanded', { expanded: next });
-      } catch {
-        try {
-          const { getCurrentWindow } = await import('@tauri-apps/api/window');
-          const { LogicalSize } = await import('@tauri-apps/api/dpi');
-          await getCurrentWindow().setSize(new LogicalSize(320, next ? 290 : 76));
-        } catch (err) {
-          console.warn('Native resize failed:', err);
-        }
-      }
-      hudBridge.send({ type: 'RESIZE_HUD', v: 1, expanded: next });
-    } else {
-      pipHUD.toggleExpanded();
-    }
-  };
-
-  const handleClose = async () => {
-    if (isNativeWindow) {
-      try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        await invoke('hud_hide');
-      } catch {
-        try {
-          const { getCurrentWindow } = await import('@tauri-apps/api/window');
-          await getCurrentWindow().hide();
-        } catch {}
-      }
-    } else {
-      pipHUD.close();
-    }
-  };
-
-  const toggleVoice = (field: 'note' | 'subtask') => {
-    if (!isAudioConfigured()) {
-      setShowAudioSetup(true);
-      return;
-    }
-    if (!isExpanded && field === 'note') {
-      void handleToggleExpand();
-    }
-    const el = field === 'note' ? scratchTextareaRef.current : subtaskInputRef.current;
-    if (!el) {
-      dictation.toggle();
-      return;
-    }
-    setDictationTarget(createInputTarget(el));
-    dictation.toggle();
-  };
-
-  const handleToggleTimer = () => {
-    if (isNativeWindow) {
-      hudBridge.send({ type: 'TOGGLE_TIMER', v: 1 });
-    } else {
-      timer.toggle();
-    }
-  };
-
-  const handleBankOvertime = () => {
-    if (isNativeWindow) {
-      hudBridge.send({ type: 'BANK_OVERTIME', v: 1 });
-    } else {
-      timer.bankOvertime();
-    }
-  };
-
-  const toggleSubtask = async (subtaskId: string) => {
-    if (!task) return;
-    if (isNativeWindow) {
-      hudBridge.send({ type: 'COMPLETE_SUBTASK', v: 1, taskId: task.id, subtaskId });
-    }
-    const updated = (task.subtasks || []).map(s =>
-      s.id === subtaskId ? { ...s, completed: !s.completed } : s
-    );
-    await db.tasks.update(task.id, { subtasks: updated, updatedAt: new Date().toISOString() });
-  };
-
-  const addSubtask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!task || !newSubtaskTitle.trim()) return;
-    const title = newSubtaskTitle.trim();
-    if (isNativeWindow) {
-      hudBridge.send({ type: 'ADD_SUBTASK', v: 1, taskId: task.id, title });
-    }
-    const newSub: Subtask = {
-      id: uid(),
-      title,
-      completed: false,
-    };
-    const updated = [...(task.subtasks || []), newSub];
-    await db.tasks.update(task.id, { subtasks: updated, updatedAt: new Date().toISOString() });
-    setNewSubtaskTitle('');
-    setIsAddingSubtask(false);
-  };
-
-  const saveScratchpad = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!task || !scratchText.trim()) return;
-    const text = scratchText.trim();
-    if (isNativeWindow) {
-      hudBridge.send({ type: 'SAVE_SCRATCHPAD', v: 1, taskId: task.id, text });
-    }
-    const now = new Date();
-    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    const entry = `• [${timeStr}] ${text}`;
-    const newNotes = task.notes ? `${task.notes}\n${entry}` : entry;
-    await db.tasks.update(task.id, { notes: newNotes, updatedAt: now.toISOString() });
-    setScratchText('');
-    toast('Thought saved to task notes', 'success');
-  };
-
-  const markTaskDone = async () => {
-    if (!task) return;
-    if (isNativeWindow) {
-      hudBridge.send({ type: 'COMPLETE_TASK', v: 1, taskId: task.id });
-    }
-    const current = await db.tasks.get(task.id);
-    if (current) {
-      const updated = withStatus(current, 'Submitted/Done');
-      await db.tasks.put(updated);
-    }
-    toast(`“${task.title}” completed!`, 'success');
-  };
-
-  const completedSubtasks = (task?.subtasks || []).filter(s => s.completed).length;
-  const totalSubtasks = (task?.subtasks || []).length;
-
-  const totalMs = (timerState as any).totalMs || ((timerState as any).durations?.[timerState.mode] || 25) * 60_000;
-  const remainingMs = timerState.remainingMs ?? 0;
-  const progressPct = timerState.isOvertime ? 100 : Math.max(0, Math.min(100, Math.round(((totalMs - remainingMs) / totalMs) * 100)));
-
-  const isDictating = dictation.state === 'listening' || dictation.state === 'transcribing';
-
-  const savedStyle = typeof window !== 'undefined' ? localStorage.getItem('focusspace-hud-style') : null;
-  const currentTheme = typeof window !== 'undefined' ? localStorage.getItem('focusspace-theme') || 'nocturne' : 'nocturne';
-  const hudThemeClass = savedStyle
-    ? `hud-${savedStyle}`
-    : currentTheme === 'onyx'
-      ? 'hud-02'
-      : currentTheme === 'bauhaus'
-        ? 'hud-03'
-        : currentTheme === 'solaris' || currentTheme === 'light'
-          ? 'hud-04'
-          : 'hud-01';
-
-  const activeSec = Math.max(0, Math.floor((timerState.isOvertime ? timerState.overtimeMs ?? 0 : timerState.remainingMs ?? 0) / 1000));
-  const clockM = String(Math.floor(activeSec / 60)).padStart(2, '0');
-  const clockS = String(activeSec % 60).padStart(2, '0');
-  const clockPrefix = timerState.isOvertime ? '+' : '';
+  const isSplitFlap = artboardId === '05';
+  const subtasks = hudState?.activeTask?.subtasks || [];
 
   return (
-    <div
-      className={`hud-shell ${hudThemeClass} ${isExpanded ? 'hud-expanded' : 'hud-collapsed'} ${
-        isDictating ? 'hud-dictating' : ''
-      }`}
-    >
-      {/* 76px Top Row (Tactile Hardware Readout) */}
+    <div className="hud-stage">
       <div
-        data-tauri-drag-region
-        onMouseDown={handleTopRowMouseDown}
-        onDoubleClick={handleTopRowDoubleClick}
-        className="hud-top-row select-none cursor-grab active:cursor-grabbing"
+        className={`hud-shell ${expanded ? 'hud-expanded' : 'hud-collapsed'} hud-${artboardId} ${
+          isListening ? 'dictating' : ''
+        }`}
       >
-        {/* Clock (Split flap for 05, classic digital for others) */}
-        {hudThemeClass === 'hud-05' ? (
-          <div data-tauri-drag-region className="flap-group">
-            <span className="flap-card">{clockPrefix}{clockM}</span>
-            <span style={{ fontWeight: 800, opacity: 0.6 }}>:</span>
-            <span className="flap-card">{clockS}</span>
+        {/* Top 76px Bar — Native Chromium Drag Surface */}
+        <div className="hud-top-row" onDoubleClick={handleToggleExpand}>
+          {isSplitFlap ? (
+            <div className="flap-group">
+              <span className="flap-card">
+                {prefix}
+                {mm}
+              </span>
+              <span style={{ fontWeight: 800, opacity: 0.6 }}>:</span>
+              <span className="flap-card">{ss}</span>
+            </div>
+          ) : (
+            <div className="hud-clock">{fullClock}</div>
+          )}
+
+          <div className="hud-task-title">
+            {isListening
+              ? '🎙 Listening for note…'
+              : hudState?.activeTask?.title || 'Free Focus Session'}
           </div>
-        ) : (
-          <div data-tauri-drag-region className="hud-clock">
-            {timerState.isOvertime
-              ? formatOvertimeClock(timerState.overtimeMs ?? 0)
-              : formatClock(timerState.remainingMs)}
+
+          {/* Voice Dictate Button */}
+          <button
+            type="button"
+            className="hud-icon-btn btn-mic hud-no-drag"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleDictation();
+            }}
+            title="Voice Dictate Note"
+            aria-label="Dictate"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="9" y="3" width="6" height="11" rx="3" />
+              <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+            </svg>
+          </button>
+
+          {/* Play / Pause Button */}
+          <button
+            type="button"
+            className="hud-icon-btn btn-pause hud-no-drag"
+            onClick={handleToggleTimer}
+            title={timer?.running ? 'Pause' : 'Start / Resume'}
+            aria-label={timer?.running ? 'Pause' : 'Resume'}
+          >
+            {timer?.running ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 5v14M16 5v14" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7 5v14l12-7z" />
+              </svg>
+            )}
+          </button>
+
+          {/* Compact Expand Chevron + Close X Stack */}
+          <div className="hud-util-col hud-no-drag">
+            <button
+              type="button"
+              className="hud-mini-ctrl"
+              onClick={handleToggleExpand}
+              title={expanded ? 'Collapse Drawer' : 'Expand Subtasks & Notes'}
+              aria-label="Toggle Drawer"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                {expanded ? <path d="M18 15l-6-6-6 6" /> : <path d="M6 9l6 6 6-6" />}
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="hud-mini-ctrl"
+              onClick={handleClose}
+              title="Hide Floating HUD"
+              aria-label="Close HUD"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* 6px Bottom Progress Rail */}
+          <div className="hud-progress-track">
+            <div className="hud-progress-fill" style={{ width: `${progressPct}%` }} />
+          </div>
+        </div>
+
+        {/* Expanded 290px Drawer: Subtasks + Scratchpad */}
+        {expanded && (
+          <div className="hud-drawer hud-no-drag">
+            <div className="hud-subtasks-scroll">
+              {subtasks.length === 0 ? (
+                <div className="hud-subtask" style={{ opacity: 0.55, cursor: 'default' }}>
+                  <span>No subtasks on active task</span>
+                </div>
+              ) : (
+                subtasks.map((st) => (
+                  <div
+                    key={st.id}
+                    className="hud-subtask"
+                    onClick={() => handleToggleSubtask(st.id)}
+                    style={st.completed ? { textDecoration: 'line-through', opacity: 0.65 } : undefined}
+                  >
+                    <span className={`hud-checkbox ${st.completed ? 'checked' : ''}`}>
+                      {st.completed && (
+                        <span style={{ display: 'flex', transform: 'scale(.65)' }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M5 12l5 5 9-10" />
+                          </svg>
+                        </span>
+                      )}
+                    </span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {st.title}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <textarea
+              ref={noteRef}
+              className="hud-note-box"
+              placeholder="Quick note for this task…"
+              value={scratchpad}
+              onChange={handleScratchpadChange}
+            />
           </div>
         )}
-
-        {/* Task Title */}
-        <div
-          data-tauri-drag-region
-          className="hud-task-title"
-          title={task?.title || timerState.taskTitle || 'Free Focus'}
-        >
-          {isDictating
-            ? '🎙 Listening for note…'
-            : task?.title || timerState.taskTitle || 'Free Focus'}
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-1.5 shrink-0" data-tauri-drag-region="false">
-          <button
-            onClick={() => toggleVoice('note')}
-            className="hud-icon-btn btn-mic"
-            title={isDictating ? 'Stop Voice Dictation' : 'Voice Dictate Note'}
-          >
-            <Mic size={17} />
-          </button>
-
-          {timerState.isOvertime ? (
-            <button
-              onClick={handleBankOvertime}
-              className="hud-icon-btn btn-pause"
-              title="Bank Overtime & Start Break"
-            >
-              <Coffee size={17} />
-            </button>
-          ) : (
-            <button
-              onClick={handleToggleTimer}
-              className="hud-icon-btn btn-pause"
-              title={timerState.running ? 'Pause Timer' : 'Resume Timer'}
-            >
-              {timerState.running ? <Pause size={17} /> : <Play size={17} className="ml-0.5" />}
-            </button>
-          )}
-
-          <button
-            onClick={handleToggleExpand}
-            className="hud-icon-btn btn-util"
-            title={isExpanded ? 'Collapse Drawer' : 'Expand Flow Drawer'}
-          >
-            {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-          </button>
-
-          <button
-            onClick={handleClose}
-            className="hud-icon-btn btn-util"
-            title="Close HUD"
-          >
-            <X size={14} />
-          </button>
-        </div>
-
-        {/* 6px Bottom Progress Track */}
-        <div className="hud-progress-track">
-          <div className="hud-progress-fill" style={{ width: `${progressPct}%` }} />
-        </div>
       </div>
-
-      {/* Expanded Flow Drawer (290px mode) */}
-      {isExpanded && (
-        <div className="hud-drawer">
-          {/* Subtasks List */}
-          <div className="flex items-center justify-between py-1 text-[11px] font-bold text-fg-muted uppercase tracking-wider">
-            <span>Subtasks ({completedSubtasks}/{totalSubtasks})</span>
-            {task && (
-              <button
-                onClick={() => setIsAddingSubtask(v => !v)}
-                className="text-[10px] text-accent-text hover:underline flex items-center gap-0.5 cursor-pointer font-bold"
-              >
-                <Plus size={11} /> Add
-              </button>
-            )}
-          </div>
-
-          {isAddingSubtask && task && (
-            <form onSubmit={addSubtask} className="flex items-center gap-1 pb-1">
-              <input
-                ref={subtaskInputRef}
-                type="text"
-                value={newSubtaskTitle}
-                onChange={e => setNewSubtaskTitle(e.target.value)}
-                placeholder="New subtask..."
-                autoFocus
-                className="flex-1 h-6 px-2 text-xs rounded bg-surface-2 border border-line text-fg placeholder:text-fg-subtle outline-none"
-              />
-              <button
-                type="submit"
-                disabled={!newSubtaskTitle.trim()}
-                className="h-6 px-2 rounded bg-accent text-accent-fg text-xs font-bold disabled:opacity-40 cursor-pointer"
-              >
-                Add
-              </button>
-            </form>
-          )}
-
-          <div className="space-y-0.5 max-h-24 overflow-y-auto pr-1">
-            {(task?.subtasks || []).length === 0 ? (
-              <div className="text-[11px] text-fg-subtle italic py-1">No subtasks yet</div>
-            ) : (
-              (task?.subtasks || []).map(s => (
-                <div
-                  key={s.id}
-                  onClick={() => toggleSubtask(s.id)}
-                  className="hud-subtask"
-                  style={{
-                    textDecoration: s.completed ? 'line-through' : 'none',
-                    opacity: s.completed ? 0.65 : 1,
-                  }}
-                >
-                  <span className={`hud-checkbox ${s.completed ? 'checked' : ''}`}>
-                    {s.completed && <Check size={11} strokeWidth={3} />}
-                  </span>
-                  <span className="truncate">{s.title}</span>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* In-Session Scratchpad / Quick Note Box */}
-          <form onSubmit={saveScratchpad} className="mt-auto pt-1 relative">
-            <textarea
-              ref={scratchTextareaRef}
-              value={scratchText}
-              onChange={e => setScratchText(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  void saveScratchpad();
-                }
-              }}
-              placeholder="Quick thought for task notes... (Enter to save)"
-              className="hud-note-box"
-            />
-            {scratchText.trim() && (
-              <button
-                type="submit"
-                className="absolute right-2 bottom-3 p-1 rounded bg-accent text-accent-fg hover:bg-accent-hover transition cursor-pointer"
-                title="Save note"
-              >
-                <Send size={11} />
-              </button>
-            )}
-          </form>
-
-          {task && (task as any).status !== 'Submitted/Done' && (
-            <div className="flex justify-end pt-1">
-              <button
-                onClick={markTaskDone}
-                className="text-[10px] text-accent-text hover:underline flex items-center gap-1 font-bold cursor-pointer"
-              >
-                <Check size={11} /> Mark Task Done
-              </button>
-            </div>
-          )}
-
-          <DictationHud
-            state={dictation.state}
-            audioLevel={dictation.audioLevel}
-            modelProgress={dictation.modelProgress}
-            onStop={dictation.stop}
-          />
-        </div>
-      )}
-
-      <AudioDeviceSetupModal
-        isOpen={showAudioSetup}
-        onClose={() => setShowAudioSetup(false)}
-        onConfigured={() => {
-          setShowAudioSetup(false);
-          toggleVoice('note');
-        }}
-      />
     </div>
   );
-}
+};
