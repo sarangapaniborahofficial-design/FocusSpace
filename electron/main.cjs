@@ -7,13 +7,11 @@ const {
   Menu,
   shell,
   protocol,
-  net,
   dialog,
   session,
 } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
-const { pathToFileURL } = require('url');
 
 // Register 'app://' as a standard, secure, Cross-Origin-Isolated scheme BEFORE app.ready
 protocol.registerSchemesAsPrivileged([
@@ -52,6 +50,34 @@ const ALLOWED_PROTOCOLS = new Set([
 const HUD_WIDTH = 332;
 const HUD_COLLAPSED_HEIGHT = 88;
 const HUD_EXPANDED_HEIGHT = 380;
+
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.mjs': 'application/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/json; charset=utf-8',
+  '.wasm': 'application/wasm',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.ogg': 'audio/ogg',
+  '.onnx': 'application/octet-stream',
+  '.bin': 'application/octet-stream',
+  '.map': 'application/json; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
+};
 
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
@@ -233,23 +259,48 @@ app.whenReady().then(() => {
   }
 
   // Serve bundled dist/ files via app://focusspace/ with COOP/COEP headers and path traversal guards
+  // Uses Electron's ASAR-aware fs/promises to ensure 100% compatibility with packaged .asar archives
   protocol.handle('app', async (request) => {
     const url = new URL(request.url);
     let relPath = decodeURIComponent(url.pathname);
     if (relPath === '/' || relPath === '') relPath = '/index.html';
 
     const distDir = path.resolve(__dirname, '../dist');
-    const distPath = path.resolve(distDir, '.' + relPath);
+    let distPath = path.resolve(distDir, '.' + relPath);
 
-    // Path traversal verification
-    if (!distPath.startsWith(distDir)) {
+    // Normalize for traversal guard
+    const normalizedDistDir = path.normalize(distDir);
+    const normalizedDistPath = path.normalize(distPath);
+
+    // Path traversal verification: ensure path is strictly inside distDir
+    if (
+      normalizedDistPath !== normalizedDistDir &&
+      !normalizedDistPath.startsWith(normalizedDistDir + path.sep)
+    ) {
       console.error('[Security] Attempted path traversal blocked:', relPath);
       return new Response('Access Denied: Path Traversal Detected', { status: 403 });
     }
 
     try {
-      const response = await net.fetch(pathToFileURL(distPath).toString());
-      const headers = new Headers(response.headers);
+      let data;
+      try {
+        data = await fs.readFile(distPath);
+      } catch (err) {
+        // Fallback to index.html for SPA client-side routes without file extensions
+        if (!path.extname(distPath)) {
+          distPath = path.join(distDir, 'index.html');
+          data = await fs.readFile(distPath);
+        } else {
+          throw err;
+        }
+      }
+
+      const ext = path.extname(distPath).toLowerCase();
+      const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+
+      const headers = new Headers();
+      headers.set('Content-Type', contentType);
+      headers.set('Access-Control-Allow-Origin', '*');
       headers.set('Cross-Origin-Opener-Policy', 'same-origin');
       headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
       headers.set('Cross-Origin-Resource-Policy', 'same-origin');
@@ -258,12 +309,12 @@ app.whenReady().then(() => {
         "default-src 'self' app:; connect-src 'self' app: data: blob:; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' app:; style-src 'self' 'unsafe-inline' app:; font-src 'self' app: data:; img-src 'self' app: data: blob: https://www.google.com; media-src 'self' app: data: blob:; worker-src 'self' app: blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self';"
       );
 
-      return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
+      return new Response(data, {
+        status: 200,
         headers,
       });
-    } catch {
+    } catch (err) {
+      console.warn('[app:// protocol] Resource not found:', relPath);
       return new Response('Not Found', { status: 404 });
     }
   });
