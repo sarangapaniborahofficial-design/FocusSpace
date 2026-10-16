@@ -4,6 +4,8 @@ import { isNotificationSupported, getNotificationPermission, requestNotification
 import { useEffect, useRef, useState } from 'react';
 import { db } from '../db/db';
 import { downloadBackupFile, importFullBackup } from '../lib/backup';
+import { takeNativeVaultSnapshot } from '../lib/journalAutoSave';
+import { isTauri } from '../lib/runtime';
 import { getAsrClient } from '../voice/engine/AsrClient';
 import { loadSchedulePreferences, saveSchedulePreferences } from '../lib/smartScheduler';
 import { HABIT_COLORS, addHabit, deleteHabit, updateHabit } from '../lib/habitActions';
@@ -175,6 +177,22 @@ function DataVaultCard() {
   const pageCount = useLiveQuery(() => db.pages.count(), []) ?? 0;
   const journalCount = useLiveQuery(() => db.journalEntries.count(), []) ?? 0;
 
+  const handleNativeVaultBackup = async () => {
+    try {
+      setBusy(true);
+      const res = await takeNativeVaultSnapshot();
+      if (res) {
+        toast('Native vault backup saved to local AppData/Backups.', 'success');
+      } else {
+        toast('Native vault backup failed.', 'error');
+      }
+    } catch (err: any) {
+      toast(`Native vault backup error: ${err?.message || 'Unknown error'}`, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleExport = async () => {
     try {
       setBusy(true);
@@ -248,6 +266,16 @@ function DataVaultCard() {
             accept=".json,application/json"
             className="hidden"
           />
+          {isTauri() && (
+            <button
+              onClick={handleNativeVaultBackup}
+              disabled={busy}
+              className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-sm text-fg hover:text-fg hover:bg-hover flex items-center gap-1.5 transition keycap disabled:opacity-40"
+              title="Save an instant native snapshot to AppData/Backups"
+            >
+              <ShieldCheck size={14} className="text-accent" /> Back Up to Vault Now
+            </button>
+          )}
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={busy}

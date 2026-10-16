@@ -126,9 +126,13 @@ export async function exportFullBackup(): Promise<string> {
   }
 
   const theme = storage.get('focusspace-theme');
+  const layout = storage.get('focusspace-layout');
   const settings: Record<string, any> = {};
   if (theme) {
     settings.theme = theme;
+  }
+  if (layout) {
+    settings.layout = layout;
   }
 
   const envelope: FocusSpaceBackupEnvelope = {
@@ -207,8 +211,13 @@ export async function importFullBackup(jsonString: string): Promise<ImportResult
   }
 
   // Restore settings block if present
-  if (raw.settings && typeof raw.settings === 'object' && typeof raw.settings.theme === 'string' && raw.settings.theme) {
-    storage.set('focusspace-theme', raw.settings.theme);
+  if (raw.settings && typeof raw.settings === 'object') {
+    if (typeof raw.settings.theme === 'string' && raw.settings.theme) {
+      storage.set('focusspace-theme', raw.settings.theme);
+    }
+    if (typeof raw.settings.layout === 'string' && raw.settings.layout) {
+      storage.set('focusspace-layout', raw.settings.layout);
+    }
   }
 
   const d = raw.data;
@@ -305,6 +314,64 @@ export async function importFullBackup(jsonString: string): Promise<ImportResult
       }
     );
   } catch (err: any) {
+    // Pre-Restore Rollback Safety: Automatically restore previousState if transaction fails
+    if (safetySnapshot) {
+      try {
+        const rollbackEnv = JSON.parse(safetySnapshot);
+        const rb = rollbackEnv.data;
+        const rbBlobs: FileBlob[] = [];
+        if (Array.isArray(rb.fileBlobs)) {
+          for (const b of rb.fileBlobs) {
+            if (b && typeof b.id === 'string' && typeof b.base64 === 'string') {
+              const mimeType = typeof b.type === 'string' && b.type ? b.type : 'application/octet-stream';
+              rbBlobs.push({ id: b.id, blob: base64ToBlob(b.base64, mimeType) });
+            }
+          }
+        }
+        await db.transaction(
+          'rw',
+          [
+            db.categories,
+            db.tasks,
+            db.habits,
+            db.goals,
+            db.focusLogs,
+            db.pages,
+            db.journalEntries,
+            db.pageLinks,
+            db.files,
+            db.fileBlobs,
+          ],
+          async () => {
+            await Promise.all([
+              db.categories.clear(),
+              db.tasks.clear(),
+              db.habits.clear(),
+              db.goals.clear(),
+              db.focusLogs.clear(),
+              db.pages.clear(),
+              db.journalEntries.clear(),
+              db.pageLinks.clear(),
+              db.files.clear(),
+              db.fileBlobs.clear(),
+            ]);
+            if (rb.categories?.length) await db.categories.bulkAdd(rb.categories);
+            if (rb.tasks?.length) await db.tasks.bulkAdd(rb.tasks);
+            if (rb.habits?.length) await db.habits.bulkAdd(rb.habits);
+            if (rb.goals?.length) await db.goals.bulkAdd(rb.goals);
+            if (rb.focusLogs?.length) await db.focusLogs.bulkAdd(rb.focusLogs);
+            if (rb.pages?.length) await db.pages.bulkAdd(rb.pages);
+            if (rb.journalEntries?.length) await db.journalEntries.bulkAdd(rb.journalEntries);
+            if (rb.pageLinks?.length) await db.pageLinks.bulkAdd(rb.pageLinks);
+            if (rb.files?.length) await db.files.bulkAdd(rb.files);
+            if (rbBlobs.length) await db.fileBlobs.bulkAdd(rbBlobs);
+          }
+        );
+      } catch (rollbackErr) {
+        console.error('Failed to automatically rollback after restore error:', rollbackErr);
+      }
+    }
+
     return {
       success: false,
       imported: { categories: 0, tasks: 0, habits: 0, goals: 0, focusLogs: 0, pages: 0, journalEntries: 0, pageLinks: 0, files: 0, fileBlobs: 0 },

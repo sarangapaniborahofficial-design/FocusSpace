@@ -25,7 +25,7 @@ DEST_ZIPS = [
     os.path.join(ARTIFACT_DIR, 'FocusSpace_Clean_Codebase.zip'),
 ]
 
-EXCLUDE_DIRS = {'node_modules', '.git', 'dist', '__pycache__'}
+EXCLUDE_DIRS = {'node_modules', '.git', 'dist', '__pycache__', 'target'}
 
 def package_zip():
     print("[*] FocusSpace -- Packaging clean codebase...")

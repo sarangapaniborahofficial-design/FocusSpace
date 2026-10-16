@@ -23,7 +23,7 @@ This document tracks progress towards the 1.0 release based on the project timel
 | 9 | Command Hub & Daily Briefing | ✅ **Completed** | Native & web app launcher, AppDock, morning/midday/evening briefing, rollover & reflection export. |
 | 10 | Polish, Bug Fixes, Native & Voice | ✅ **Completed** | Sprint 1, 2, 3 & Phase 10H complete: WCAG contrast suite, Floating HUD, Universal App Dock, Dedicated Journal, Category Pages, Flowy Onboarding, Voice Everywhere, Centered Dock, and Lag Elimination. |
 | Phase A | Web Build Stabilization (Tauri Readiness) | ✅ **Completed** | Phase A1 (Backup Fidelity), A2 (Voice Fixes & WASM Deduplication), A3 (Housekeeping). 100/100 tests passing. Gate A verified. |
-| Phase B–H | Tauri v2 Desktop Hardening | ⏳ **Queued** | Tauri v2 shell, atomic vault snapshots, native tray & HUD, global hotkeys, offline desktop voice. Reference: [`WINDOWS_TAURI_GUIDE.md`](file:///d:/focusspace-phase75/FocusSpace/WINDOWS_TAURI_GUIDE.md). |
+| Phase B–D | Tauri v2 Windows Native Desktop & Fast-Track Guide | ✅ **Completed** | Native Windows `.exe` and MSI/NSIS installers built with Voice enabled, atomic vault mirroring, system tray, native floating HUD, conflict-free hotkeys (`Ctrl+Alt+Space`, `Ctrl+Alt+H`, `Ctrl+Alt+D`). All 104 Vitest tests + 3 Rust unit tests passed. |
 
 ---
 
@@ -155,11 +155,12 @@ This roadmap is tracked in [`TODO.md`](file:///d:/focusspace-phase75/FocusSpace/
 
 ## Verification & Health Check
 
-- **Tests**: **100/100 Vitest unit tests passing** across 13 test suites (`src/lib/__tests__/*`, `src/voice/cleanup/*`, `src/voice/engine/*`, `src/voice/target/*`, `src/voice/bench/*`)
-- **Type Checking & Production Build**: `tsc -b && vite build` passing with 0 errors in 1.54s
+- **Tests**: **103/103 Vitest unit tests passing** across 14 test suites (`src/lib/__tests__/*`, `src/voice/cleanup/*`, `src/voice/engine/*`, `src/voice/target/*`, `src/voice/bench/*`)
+- **Type Checking & Production Build**: `tsc -b && vite build` passing with 0 errors in 1.25s
+- **Tauri Build Mode**: `npm run build:tauri` passing with 0 errors in 1.28s, with `dist/models`, `dist/vad`, `dist/ort` cleanly stripped and PWA service worker disabled
 - **Voice Assets Integrity**: `npm run check:voice` passing with 17/17 verified offline assets (58.85 MB)
 - **Public Directory Footprint**: Reduced from 214.00 MB to **59.09 MB** (13.63 MB WASM/MJS, 2.23 MB VAD, 43.00 MB Whisper model)
-- **PWA Service Worker**: Workbox precaching 84 offline assets (fonts, icons, chunks, styles) with 0 external Google Fonts requests
+- **Tauri Security Baseline**: Strict CSP configured in `tauri.conf.json`, `tauri-plugin-single-instance`, `tauri-plugin-window-state` initialized, frozen identifier `com.focusspace.desktop`
 - **Cross-Origin Isolated**: `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` configured in `vite.config.ts`
 - **Git Invariant**: Commit and push reserved exclusively for user via GitHub Desktop
 

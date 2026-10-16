@@ -2,7 +2,8 @@ import { db } from '../db/db';
 import { generateDailySummaryDoc } from './journalSummary';
 import { richTextToPlainText } from './richtext';
 import { toast } from './toast';
-import { isoToday, uid } from './utils';
+import { isoToday, storage, uid } from './utils';
+import { isTauri } from './runtime';
 import type { JournalEntry } from '../types';
 
 /** Reserved page identifier for all automated & manual daily journal reviews */
@@ -153,6 +154,45 @@ export async function checkMissedMidnightSnapshot(): Promise<boolean> {
 }
 
 /**
+ * Takes an automated native desktop vault snapshot into app_data/Backups.
+ */
+export async function takeNativeVaultSnapshot(): Promise<string | null> {
+  if (!isTauri()) return null;
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const { exportFullBackup } = await import('./backup');
+    const payload = await exportFullBackup();
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const timeStr = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    const filename = `focusspace-${isoToday()}-${timeStr}.json`;
+    const res = await invoke<string>('write_vault_snapshot', { filename, payload });
+    storage.set('focusspace-last-native-backup', now.toISOString());
+    return res;
+  } catch (err) {
+    console.error('Failed to take native vault snapshot:', err);
+    return null;
+  }
+}
+
+/**
+ * Boot check: Takes a snapshot on boot if the newest snapshot is older than 24h.
+ */
+export async function checkBootVaultSnapshot(): Promise<void> {
+  if (!isTauri()) return;
+  try {
+    const lastBackupStr = storage.get('focusspace-last-native-backup');
+    const now = Date.now();
+    const isOld = !lastBackupStr || (now - new Date(lastBackupStr).getTime() > 24 * 3600 * 1000);
+    if (isOld) {
+      await takeNativeVaultSnapshot();
+    }
+  } catch (err) {
+    console.error('Boot vault snapshot check failed:', err);
+  }
+}
+
+/**
  * Initializes the automated daily journal engine:
  * 1. Executes next-morning boot catch-up for any missed snapshots.
  * 2. Schedules a timer at 23:59:00 local time every day.
@@ -167,12 +207,19 @@ export function initJournalAutoSave(): () => void {
     console.error('Failed to run missed midnight journal catch-up:', err);
   });
 
+  if (isTauri()) {
+    void checkBootVaultSnapshot();
+  }
+
   const scheduleNext = () => {
     if (!isMounted) return;
     const ms = getMsUntilMidnight();
     timerId = setTimeout(async () => {
       try {
         await saveDailyJournalSnapshot(isoToday(), false);
+        if (isTauri()) {
+          await takeNativeVaultSnapshot();
+        }
       } catch (err) {
         console.error('Failed to auto-save daily journal at 11:59 PM:', err);
       }

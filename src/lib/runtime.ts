@@ -27,3 +27,13 @@ export function isTauri(): boolean {
 export function isWeb(): boolean {
   return !isTauri();
 }
+
+/**
+ * Returns true if voice dictation is enabled for the current runtime environment.
+ * FocusSpace includes 100% offline, privacy-first voice dictation across both
+ * the native desktop Tauri shell and PWA environments.
+ */
+export function isVoiceEnabled(): boolean {
+  return true;
+}
+

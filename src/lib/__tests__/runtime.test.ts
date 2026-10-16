@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { isTauri, isWeb } from '../runtime';
+import { isTauri, isWeb, isVoiceEnabled } from '../runtime';
 
 describe('runtime detector', () => {
   const hadWindow = typeof (globalThis as any).window !== 'undefined';
@@ -13,21 +13,24 @@ describe('runtime detector', () => {
     }
   });
 
-  it('reports false for isTauri() and true for isWeb() in standard web/node environment', () => {
+  it('reports false for isTauri(), true for isWeb(), and true for isVoiceEnabled() in standard web/node environment', () => {
     (globalThis as any).window = {};
     expect(isTauri()).toBe(false);
     expect(isWeb()).toBe(true);
+    expect(isVoiceEnabled()).toBe(true);
   });
 
-  it('reports true for isTauri() and false for isWeb() when __TAURI_INTERNALS__ is present', () => {
+  it('reports true for isTauri(), false for isWeb(), and true for isVoiceEnabled() when __TAURI_INTERNALS__ is present', () => {
     (globalThis as any).window = { __TAURI_INTERNALS__: { version: '2.0.0' } };
     expect(isTauri()).toBe(true);
     expect(isWeb()).toBe(false);
+    expect(isVoiceEnabled()).toBe(true);
   });
 
-  it('reports true for isTauri() when __TAURI__ is present', () => {
+  it('reports true for isTauri() and true for isVoiceEnabled() when __TAURI__ is present', () => {
     (globalThis as any).window = { __TAURI__: {} };
     expect(isTauri()).toBe(true);
     expect(isWeb()).toBe(false);
+    expect(isVoiceEnabled()).toBe(true);
   });
 });

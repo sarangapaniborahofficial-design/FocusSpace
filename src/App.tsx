@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Command } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { db, seedDatabase } from './db/db';
+import { db, seedDatabase, withStatus } from './db/db';
 import { Analytics } from './components/Analytics';
 import { Calendar } from './components/Calendar';
 import { CategoryView, type CategoryTab } from './components/CategoryView';
@@ -34,7 +34,9 @@ import { toggleHabitDay } from './lib/habitActions';
 import { computeStreaks } from './lib/analytics';
 import { checkAndNotifyOverdue } from './lib/notifications';
 import { isoToday, storage, uid } from './lib/utils';
-import type { FocusLog, Habit, LayoutMode, Page, Task, Theme } from './types';
+import { isTauri, isVoiceEnabled } from './lib/runtime';
+import { hudBridge, type TaskSnapshot } from './lib/hudBridge';
+import type { FocusLog, Habit, LayoutMode, Page, Subtask, Task, Theme } from './types';
 import { useDictation } from './voice/useDictation';
 import { createInputTarget } from './voice/target/inputTarget';
 import type { DictationTarget } from './voice/target/DictationTarget';
@@ -100,6 +102,7 @@ export default function App() {
   });
 
   const triggerUniversalVoice = useCallback(() => {
+    if (!isVoiceEnabled()) return;
     const active = document.activeElement;
     if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) {
       setGlobalDictationTarget(createInputTarget(active));
@@ -235,6 +238,127 @@ export default function App() {
     return cleanup;
   }, []);
 
+  // Synchronize Timer and Task State across the Floating HUD Bridge
+  useEffect(() => {
+    const syncState = async () => {
+      const tState = getTimerState();
+      let activeTaskSnapshot: TaskSnapshot | null = null;
+      if (tState.taskId) {
+        const t = await db.tasks.get(tState.taskId);
+        if (t) {
+          activeTaskSnapshot = {
+            id: t.id,
+            title: t.title,
+            notes: t.notes,
+            status: t.status,
+            subtasks: t.subtasks,
+          };
+        }
+      }
+      hudBridge.send({
+        type: 'STATE_SYNC',
+        v: 1,
+        timer: {
+          mode: tState.mode,
+          remainingMs: tState.remainingMs,
+          totalMs: (tState.durations[tState.mode] || 25) * 60_000,
+          running: tState.running,
+          isOvertime: Boolean(tState.isOvertime),
+          overtimeMs: tState.overtimeMs || 0,
+          taskId: tState.taskId,
+          taskTitle: tState.taskTitle,
+        },
+        activeTask: activeTaskSnapshot,
+      });
+    };
+
+    const unsubTimer = timer.subscribe(() => {
+      void syncState();
+    });
+
+    const unsubBridge = hudBridge.subscribe(async (msg) => {
+      if (msg.type === 'REQUEST_SYNC') {
+        void syncState();
+      } else if (msg.type === 'TOGGLE_TIMER') {
+        timer.toggle();
+        void syncState();
+      } else if (msg.type === 'BANK_OVERTIME') {
+        timer.bankOvertime();
+        void syncState();
+      } else if (msg.type === 'COMPLETE_TASK') {
+        const task = await db.tasks.get(msg.taskId);
+        if (task) {
+          await db.tasks.put(withStatus(task, 'Submitted/Done'));
+          void syncState();
+        }
+      } else if (msg.type === 'COMPLETE_SUBTASK') {
+        const task = await db.tasks.get(msg.taskId);
+        if (task) {
+          const updated = (task.subtasks || []).map(s =>
+            s.id === msg.subtaskId ? { ...s, completed: !s.completed } : s
+          );
+          await db.tasks.update(task.id, { subtasks: updated, updatedAt: new Date().toISOString() });
+          void syncState();
+        }
+      } else if (msg.type === 'ADD_SUBTASK') {
+        const task = await db.tasks.get(msg.taskId);
+        if (task && msg.title.trim()) {
+          const newSub: Subtask = { id: uid(), title: msg.title.trim(), completed: false };
+          const updated = [...(task.subtasks || []), newSub];
+          await db.tasks.update(task.id, { subtasks: updated, updatedAt: new Date().toISOString() });
+          void syncState();
+        }
+      } else if (msg.type === 'SAVE_SCRATCHPAD') {
+        const task = await db.tasks.get(msg.taskId);
+        if (task && msg.text.trim()) {
+          const now = new Date();
+          const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+          const entry = `• [${timeStr}] ${msg.text.trim()}`;
+          const newNotes = task.notes ? `${task.notes}\n${entry}` : entry;
+          await db.tasks.update(task.id, { notes: newNotes, updatedAt: now.toISOString() });
+          void syncState();
+        }
+      }
+    });
+
+    void syncState();
+
+    return () => {
+      unsubTimer();
+      unsubBridge();
+    };
+  }, []);
+
+  // Listen for Tauri backend shortcuts: Ctrl+Alt+Space (Quick Add) & Ctrl+Alt+D (Universal Voice)
+  useEffect(() => {
+    if (!isTauri()) return;
+    let unlistenQuick: (() => void) | undefined;
+    let unlistenVoice: (() => void) | undefined;
+
+    import('@tauri-apps/api/event')
+      .then(({ listen }) => {
+        listen('quick-add-shortcut', () => {
+          setQuick(true);
+        }).then(un => {
+          unlistenQuick = un;
+        });
+
+        listen('toggle-dictation-shortcut', () => {
+          triggerUniversalVoice();
+        }).then(un => {
+          unlistenVoice = un;
+        });
+      })
+      .catch(err => {
+        console.warn('Could not register Tauri shortcut listeners:', err);
+      });
+
+    return () => {
+      unlistenQuick?.();
+      unlistenVoice?.();
+    };
+  }, [triggerUniversalVoice]);
+
   useEffect(() => {
     const clean = normalizeTheme(theme);
     document.documentElement.dataset.theme = clean;
@@ -273,6 +397,7 @@ export default function App() {
       const isEditing = e.target instanceof Element && Boolean(e.target.closest('input,textarea,select,[contenteditable="true"]'));
 
       if (e.altKey && key === 'v') {
+        if (!isVoiceEnabled()) return;
         e.preventDefault();
         triggerUniversalVoice();
         return;
@@ -420,12 +545,14 @@ export default function App() {
       {search && <CommandPalette categories={categories} onClose={closeSearch} onNavigate={go} onNewTask={openQuick} onOpenTask={openTask} onOpenPage={openPage} onCycleTheme={cycleTheme} onOpenShortcuts={() => setShortcuts(true)} onReplayWelcome={() => triggerWelcome('full-daily')} />}
       {active !== 'home' && layoutMode !== 'cockpit' && <MiniTimer onOpen={goHome} />}
       <AppDock floating onTriggerVoice={triggerUniversalVoice} />
-      <DictationHud
-        state={globalDictation.state}
-        audioLevel={globalDictation.audioLevel}
-        modelProgress={globalDictation.modelProgress}
-        onStop={globalDictation.stop}
-      />
+      {isVoiceEnabled() && (
+        <DictationHud
+          state={globalDictation.state}
+          audioLevel={globalDictation.audioLevel}
+          modelProgress={globalDictation.modelProgress}
+          onStop={globalDictation.stop}
+        />
+      )}
       <FloatingHUDPortal />
       <OnboardingWelcome
         open={welcomeOpen}
@@ -445,7 +572,7 @@ export default function App() {
         onStartFocusTask={handleWelcomeStartFocusTask}
       />
       <Toaster />
-      <ReloadPrompt />
+      {!isTauri() && <ReloadPrompt />}
     </div>
   );
 }

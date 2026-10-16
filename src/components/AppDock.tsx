@@ -5,6 +5,7 @@ import { db } from '../db/db';
 import { APP_PRESETS, detectLaunchKind, launchTarget, normalizeWebUrl } from '../lib/launcher';
 import { useTimerTaskId } from '../lib/timer';
 import { storage, uid } from '../lib/utils';
+import { isVoiceEnabled } from '../lib/runtime';
 import type { LaunchKind, LaunchLink, Task } from '../types';
 import { resolveBrandLogo } from './BrandIcons';
 
@@ -241,7 +242,7 @@ export function AppDock({
           <div className="w-px h-8 bg-line mx-1" />
 
           {/* Voice Typing Trigger Button */}
-          {onTriggerVoice && (
+          {onTriggerVoice && isVoiceEnabled() && (
             <button
               onClick={onTriggerVoice}
               title="Universal Voice Typing (Alt+V)"

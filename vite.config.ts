@@ -1,52 +1,59 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import fs from 'node:fs';
+import path from 'node:path';
 
-export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-    VitePWA({
-      registerType: 'prompt',
-      manifest: {
-        name: 'FocusSpace',
-        short_name: 'FocusSpace',
-        description: 'Local-first productivity app',
-        theme_color: '#18181b',
-        background_color: '#09090b',
-        display: 'standalone',
-        icons: [
-          {
-            src: '/icon-192.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any maskable'
-          },
-          {
-            src: '/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
-        ]
+export default defineConfig(({ mode }) => {
+  const isTauriMode = mode === 'tauri';
+
+  return {
+    plugins: [
+      react(),
+      tailwindcss(),
+      VitePWA({
+        disable: isTauriMode,
+        registerType: 'prompt',
+        manifest: {
+          name: 'FocusSpace',
+          short_name: 'FocusSpace',
+          description: 'Local-first productivity app',
+          theme_color: '#18181b',
+          background_color: '#09090b',
+          display: 'standalone',
+          icons: [
+            {
+              src: '/icon-192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any maskable'
+            },
+            {
+              src: '/icon-512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any maskable'
+            }
+          ]
+        },
+        workbox: {
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          maximumFileSizeToCacheInBytes: 3000000
+        }
+      }),
+    ],
+    server: {
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
       },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-        maximumFileSizeToCacheInBytes: 3000000
-      }
-    })
-  ],
-  server: {
-    headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'require-corp',
     },
-  },
-  preview: {
-    headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'require-corp',
+    preview: {
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+      },
     },
-  },
+  };
 });

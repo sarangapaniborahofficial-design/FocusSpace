@@ -360,6 +360,11 @@ export const timer = {
   reloadDurations() {
     timer.applyDurations(loadDurations(), false);
   },
+
+  /** Subscribe to timer state changes. */
+  subscribe(listener: () => void) {
+    return subscribe(listener);
+  },
 };
 
 /** Attach a task to the timer from anywhere in the app. */

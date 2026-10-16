@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertCircle, Loader2, Mic, MicOff } from 'lucide-react';
+import { isVoiceEnabled } from '../../lib/runtime';
 import type { DictationState } from '../useDictation';
 
 export interface MicButtonProps {
@@ -17,6 +18,8 @@ export function MicButton({
   className = '',
   title,
 }: MicButtonProps) {
+  if (!isVoiceEnabled()) return null;
+
   const isListening = state === 'listening';
   const isTranscribing = state === 'transcribing';
   const isLoading = state === 'loading-model';

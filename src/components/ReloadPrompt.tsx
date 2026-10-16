@@ -1,5 +1,6 @@
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { RefreshCw, X } from 'lucide-react';
+import { isTauri } from '../lib/runtime';
 
 export function ReloadPrompt() {
   const {
@@ -20,7 +21,7 @@ export function ReloadPrompt() {
     setNeedRefresh(false);
   };
 
-  if (!offlineReady && !needRefresh) return null;
+  if (isTauri() || (!offlineReady && !needRefresh)) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 p-4 rounded-xl shadow-lg border border-line bg-surface text-fg flex items-center gap-4 max-w-sm pop-in">

@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { toast } from './toast';
+import { isTauri } from './runtime';
+import { hudBridge } from './hudBridge';
 
 export interface PipHUDState {
   isOpen: boolean;
@@ -11,6 +13,7 @@ export interface PipHUDState {
 class PipHUDManager {
   private pipWindow: Window | null = null;
   private isExpanded: boolean = false;
+  private nativeOpen: boolean = false;
   private observer: MutationObserver | null = null;
   private listeners: Set<() => void> = new Set();
   private snapshot: PipHUDState;
@@ -25,6 +28,7 @@ class PipHUDManager {
   }
 
   isSupported(): boolean {
+    if (isTauri()) return true;
     return typeof window !== 'undefined' && 'documentPictureInPicture' in window;
   }
 
@@ -33,7 +37,9 @@ class PipHUDManager {
   }
 
   private updateSnapshot() {
-    const nextIsOpen = this.pipWindow !== null && !this.pipWindow.closed;
+    const nextIsOpen = isTauri()
+      ? this.nativeOpen
+      : (this.pipWindow !== null && !this.pipWindow.closed);
     const nextIsSupported = this.isSupported();
     if (
       this.snapshot.isOpen === nextIsOpen &&
@@ -63,10 +69,35 @@ class PipHUDManager {
 
   async open(expanded = false): Promise<boolean> {
     if (!this.isSupported()) {
-      toast('Always-on-Top Floating HUD requires a modern Chromium browser (Chrome, Edge, Brave, Arc).', 'info', { duration: 5000 });
+      toast('Always-on-Top Floating HUD requires a modern Chromium browser or native desktop app.', 'info', { duration: 5000 });
       return false;
     }
 
+    // Tauri native window adapter
+    if (isTauri()) {
+      try {
+        const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+        const { LogicalSize } = await import('@tauri-apps/api/dpi');
+        const hudWin = await WebviewWindow.getByLabel('floating-hud');
+        if (hudWin) {
+          this.isExpanded = expanded;
+          await hudWin.setSize(new LogicalSize(320, expanded ? 290 : 76));
+          await hudWin.show();
+          await hudWin.unminimize();
+          await hudWin.setFocus();
+          this.nativeOpen = true;
+          this.updateSnapshot();
+          hudBridge.send({ type: 'RESIZE_HUD', v: 1, expanded });
+          return true;
+        }
+      } catch (err) {
+        console.warn('Could not open native floating-hud window:', err);
+        toast('Could not open Always-on-Top Floating HUD.', 'error');
+        return false;
+      }
+    }
+
+    // Browser Document Picture-in-Picture adapter
     if (this.pipWindow && !this.pipWindow.closed) {
       this.pipWindow.focus();
       if (this.isExpanded !== expanded) {
@@ -110,6 +141,20 @@ class PipHUDManager {
   }
 
   close() {
+    if (isTauri()) {
+      import('@tauri-apps/api/webviewWindow').then(async ({ WebviewWindow }) => {
+        try {
+          const hudWin = await WebviewWindow.getByLabel('floating-hud');
+          if (hudWin) {
+            await hudWin.hide();
+            this.nativeOpen = false;
+            this.updateSnapshot();
+          }
+        } catch {}
+      });
+      return;
+    }
+
     if (this.pipWindow && !this.pipWindow.closed) {
       this.pipWindow.close();
     }
@@ -119,6 +164,22 @@ class PipHUDManager {
   setExpanded(expanded: boolean) {
     if (this.isExpanded === expanded) return;
     this.isExpanded = expanded;
+
+    if (isTauri()) {
+      hudBridge.send({ type: 'RESIZE_HUD', v: 1, expanded });
+      import('@tauri-apps/api/webviewWindow').then(async ({ WebviewWindow }) => {
+        try {
+          const { LogicalSize } = await import('@tauri-apps/api/dpi');
+          const hudWin = await WebviewWindow.getByLabel('floating-hud');
+          if (hudWin) {
+            await hudWin.setSize(new LogicalSize(320, expanded ? 290 : 76));
+          }
+        } catch {}
+      });
+      this.updateSnapshot();
+      return;
+    }
+
     if (this.pipWindow && !this.pipWindow.closed) {
       try {
         const targetW = expanded ? 320 : 300;
@@ -138,14 +199,12 @@ class PipHUDManager {
   private copyStyles(targetWindow: Window) {
     const targetDoc = targetWindow.document;
 
-    // Reset default margin/padding
     targetDoc.body.style.margin = '0';
     targetDoc.body.style.padding = '0';
     targetDoc.body.style.overflow = 'hidden';
     targetDoc.body.style.background = 'var(--c-canvas, #040404)';
     targetDoc.body.style.userSelect = 'none';
 
-    // Clone all stylesheets
     Array.from(document.styleSheets).forEach((sheet) => {
       try {
         const rules = Array.from(sheet.cssRules)
@@ -155,7 +214,6 @@ class PipHUDManager {
         style.textContent = rules;
         targetDoc.head.appendChild(style);
       } catch {
-        // Cross-origin fallback
         if (sheet.href) {
           const link = targetDoc.createElement('link');
           link.rel = 'stylesheet';
@@ -196,6 +254,7 @@ class PipHUDManager {
       this.observer = null;
     }
     this.pipWindow = null;
+    this.nativeOpen = false;
     this.updateSnapshot();
   }
 }

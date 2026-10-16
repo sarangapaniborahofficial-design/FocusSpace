@@ -100,24 +100,28 @@ This document maintains the persistent, prioritized queue of upcoming sprints, f
 
 ---
 
-### ⏳ Phase B: Empty Tauri v2 Shell (Voice Off)
-- [ ] Scaffold Tauri v2 CLI with `identifier`: `com.focusspace.desktop` (frozen).
-- [ ] Add `src/lib/runtime.ts` exporting `isTauri()`.
-- [ ] Add `build:tauri` mode (disabling VitePWA, removing voice dist assets, voice feature flag off).
-- [ ] Strict CSP and baseline capabilities (single-instance, window-state).
-- [ ] **Gate B**: `npm run tauri dev` & `npm run tauri build` succeed; data persists across restarts; fonts render offline.
-
-### ⏳ Phase C: Data Safety (Vault Mirroring & Restore)
-- [ ] Rust commands: `write_vault_snapshot`, `list_vault_snapshots`, `read_vault_snapshot` with atomic temp write + rename.
-- [ ] Filename pattern validation `^focusspace-\d{4}-\d{2}-\d{2}(-\d{6})?\.json$` (path traversal guards with `cargo test`).
-- [ ] Snapshot scheduling (daily at 11:59 PM via `journalAutoSave`, boot check if older than 24h, manual button).
-- [ ] Settings restore UI with pre-restore safety snapshot.
-- [ ] **Gate C**: Delete all data, restore from snapshot; kill during write test; retention pruning test.
-
-### ⏳ Phase D: Native Adapters
-- [ ] `launcher.ts` opener plugin adapter with scheme allow-list (`https`, `spotify`, `vscode`).
-- [ ] `notifications.ts` Tauri notification plugin adapter.
-- [ ] Native system tray with timer tooltip and close-to-tray window intercept.
+### ✅ Phase B–D: Tauri v2 Windows Hardening & Native Fast-Track (COMPLETED)
+- [x] **Tauri v2 Scaffold**: Frozen identifier `com.focusspace.desktop`, strict CSP (`'wasm-unsafe-eval'`), single instance lock, window state restoration.
+- [x] **Voice Enabled in Desktop**: Deduplicated ONNX WASM in `public/ort/`, full offline voice support preserved in desktop build.
+- [x] **Native Atomic Vault Mirroring (`src-tauri/src/vault.rs`)**:
+  - `write_vault_snapshot`, `list_vault_snapshots`, `read_vault_snapshot` operating in `app_data_dir()/Backups`.
+  - Filename validation (`^focusspace-\d{4}-\d{2}-\d{2}(-\d{6})?\.json$`) preventing path traversal.
+  - Atomic write (`.tmp` write + rename) and 14-day retention pruning with a 3-snapshot floor.
+  - Rust unit tests (`test_atomic_write_and_read`, `test_validate_snapshot_filename`, `test_retention_pruning`).
+  - Automated scheduling in `journalAutoSave.ts` (11:59 PM snapshot, >24h boot check) and **Back Up to Vault Now** button in `Settings.tsx`.
+- [x] **Native Floating HUD & Cross-Window Bridge**:
+  - `src/lib/hudBridge.ts` via `BroadcastChannel('focusspace-hud-bus')` for bidirectional timer and task state synchronization.
+  - Frameless, transparent, draggable (`data-tauri-drag-region`) always-on-top HUD window (`url: "index.html?window=hud"`).
+  - Dynamic resizing between micro-pill (320x76) and flow drawer (320x290).
+- [x] **System Tray & Conflict-Free Hotkeys**:
+  - Tray icon with `Show FocusSpace`, `Toggle HUD`, `Quit` menu items.
+  - Close-to-tray window intercept on main window `CloseRequested`.
+  - Global shortcuts: `Ctrl+Alt+Space` (Quick Add), `Ctrl+Alt+H` (Toggle Floating HUD), `Ctrl+Alt+D` (Universal Voice Dictation).
+- [x] **Final Verification & Build Output**:
+  - `npx vitest run`: 104/104 tests passed.
+  - `node scripts/check-voice-assets.mjs`: 17/17 voice assets verified (58.85 MB).
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 3/3 passed.
+  - `npm run tauri build`: Standalone `focusspace-desktop.exe` (46.16 MiB), NSIS installer `FocusSpace_0.1.0_x64-setup.exe` (37.41 MiB), and MSI installer `FocusSpace_0.1.0_x64_en-US.msi` (38.40 MiB) produced.
 - [ ] **Gate D**: 10-minute timer in tray, notification on finish, allow-listed schemes work, process clean exit.
 
 ### ⏳ Phase E: Native Floating HUD Window

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isVoiceEnabled } from '../lib/runtime';
 import { VadController } from './capture/vad';
 import { cleanLight } from './cleanup/disfluency';
 import { getAsrClient } from './engine/AsrClient';
@@ -36,6 +37,7 @@ export function useDictation(options: UseDictationOptions = {}) {
 
   // Initialize or warmup ASR model
   const initEngine = useCallback(async () => {
+    if (!isVoiceEnabled()) return;
     if (asrClient.current.isReady()) {
       setState('ready');
       return;
@@ -103,6 +105,7 @@ export function useDictation(options: UseDictationOptions = {}) {
   );
 
   const start = useCallback(async () => {
+    if (!isVoiceEnabled()) return;
     setErrorMessage(null);
     activeRef.current = true;
 
@@ -156,6 +159,7 @@ export function useDictation(options: UseDictationOptions = {}) {
   }, []);
 
   const toggle = useCallback(async () => {
+    if (!isVoiceEnabled()) return;
     if (state === 'listening' || state === 'transcribing') {
       await stop();
     } else {
