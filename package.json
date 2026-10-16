@@ -9,6 +9,7 @@
     "test": "vitest run",
     "preview": "vite preview",
     "prepare-voice": "node scripts/provision-voice.mjs",
+    "setup:voice": "node scripts/fetch-models.mjs",
     "postinstall": "node scripts/provision-voice.mjs"
   },
   "dependencies": {

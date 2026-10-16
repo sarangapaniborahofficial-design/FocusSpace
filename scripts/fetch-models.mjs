@@ -41,6 +41,10 @@ const ESSENTIAL_FILES = [
   'tokenizer_config.json',
   'vocab.json',
   'merges.txt',
+  'normalizer.json',
+  'added_tokens.json',
+  'special_tokens_map.json',
+  'quantize_config.json',
   'onnx/encoder_model_quantized.onnx',
   'onnx/decoder_model_merged_quantized.onnx',
 ];

@@ -120,40 +120,19 @@ The following initiatives were evaluated and deliberately deferred to preserve F
 
 ---
 
-## 📌 Priority Future Backlog (Next Queue)
+## 📌 Priority Future Backlog (Next Queue: Phase 11 / Sprint 4)
 
-These major initiatives and bug fixes are tracked in [`TODO.md`](file:///D:/focusspace-phase75/FocusSpace/TODO.md) and scheduled for upcoming development sprints:
+These major initiatives are tracked in [`TODO.md`](file:///D:/focusspace-phase75/FocusSpace/TODO.md) and scheduled for the upcoming native desktop and mobile companion development sprint (with all Phase 10A–10G foundation items completed and verified):
 
-1. 🔴 **P0 Bug: Swiss Brutal Black-on-Black Tab Contrast Glitch**:
-   - Fix invisible text bug on queue filter tabs ("Due today", "Done", "All", "Overdue") in Swiss Brutal where both button background and font turn pitch-black (`#0d0f0d`).
-2. 🔴 **P0 Safeguard: Automated Color Contrast & WCAG Test Suite**:
-   - Automated Vitest test suite (`colorContrast.test.ts`) programmatically verifying WCAG AA/AAA contrast ratios for all foreground/background pairings across all 4 themes, failing CI if any invisible text combination is introduced.
-3. 🎯 **Swiss Onyx Pure Black Typography Consistency**:
-   - Comprehensive audit of Swiss Onyx theme typography to eliminate remaining low-contrast gray/muted fonts (`text-gray-400`, `text-neutral-500`).
-   - Enforce pure jet black (`#000000`) across all body labels, card descriptions, badges, and modal headers.
-4. 🎯 **Dedicated "Journal" Tab Under Workspace & Deadline Auto-Save**:
-   - New first-class **Journal** tab in workspace navigation.
-   - Automated end-of-day reflection snapshot at a set deadline (e.g., **11:59 PM**) generating daily summary into `db.journalEntries`.
-   - Manual snapshot button + TipTap editing + chronological journal archive browser.
-5. 🎯 **Pages Tab Separation & Hierarchical Category Sorting**:
-   - Complete separation: Pages tab exclusively displays Category pages; zero daily journal page pollution.
-   - Beautiful visual categorization with category color indicators and chronological sorting by date modified/created.
-6. 🎯 **App Docker on the Bottom of Homepage**:
-   - Dedicated, persistent dock anchored at the bottom of the Today/Home dashboard (macOS/iPadOS-style floating dock).
-   - Smooth hover magnification, active workspace indicator, and quick launch for Spotify, YouTube, Discord, Antigravity, VS Code, and GitHub.
-7. 🎯 **Native Windows Support (Tauri v2 Desktop Shell)**:
+1. 🎯 **Native Windows Desktop Shell (Tauri v2 & Rust)**:
    - Package FocusSpace as an ultra-fast, lightweight Windows desktop application using Tauri v2 & Rust.
-   - Native Windows system tray with timer status badge, global Windows hotkeys (`Ctrl+Shift+Space`), and direct local JSON/SQLite backup without browser storage eviction.
-8. 🎯 **Flowy Welcome Onboarding & Slide Flow**:
-   - Cinematic multi-step onboarding journey before entering the dashboard:
-     - **Slide 1: Welcome** (philosophy & local-first foundation).
-     - **Slide 2: What to Do** (tasks, scheduling, and workspace launchpad).
-     - **Slide 3: Review** (reflection, habit tracking, and time metrics).
-     - Smooth animated transition into the **Main Dashboard**.
-9. 🎯 **100% Offline Voice Typing Studio**:
-   - Client-side in-browser voice transcription engine (Whisper WASM / Web Speech fallback).
-   - Real-time **Disfluency Sanitizer** automatically stripping fillers ("um", "ah", "so", hesitation pauses).
-   - Floating **Live Review Dock** for reviewing captured text before inserting into tasks, journal reflections, or notes.
+   - Native Windows system tray with timer status badge, global Windows hotkeys (`Ctrl+Shift+Space`), and direct local JSON backup folder sync (`C:\Users\<User>\FocusSpace\Backups\`).
+   - True frameless, transparent, draggable Always-on-Top HUD window (`WebviewWindow('hud')`) replacing browser-based Document PiP.
+   - Tauri opener and notification plugins for native app launching and system notifications.
+2. 🎯 **One-Way Mobile Companion (Android Feeder App)**:
+   - Lightweight companion app for quick thought capture on mobile (`FocusSpaceDropEnvelope`).
+   - Zero-cloud transport: Local Wi-Fi Direct push (QR code scan, <50ms) or `.fsdrop` file drop.
+   - Desktop Morning/Evening Briefing "Phone Drop Triage Tray" (Enter to Task, J to Journal, P to Page).
 
 ---
 

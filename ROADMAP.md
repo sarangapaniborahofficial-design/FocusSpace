@@ -25,10 +25,10 @@ Strategic architecture, milestone phases, and native transition gates for FocusS
 | **8** | Production PWA & Power Tools | ✅ **Completed** | Offline service worker, customizable smart scheduling, keyboard cheatsheet. |
 | **9** | Command Hub & Daily Briefing | ✅ **Completed** | Unified app launcher (Spotify, YouTube, Discord, Antigravity, VS Code, GitHub), task workspace links, dynamic morning/midday/evening briefings, 1-click rollover and journal reflection. |
 | **9.5**| Reliability Hardening & Cleanup | ✅ **Completed** | Removed legacy JSON backup/sync, fixed appointment immutability, overdue rescheduling, category goal remap, timezone fix, and shortcut typing guards. |
-| **10** | Sprint 1: Contrast, HUD & Bottom Dock | 🚀 **Scheduled** | Fix Swiss Brutal tab contrast, automated WCAG contrast tests, Document PiP Always-on-Top HUD with Flow Overtime & scratchpad, bottom-anchored app dock with hover magnification. |
-| **11** | Sprint 2: Knowledge Split & Onboarding | ⏳ **Queued** | Dedicated Journal tab with 11:59 PM auto-save engine & catch-up, Category-grouped Pages tab, flowy 3-slide welcome onboarding journey with cinematic morph. |
-| **12** | Sprint 3: Native Windows & Voice Studio | ⏳ **Queued** | Tauri v2 desktop package (tray, global hotkeys, direct file backups), 100% offline voice typing studio with 4-pass disfluency sanitizer. |
-| **13** | Sprint 4: Android Companion Feeder | ⏳ **Queued** | One-way capture app (Phone → Laptop), local Wi-Fi direct push, and Windows Morning Briefing Phone Drop Triage Tray. |
+| **10** | Sprint 1: Contrast, HUD & Bottom Dock | ✅ **Completed** | Fixed Swiss Brutal tab contrast, automated WCAG contrast tests, Document PiP Always-on-Top HUD with Flow Overtime & scratchpad, bottom-anchored app dock with hover magnification. |
+| **11** | Sprint 2: Knowledge Split & Onboarding | ✅ **Completed** | Dedicated Journal tab with 11:59 PM auto-save engine & catch-up, Category-grouped Pages tab, flowy 3-slide welcome onboarding journey with cinematic morph. |
+| **12** | Sprint 3: Voice Studio & PWA Readiness | ✅ **Completed** | 100% offline voice typing studio with Silero VAD, Whisper WASM, Light disfluency engine, JSON Data Vault engine, local fonts, and pinned deps. |
+| **13** | Sprint 4: Native Windows & Mobile Feeder | 🚀 **Scheduled** | Tauri v2 desktop package (tray, global hotkeys, direct file backups), One-way Android capture app (Phone → Laptop), local Wi-Fi direct push, and Windows Morning Briefing Phone Drop Triage Tray. |
 
 ---
 
