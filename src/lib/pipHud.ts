@@ -76,24 +76,35 @@ class PipHUDManager {
     // Tauri native window adapter
     if (isTauri()) {
       try {
-        const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-        const { LogicalSize } = await import('@tauri-apps/api/dpi');
-        const hudWin = await WebviewWindow.getByLabel('floating-hud');
-        if (hudWin) {
-          this.isExpanded = expanded;
-          await hudWin.setSize(new LogicalSize(320, expanded ? 290 : 76));
-          await hudWin.show();
-          await hudWin.unminimize();
-          await hudWin.setFocus();
-          this.nativeOpen = true;
-          this.updateSnapshot();
-          hudBridge.send({ type: 'RESIZE_HUD', v: 1, expanded });
-          return true;
-        }
+        const { invoke } = await import('@tauri-apps/api/core');
+        this.isExpanded = expanded;
+        await invoke('hud_set_expanded', { expanded });
+        await invoke('hud_show');
+        this.nativeOpen = true;
+        this.updateSnapshot();
+        hudBridge.send({ type: 'RESIZE_HUD', v: 1, expanded });
+        return true;
       } catch (err) {
-        console.warn('Could not open native floating-hud window:', err);
-        toast('Could not open Always-on-Top Floating HUD.', 'error');
-        return false;
+        try {
+          const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+          const { LogicalSize } = await import('@tauri-apps/api/dpi');
+          const hudWin = await WebviewWindow.getByLabel('floating-hud');
+          if (hudWin) {
+            this.isExpanded = expanded;
+            await hudWin.setSize(new LogicalSize(320, expanded ? 290 : 76));
+            await hudWin.show();
+            await hudWin.unminimize();
+            await hudWin.setFocus();
+            this.nativeOpen = true;
+            this.updateSnapshot();
+            hudBridge.send({ type: 'RESIZE_HUD', v: 1, expanded });
+            return true;
+          }
+        } catch (fallbackErr) {
+          console.warn('Could not open native floating-hud window:', fallbackErr);
+          toast('Could not open Always-on-Top Floating HUD.', 'error');
+          return false;
+        }
       }
     }
 
@@ -142,15 +153,20 @@ class PipHUDManager {
 
   close() {
     if (isTauri()) {
-      import('@tauri-apps/api/webviewWindow').then(async ({ WebviewWindow }) => {
+      import('@tauri-apps/api/core').then(async ({ invoke }) => {
         try {
+          await invoke('hud_hide');
+          this.nativeOpen = false;
+          this.updateSnapshot();
+        } catch {
+          const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
           const hudWin = await WebviewWindow.getByLabel('floating-hud');
           if (hudWin) {
             await hudWin.hide();
             this.nativeOpen = false;
             this.updateSnapshot();
           }
-        } catch {}
+        }
       });
       return;
     }
@@ -167,14 +183,17 @@ class PipHUDManager {
 
     if (isTauri()) {
       hudBridge.send({ type: 'RESIZE_HUD', v: 1, expanded });
-      import('@tauri-apps/api/webviewWindow').then(async ({ WebviewWindow }) => {
+      import('@tauri-apps/api/core').then(async ({ invoke }) => {
         try {
+          await invoke('hud_set_expanded', { expanded });
+        } catch {
+          const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
           const { LogicalSize } = await import('@tauri-apps/api/dpi');
           const hudWin = await WebviewWindow.getByLabel('floating-hud');
           if (hudWin) {
             await hudWin.setSize(new LogicalSize(320, expanded ? 290 : 76));
           }
-        } catch {}
+        }
       });
       this.updateSnapshot();
       return;

@@ -59,9 +59,9 @@ if (fs.existsSync(ONNX_SRC)) {
   console.warn('  ⚠️ onnxruntime-web not found in node_modules.');
 }
 
-// 2. Provision Silero VAD v5 and audio worklet scripts into public/vad/
+// 2. Provision Silero VAD v5, legacy fallback, and audio worklet scripts into public/vad/
 if (fs.existsSync(VAD_SRC)) {
-  const vadFiles = ['silero_vad_v5.onnx', 'vad.worklet.bundle.min.js', 'vad.worklet.bundle.dev.js'];
+  const vadFiles = ['silero_vad_v5.onnx', 'silero_vad_legacy.onnx', 'vad.worklet.bundle.min.js', 'vad.worklet.bundle.dev.js'];
   for (const f of vadFiles) {
     copyIfExists(path.join(VAD_SRC, f), path.join(PUBLIC_VAD, f));
   }
@@ -75,13 +75,12 @@ if (fs.existsSync(LEGACY_WASM_DIR)) {
   console.log('  ✓ Cleaned up legacy directory: public/models/wasm/');
 }
 
-// 4. Remove stale/unused WASM variants and legacy models from public/vad/
+// 4. Remove stale/unused WASM variants and unneeded files from public/vad/
 if (fs.existsSync(PUBLIC_VAD)) {
   const entries = fs.readdirSync(PUBLIC_VAD);
   for (const entry of entries) {
     if (
       entry.endsWith('.wasm') ||
-      entry === 'silero_vad_legacy.onnx' ||
       entry === 'silero_vad_v6.onnx' ||
       entry.endsWith('.d.ts') ||
       entry.endsWith('.d.ts.map') ||

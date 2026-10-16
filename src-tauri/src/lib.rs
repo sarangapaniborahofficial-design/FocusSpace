@@ -1,3 +1,4 @@
+pub mod hud;
 pub mod launcher;
 pub mod vault;
 
@@ -25,6 +26,10 @@ pub fn run() {
             vault::list_vault_snapshots,
             vault::read_vault_snapshot,
             launcher::launch_external,
+            hud::hud_start_dragging,
+            hud::hud_set_expanded,
+            hud::hud_hide,
+            hud::hud_show,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

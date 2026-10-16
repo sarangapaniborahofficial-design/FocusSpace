@@ -109,10 +109,11 @@ runTier('T3', 'Database, Vault Mirroring & Data Integrity', () => {
 // ----------------------------------------------------------------------------
 runTier('T4', 'Offline Voice Studio, VAD & WASM Integrity', () => {
   const out = execSync('node scripts/check-voice-assets.mjs', { cwd: ROOT, stdio: 'pipe', encoding: 'utf-8' });
-  if (!out.includes('All 19 voice assets verified')) {
+  const match = out.match(/All (\d+) voice assets verified/);
+  if (!match) {
     throw new Error('Voice assets check failed');
   }
-  return 'All 19 assets verified (84.52 MB, zero cloud network leakage)';
+  return `All ${match[1]} assets verified (zero cloud network leakage)`;
 });
 
 // ----------------------------------------------------------------------------
@@ -127,11 +128,16 @@ runTier('T5', 'Tauri v2 Desktop & Window System Hardening', () => {
   if (hud.minWidth !== 320 || hud.maxWidth !== 320) throw new Error('floating-hud width must be clamped to 320px');
   if (hud.minHeight !== 76 || hud.maxHeight !== 290) throw new Error('floating-hud height must be clamped between 76px and 290px');
 
-  // Verify launcher command in lib.rs
+  // Verify launcher & HUD commands in lib.rs
   const libRs = fs.readFileSync(path.join(ROOT, 'src-tauri', 'src', 'lib.rs'), 'utf-8');
   if (!libRs.includes('launcher::launch_external')) throw new Error('launcher::launch_external missing in lib.rs');
+  if (!libRs.includes('hud::hud_start_dragging')) throw new Error('hud::hud_start_dragging missing in lib.rs');
 
-  return 'HUD window clamped (320×76-290, resizable: true), native launcher registered';
+  // Verify capabilities
+  const cap = JSON.parse(fs.readFileSync(path.join(ROOT, 'src-tauri', 'capabilities', 'default.json'), 'utf-8'));
+  if (!cap.permissions.includes('core:window:allow-start-dragging')) throw new Error('core:window:allow-start-dragging missing');
+
+  return 'HUD window clamped (320×76-290, resizable: true), native launcher & HUD commands + ACL permissions verified';
 });
 
 // ----------------------------------------------------------------------------

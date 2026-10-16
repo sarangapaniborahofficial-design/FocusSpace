@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import React, { useRef, useState, useEffect } from 'react';
-import { Globe, Laptop, Mic, Plus, Rocket, Trash2, X } from 'lucide-react';
+import { Globe, Laptop, Mic, Pencil, Plus, Rocket, Trash2, X } from 'lucide-react';
 import { db } from '../db/db';
 import { APP_PRESETS, detectLaunchKind, launchTarget, normalizeWebUrl } from '../lib/launcher';
 import { useTimerTaskId } from '../lib/timer';
@@ -96,9 +96,18 @@ export function AppDock({
   });
 
   const [addOpen, setAddOpen] = useState(false);
+  const [editingLink, setEditingLink] = useState<LaunchLink | null>(null);
+  const [contextMenuLink, setContextMenuLink] = useState<{ link: LaunchLink; x: number; y: number } | null>(null);
   const [newLabel, setNewLabel] = useState('');
   const [newUrl, setNewUrl] = useState('');
   const [newKind, setNewKind] = useState<LaunchKind>('web');
+
+  // Close context menu on outside click
+  useEffect(() => {
+    const handleOutsideClick = () => setContextMenuLink(null);
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, []);
 
   // Mouse hover physics for 60/120fps Gaussian scaling wave throttled via requestAnimationFrame
   const dockRef = useRef<HTMLDivElement>(null);
@@ -120,24 +129,60 @@ export function AppDock({
     }
   };
 
-  const addLink = async (label = newLabel, url = newUrl, explicitKind = newKind) => {
-    if (!label.trim() || !url.trim()) return;
-    const kind = explicitKind || detectLaunchKind(url.trim());
-    const finalUrl = kind === 'web' ? normalizeWebUrl(url.trim()) : url.trim();
+  const startEditing = (link: LaunchLink) => {
+    setEditingLink(link);
+    setNewLabel(link.label);
+    setNewUrl(link.url);
+    setNewKind(link.kind || 'web');
+    setAddOpen(true);
+    setContextMenuLink(null);
+  };
 
-    const link: LaunchLink = {
-      id: uid(),
-      label: label.trim(),
-      url: finalUrl,
-      kind,
-    };
-    await saveLinks([...links, link]);
+  const cancelEditing = () => {
+    setEditingLink(null);
     setNewLabel('');
     setNewUrl('');
-    setAddOpen(false);
+    setNewKind('web');
+  };
+
+  const saveOrUpdateLink = async (explicitLabel?: string, explicitUrl?: string, explicitKind?: LaunchKind) => {
+    const targetLabel = explicitLabel ?? newLabel;
+    const targetUrl = explicitUrl ?? newUrl;
+    const targetKind = explicitKind ?? newKind;
+
+    if (!targetLabel.trim() || !targetUrl.trim()) return;
+    const kind = targetKind || detectLaunchKind(targetUrl.trim());
+    const finalUrl = kind === 'web' ? normalizeWebUrl(targetUrl.trim()) : targetUrl.trim();
+
+    if (editingLink) {
+      const updated = links.map(l =>
+        l.id === editingLink.id
+          ? { ...l, label: targetLabel.trim(), url: finalUrl, kind }
+          : l
+      );
+      await saveLinks(updated);
+      cancelEditing();
+    } else {
+      const link: LaunchLink = {
+        id: uid(),
+        label: targetLabel.trim(),
+        url: finalUrl,
+        kind,
+      };
+      await saveLinks([...links, link]);
+      cancelEditing();
+      setAddOpen(false);
+    }
+  };
+
+  const addLink = async (label = newLabel, url = newUrl, explicitKind = newKind) => {
+    await saveOrUpdateLink(label, url, explicitKind);
   };
 
   const removeLink = async (id: string) => {
+    if (editingLink?.id === id) {
+      cancelEditing();
+    }
     await saveLinks(links.filter(l => l.id !== id));
   };
 
@@ -210,7 +255,15 @@ export function AppDock({
               >
                 <button
                   onClick={() => launchTarget(link.url, link.label, link.kind)}
-                  title={`Launch ${link.label} (${link.url})`}
+                  onContextMenu={e => {
+                    e.preventDefault();
+                    setContextMenuLink({
+                      link,
+                      x: e.clientX,
+                      y: e.clientY - 120,
+                    });
+                  }}
+                  title={`Launch ${link.label} (${link.url}) — Right-click to edit`}
                   className={`size-12 sm:size-14 rounded-2xl border flex items-center justify-center transition cursor-pointer shadow-sm ${
                     isAttached
                       ? 'bg-accent/15 border-accent shadow-md'
@@ -254,7 +307,14 @@ export function AppDock({
 
           {/* Quick Add / Manage Button */}
           <button
-            onClick={() => setAddOpen(v => !v)}
+            onClick={() => {
+              if (addOpen) {
+                cancelEditing();
+                setAddOpen(false);
+              } else {
+                setAddOpen(true);
+              }
+            }}
             title="Add or Manage Workspace Apps"
             className="size-10 sm:size-11 rounded-2xl border border-line bg-surface hover:bg-hover text-fg-muted hover:text-fg flex items-center justify-center transition keycap shrink-0 shadow-xs"
           >
@@ -262,17 +322,69 @@ export function AppDock({
           </button>
         </div>
 
+        {/* Right-click Context Menu for Dock Icons */}
+        {contextMenuLink && (
+          <div
+            style={{
+              left: Math.min(typeof window !== 'undefined' ? window.innerWidth - 180 : 200, Math.max(10, contextMenuLink.x - 80)),
+              top: Math.max(10, contextMenuLink.y),
+            }}
+            className="fixed z-50 w-44 rounded-2xl bg-surface border border-line-strong shadow-pop p-1.5 space-y-0.5 text-xs select-none pop-in"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-2.5 py-1 text-[10px] font-semibold text-fg-subtle uppercase border-b border-line truncate">
+              {contextMenuLink.link.label}
+            </div>
+            <button
+              onClick={() => {
+                launchTarget(contextMenuLink.link.url, contextMenuLink.link.label, contextMenuLink.link.kind);
+                setContextMenuLink(null);
+              }}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-hover text-fg text-left transition cursor-pointer"
+            >
+              <Rocket size={13} className="text-accent-text" />
+              <span>Launch App</span>
+            </button>
+            <button
+              onClick={() => {
+                startEditing(contextMenuLink.link);
+              }}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-hover text-fg text-left transition cursor-pointer"
+            >
+              <Pencil size={13} className="text-fg-muted" />
+              <span>Edit App</span>
+            </button>
+            <button
+              onClick={() => {
+                void removeLink(contextMenuLink.link.id);
+                setContextMenuLink(null);
+              }}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-rose-500/10 text-rose-500 text-left transition cursor-pointer"
+            >
+              <Trash2 size={13} />
+              <span>Remove from Dock</span>
+            </button>
+          </div>
+        )}
+
         {/* Modal / Popover for Managing Apps */}
         {addOpen && (
           <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[360px] pop-in p-5 rounded-3xl bg-surface border border-line-strong shadow-pop space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-xs font-semibold text-fg">Manage Workspace Dock</h3>
-                <p className="text-[11px] text-fg-subtle">Pin desktop tools or web applications</p>
+                <h3 className="text-xs font-semibold text-fg">
+                  {editingLink ? `Edit "${editingLink.label}"` : 'Manage Workspace Dock'}
+                </h3>
+                <p className="text-[11px] text-fg-subtle">
+                  {editingLink ? 'Update name, target scheme, or type' : 'Pin desktop tools or web applications'}
+                </p>
               </div>
               <button
-                onClick={() => setAddOpen(false)}
-                className="text-fg-muted hover:text-fg"
+                onClick={() => {
+                  cancelEditing();
+                  setAddOpen(false);
+                }}
+                className="text-fg-muted hover:text-fg cursor-pointer"
               >
                 <X size={15} />
               </button>
@@ -283,13 +395,24 @@ export function AppDock({
               {links.map(l => (
                 <span
                   key={l.id}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-surface-2 border border-line text-xs text-fg"
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs transition ${
+                    editingLink?.id === l.id
+                      ? 'bg-accent/15 border-accent text-accent-text font-semibold'
+                      : 'bg-surface-2 border-line text-fg'
+                  }`}
                 >
                   <span className="font-medium">{l.label}</span>
                   <span className="text-[9px] text-fg-subtle uppercase">({l.kind})</span>
                   <button
+                    onClick={() => startEditing(l)}
+                    className="text-fg-subtle hover:text-accent-text transition cursor-pointer"
+                    title={`Edit ${l.label}`}
+                  >
+                    <Pencil size={11} />
+                  </button>
+                  <button
                     onClick={() => void removeLink(l.id)}
-                    className="text-fg-subtle hover:text-rose-500"
+                    className="text-fg-subtle hover:text-rose-500 transition cursor-pointer"
                     title={`Remove ${l.label}`}
                   >
                     <X size={11} />
@@ -298,14 +421,14 @@ export function AppDock({
               ))}
             </div>
 
-            {/* Add App Form */}
+            {/* Add / Edit App Form */}
             <div className="space-y-3 pt-2 border-t border-line">
               {/* Kind Toggle: Web App vs Native App */}
               <div className="flex items-center gap-1.5 p-1 rounded-xl bg-surface-2 border border-line text-xs">
                 <button
                   type="button"
                   onClick={() => setNewKind('web')}
-                  className={`flex-1 py-1 px-2 rounded-lg font-medium flex items-center justify-center gap-1.5 transition ${
+                  className={`flex-1 py-1 px-2 rounded-lg font-medium flex items-center justify-center gap-1.5 transition cursor-pointer ${
                     newKind === 'web'
                       ? 'bg-accent text-accent-fg shadow-xs'
                       : 'text-fg-muted hover:text-fg'
@@ -317,7 +440,7 @@ export function AppDock({
                 <button
                   type="button"
                   onClick={() => setNewKind('app')}
-                  className={`flex-1 py-1 px-2 rounded-lg font-medium flex items-center justify-center gap-1.5 transition ${
+                  className={`flex-1 py-1 px-2 rounded-lg font-medium flex items-center justify-center gap-1.5 transition cursor-pointer ${
                     newKind === 'app'
                       ? 'bg-accent text-accent-fg shadow-xs'
                       : 'text-fg-muted hover:text-fg'
@@ -341,17 +464,28 @@ export function AppDock({
                 placeholder={newKind === 'web' ? 'youtube.com or https://...' : 'spotify://, vscode://, discord://'}
                 className="w-full h-9 rounded-xl bg-surface-2 border border-line px-3 text-xs font-mono outline-none text-fg placeholder:text-fg-subtle"
                 onKeyDown={e => {
-                  if (e.key === 'Enter') void addLink();
+                  if (e.key === 'Enter') void saveOrUpdateLink();
                 }}
               />
 
-              <button
-                onClick={() => void addLink()}
-                disabled={!newLabel.trim() || !newUrl.trim()}
-                className="w-full h-9 rounded-xl bg-accent text-accent-fg text-xs font-semibold hover:bg-accent-hover disabled:opacity-40 transition keycap shadow-xs"
-              >
-                Pin {newKind === 'web' ? 'Web Application' : 'Native App'}
-              </button>
+              <div className="flex items-center gap-2">
+                {editingLink && (
+                  <button
+                    type="button"
+                    onClick={cancelEditing}
+                    className="flex-1 h-9 rounded-xl border border-line bg-surface hover:bg-hover text-fg text-xs font-medium transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  onClick={() => void saveOrUpdateLink()}
+                  disabled={!newLabel.trim() || !newUrl.trim()}
+                  className="flex-1 h-9 rounded-xl bg-accent text-accent-fg text-xs font-semibold hover:bg-accent-hover disabled:opacity-40 transition keycap shadow-xs cursor-pointer"
+                >
+                  {editingLink ? 'Save Changes' : `Pin ${newKind === 'web' ? 'Web Application' : 'Native App'}`}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -374,8 +508,15 @@ export function AppDock({
         </div>
 
         <button
-          onClick={() => setAddOpen(v => !v)}
-          className="h-7 px-2.5 rounded-lg border border-line bg-surface hover:bg-hover text-xs font-medium text-fg flex items-center gap-1 transition keycap"
+          onClick={() => {
+            if (addOpen) {
+              cancelEditing();
+              setAddOpen(false);
+            } else {
+              setAddOpen(true);
+            }
+          }}
+          className="h-7 px-2.5 rounded-lg border border-line bg-surface hover:bg-hover text-xs font-medium text-fg flex items-center gap-1 transition keycap cursor-pointer"
         >
           {addOpen ? <X size={13} /> : <Plus size={13} />}
           <span>{addOpen ? 'Cancel' : 'Add App'}</span>
@@ -384,26 +525,39 @@ export function AppDock({
 
       {addOpen && (
         <div className="pop-in mb-4 p-4 rounded-2xl bg-surface-2 border border-line space-y-3">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] font-mono text-fg-subtle uppercase">Quick presets:</span>
-            {APP_PRESETS.map(preset => (
+          {editingLink ? (
+            <div className="flex items-center justify-between text-xs text-accent-text font-semibold px-1">
+              <span>Editing "{editingLink.label}"</span>
               <button
-                key={preset.label}
                 type="button"
-                onClick={() => void addLink(preset.label, preset.url, preset.kind)}
-                className="px-2.5 py-1 rounded-lg bg-surface border border-line text-[11px] text-fg-soft hover:bg-hover hover:text-fg transition"
+                onClick={cancelEditing}
+                className="text-fg-subtle hover:text-fg text-[11px] underline cursor-pointer"
               >
-                + {preset.label} <span className="text-[9px] text-fg-subtle">({preset.kind})</span>
+                Cancel edit
               </button>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-mono text-fg-subtle uppercase">Quick presets:</span>
+              {APP_PRESETS.map(preset => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => void addLink(preset.label, preset.url, preset.kind)}
+                  className="px-2.5 py-1 rounded-lg bg-surface border border-line text-[11px] text-fg-soft hover:bg-hover hover:text-fg transition cursor-pointer"
+                >
+                  + {preset.label} <span className="text-[9px] text-fg-subtle">({preset.kind})</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Segmented Type Picker */}
           <div className="flex items-center gap-1.5 p-1 rounded-xl bg-surface border border-line text-xs w-fit">
             <button
               type="button"
               onClick={() => setNewKind('web')}
-              className={`py-1 px-3 rounded-lg font-medium flex items-center gap-1.5 transition ${
+              className={`py-1 px-3 rounded-lg font-medium flex items-center gap-1.5 transition cursor-pointer ${
                 newKind === 'web' ? 'bg-accent text-accent-fg shadow-xs' : 'text-fg-muted hover:text-fg'
               }`}
             >
@@ -413,7 +567,7 @@ export function AppDock({
             <button
               type="button"
               onClick={() => setNewKind('app')}
-              className={`py-1 px-3 rounded-lg font-medium flex items-center gap-1.5 transition ${
+              className={`py-1 px-3 rounded-lg font-medium flex items-center gap-1.5 transition cursor-pointer ${
                 newKind === 'app' ? 'bg-accent text-accent-fg shadow-xs' : 'text-fg-muted hover:text-fg'
               }`}
             >
@@ -435,15 +589,15 @@ export function AppDock({
               placeholder={newKind === 'web' ? 'youtube.com or https://...' : 'vscode://, spotify://'}
               className="flex-1 h-9 rounded-xl bg-surface border border-line px-3 text-xs font-mono outline-none"
               onKeyDown={e => {
-                if (e.key === 'Enter') void addLink();
+                if (e.key === 'Enter') void saveOrUpdateLink();
               }}
             />
             <button
-              onClick={() => void addLink()}
+              onClick={() => void saveOrUpdateLink()}
               disabled={!newLabel.trim() || !newUrl.trim()}
-              className="h-9 px-4 rounded-xl bg-accent text-accent-fg text-xs font-semibold hover:bg-accent-hover disabled:opacity-40 transition keycap shrink-0 shadow-xs"
+              className="h-9 px-4 rounded-xl bg-accent text-accent-fg text-xs font-semibold hover:bg-accent-hover disabled:opacity-40 transition keycap shrink-0 shadow-xs cursor-pointer"
             >
-              Pin to Dock
+              {editingLink ? 'Save Changes' : 'Pin to Dock'}
             </button>
           </div>
         </div>
@@ -454,7 +608,7 @@ export function AppDock({
           <p className="text-xs text-fg-muted">No external applications or workspaces pinned yet.</p>
           <button
             onClick={() => setAddOpen(true)}
-            className="mt-2 text-xs font-semibold text-accent-text hover:underline"
+            className="mt-2 text-xs font-semibold text-accent-text hover:underline cursor-pointer"
           >
             + Pin your primary tools (YouTube, VS Code, Figma, Slack, GitHub)
           </button>
@@ -484,14 +638,24 @@ export function AppDock({
                   </span>
                 </button>
 
-                <button
-                  onClick={() => void removeLink(link.id)}
-                  title="Remove from dock"
-                  aria-label={`Remove ${link.label}`}
-                  className="pr-2.5 pl-1 text-fg-subtle hover:text-rose-500 opacity-60 hover:opacity-100 transition"
-                >
-                  <Trash2 size={12} />
-                </button>
+                <div className="flex items-center gap-0.5 pr-2">
+                  <button
+                    onClick={() => startEditing(link)}
+                    title={`Edit ${link.label}`}
+                    aria-label={`Edit ${link.label}`}
+                    className="p-1 text-fg-subtle hover:text-fg opacity-60 hover:opacity-100 transition cursor-pointer"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                  <button
+                    onClick={() => void removeLink(link.id)}
+                    title="Remove from dock"
+                    aria-label={`Remove ${link.label}`}
+                    className="p-1 text-fg-subtle hover:text-rose-500 opacity-60 hover:opacity-100 transition cursor-pointer"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
               </div>
             );
           })}

@@ -107,12 +107,15 @@ function FloatingHUDContent({ isNativeWindow = false }: { isNativeWindow?: boole
     }
 
     // Set initial size
-    import('@tauri-apps/api/window').then(async ({ getCurrentWindow }) => {
-      const { LogicalSize } = await import('@tauri-apps/api/dpi');
+    import('@tauri-apps/api/core').then(async ({ invoke }) => {
       try {
+        await invoke('hud_set_expanded', { expanded: false });
+      } catch {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const { LogicalSize } = await import('@tauri-apps/api/dpi');
         await getCurrentWindow().setSize(new LogicalSize(320, 76));
-      } catch {}
-    });
+      }
+    }).catch(() => {});
 
     // Request immediate sync from main window
     hudBridge.send({ type: 'REQUEST_SYNC', v: 1 });
@@ -124,12 +127,15 @@ function FloatingHUDContent({ isNativeWindow = false }: { isNativeWindow?: boole
       } else if (msg.type === 'RESIZE_HUD') {
         setNativeExpanded(msg.expanded);
         if (isNativeWindow) {
-          import('@tauri-apps/api/window').then(async ({ getCurrentWindow }) => {
-            const { LogicalSize } = await import('@tauri-apps/api/dpi');
+          import('@tauri-apps/api/core').then(async ({ invoke }) => {
             try {
+              await invoke('hud_set_expanded', { expanded: msg.expanded });
+            } catch {
+              const { getCurrentWindow } = await import('@tauri-apps/api/window');
+              const { LogicalSize } = await import('@tauri-apps/api/dpi');
               await getCurrentWindow().setSize(new LogicalSize(320, msg.expanded ? 290 : 76));
-            } catch {}
-          });
+            }
+          }).catch(() => {});
         }
       }
     });
@@ -179,8 +185,11 @@ function FloatingHUDContent({ isNativeWindow = false }: { isNativeWindow?: boole
     if (target.closest('button, input, textarea, a, [role="button"]')) {
       return;
     }
-    if (e.button === 0) {
-      if (isNativeWindow) {
+    if (e.button === 0 && isNativeWindow) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('hud_start_dragging');
+      } catch {
         try {
           const { getCurrentWindow } = await import('@tauri-apps/api/window');
           await getCurrentWindow().startDragging();
@@ -204,11 +213,16 @@ function FloatingHUDContent({ isNativeWindow = false }: { isNativeWindow?: boole
     if (isNativeWindow) {
       setNativeExpanded(next);
       try {
-        const { getCurrentWindow } = await import('@tauri-apps/api/window');
-        const { LogicalSize } = await import('@tauri-apps/api/dpi');
-        await getCurrentWindow().setSize(new LogicalSize(320, next ? 290 : 76));
-      } catch (err) {
-        console.warn('Native resize failed:', err);
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('hud_set_expanded', { expanded: next });
+      } catch {
+        try {
+          const { getCurrentWindow } = await import('@tauri-apps/api/window');
+          const { LogicalSize } = await import('@tauri-apps/api/dpi');
+          await getCurrentWindow().setSize(new LogicalSize(320, next ? 290 : 76));
+        } catch (err) {
+          console.warn('Native resize failed:', err);
+        }
       }
       hudBridge.send({ type: 'RESIZE_HUD', v: 1, expanded: next });
     } else {
@@ -219,9 +233,14 @@ function FloatingHUDContent({ isNativeWindow = false }: { isNativeWindow?: boole
   const handleClose = async () => {
     if (isNativeWindow) {
       try {
-        const { getCurrentWindow } = await import('@tauri-apps/api/window');
-        await getCurrentWindow().hide();
-      } catch {}
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('hud_hide');
+      } catch {
+        try {
+          const { getCurrentWindow } = await import('@tauri-apps/api/window');
+          await getCurrentWindow().hide();
+        } catch {}
+      }
     } else {
       pipHUD.close();
     }

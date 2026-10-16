@@ -33,8 +33,9 @@ const REQUIRED_FILES = [
   'public/ort/ort-wasm-simd-threaded.asyncify.wasm',
   'public/ort/ort-wasm-simd-threaded.asyncify.mjs',
 
-  // Silero VAD v5 & audio worklet
+  // Silero VAD v5 & legacy fallback & audio worklet
   'public/vad/silero_vad_v5.onnx',
+  'public/vad/silero_vad_legacy.onnx',
   'public/vad/vad.worklet.bundle.min.js',
 
   // Whisper Tiny English offline model weights & tokenizer

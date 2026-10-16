@@ -28,6 +28,7 @@ export class VadController {
       if (!this.micVad) {
         this.micVad = await MicVAD.new({
           // Local asset path to ensure zero third-party calls
+          model: 'v5',
           baseAssetPath: '/vad/',
           onnxWASMBasePath: '/ort/',
 
