@@ -1,4 +1,5 @@
 import { toast } from './toast';
+import { isTauri } from './runtime';
 import type { LaunchKind, LaunchLink } from '../types';
 
 export const APP_PRESETS: { label: string; url: string; icon: string; kind: LaunchKind }[] = [
@@ -52,7 +53,7 @@ export function detectLaunchKind(url: string, explicitKind?: LaunchKind): Launch
 /**
  * Triggers launch of a web link or native desktop URI scheme (vscode://, cursor://, obsidian://, etc.)
  */
-export function launchTarget(url: string, label?: string, explicitKind?: LaunchKind): boolean {
+export async function launchTarget(url: string, label?: string, explicitKind?: LaunchKind): Promise<boolean> {
   const target = url.trim();
   if (!target) return false;
 
@@ -60,6 +61,35 @@ export function launchTarget(url: string, label?: string, explicitKind?: LaunchK
 
   try {
     toast(`Launching ${label || target}…`, 'info');
+
+    // In native Tauri desktop app, use native OS launcher
+    if (isTauri()) {
+      const finalTarget = kind === 'web'
+        ? normalizeWebUrl(target)
+        : kind === 'file' && target.startsWith('file://')
+          ? target.slice(7)
+          : target;
+
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('launch_external', { target: finalTarget });
+        return true;
+      } catch (invokeErr) {
+        console.warn('Native launch_external failed, trying plugin-opener fallback:', invokeErr);
+        try {
+          const { openUrl, openPath } = await import('@tauri-apps/plugin-opener');
+          if (kind === 'file') {
+            await openPath(finalTarget);
+          } else {
+            await openUrl(finalTarget);
+          }
+          return true;
+        } catch (openerErr) {
+          console.warn('plugin-opener failed:', openerErr);
+        }
+      }
+    }
+
     if (kind === 'web') {
       const finalUrl = normalizeWebUrl(target);
       const newWin = window.open(finalUrl, '_blank', 'noopener,noreferrer');

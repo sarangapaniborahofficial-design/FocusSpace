@@ -1,3 +1,4 @@
+pub mod launcher;
 pub mod vault;
 
 use tauri::{
@@ -23,6 +24,7 @@ pub fn run() {
             vault::write_vault_snapshot,
             vault::list_vault_snapshots,
             vault::read_vault_snapshot,
+            launcher::launch_external,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -138,3 +140,4 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while building tauri application");
 }
+

@@ -43,13 +43,18 @@ function copyIfExists(src, dest) {
   return false;
 }
 
-// 1. Provision the single active ONNX Runtime WASM binary and matching MJS loader into public/ort/
+// 1. Provision the active ONNX Runtime WASM binaries and matching MJS loaders into public/ort/
 if (fs.existsSync(ONNX_SRC)) {
-  const activeWasm = 'ort-wasm-simd-threaded.wasm';
-  const activeMjs = 'ort-wasm-simd-threaded.mjs';
+  const filesToCopy = [
+    'ort-wasm-simd-threaded.wasm',
+    'ort-wasm-simd-threaded.mjs',
+    'ort-wasm-simd-threaded.asyncify.wasm',
+    'ort-wasm-simd-threaded.asyncify.mjs',
+  ];
 
-  copyIfExists(path.join(ONNX_SRC, activeWasm), path.join(PUBLIC_ORT, activeWasm));
-  copyIfExists(path.join(ONNX_SRC, activeMjs), path.join(PUBLIC_ORT, activeMjs));
+  for (const f of filesToCopy) {
+    copyIfExists(path.join(ONNX_SRC, f), path.join(PUBLIC_ORT, f));
+  }
 } else {
   console.warn('  ⚠️ onnxruntime-web not found in node_modules.');
 }

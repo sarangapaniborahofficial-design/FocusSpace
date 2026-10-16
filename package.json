@@ -14,6 +14,8 @@
     "setup:voice": "node scripts/fetch-models.mjs",
     "check:voice": "node scripts/check-voice-assets.mjs --strict",
     "package:zip": "python scripts/package-clean-zip.py",
+    "argus": "node scripts/argus.mjs",
+    "test:argus": "node scripts/argus.mjs",
     "postinstall": "node scripts/provision-voice.mjs && node scripts/check-voice-assets.mjs"
   },
   "dependencies": {

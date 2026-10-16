@@ -41,6 +41,8 @@ import { useDictation } from './voice/useDictation';
 import { createInputTarget } from './voice/target/inputTarget';
 import type { DictationTarget } from './voice/target/DictationTarget';
 import { DictationHud } from './voice/ui/DictationHud';
+import { isAudioConfigured } from './voice/audioDevices';
+import { AudioDeviceSetupModal } from './components/AudioDeviceSetupModal';
 
 const STATIC_VIEWS = ['home', 'calendar', 'review', 'analytics', 'journal', 'pages', 'settings'];
 const VIEW_TITLES: Record<string, string> = {
@@ -101,8 +103,14 @@ export default function App() {
     target: globalDictationTarget,
   });
 
+  const [audioSetupOpen, setAudioSetupOpen] = useState(false);
+
   const triggerUniversalVoice = useCallback(() => {
     if (!isVoiceEnabled()) return;
+    if (!isAudioConfigured()) {
+      setAudioSetupOpen(true);
+      return;
+    }
     const active = document.activeElement;
     if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) {
       setGlobalDictationTarget(createInputTarget(active));
@@ -546,12 +554,22 @@ export default function App() {
       {active !== 'home' && layoutMode !== 'cockpit' && <MiniTimer onOpen={goHome} />}
       <AppDock floating onTriggerVoice={triggerUniversalVoice} />
       {isVoiceEnabled() && (
-        <DictationHud
-          state={globalDictation.state}
-          audioLevel={globalDictation.audioLevel}
-          modelProgress={globalDictation.modelProgress}
-          onStop={globalDictation.stop}
-        />
+        <>
+          <DictationHud
+            state={globalDictation.state}
+            audioLevel={globalDictation.audioLevel}
+            modelProgress={globalDictation.modelProgress}
+            onStop={globalDictation.stop}
+          />
+          <AudioDeviceSetupModal
+            isOpen={audioSetupOpen}
+            onClose={() => setAudioSetupOpen(false)}
+            onConfigured={() => {
+              setAudioSetupOpen(false);
+              triggerUniversalVoice();
+            }}
+          />
+        </>
       )}
       <FloatingHUDPortal />
       <OnboardingWelcome

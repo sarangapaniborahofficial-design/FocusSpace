@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Activity, Bell, BookOpen, Calendar, Check, Database, Download, Flame, Keyboard, Mic, Palette, Pencil, Plus, RefreshCw, ShieldCheck, Smartphone, Sparkles, Target, Trash2, Upload, X, Zap } from 'lucide-react';
+import { Activity, Bell, BookOpen, Calendar, Check, Database, Download, Flame, Keyboard, Mic, Palette, Pencil, Plus, RefreshCw, ShieldCheck, Sliders, Smartphone, Sparkles, Target, Trash2, Upload, Volume2, X, Zap } from 'lucide-react';
 import { isNotificationSupported, getNotificationPermission, requestNotificationPermission, sendNotification } from '../lib/notifications';
 import { useEffect, useRef, useState } from 'react';
 import { db } from '../db/db';
@@ -7,6 +7,19 @@ import { downloadBackupFile, importFullBackup } from '../lib/backup';
 import { takeNativeVaultSnapshot } from '../lib/journalAutoSave';
 import { isTauri } from '../lib/runtime';
 import { getAsrClient } from '../voice/engine/AsrClient';
+import {
+  type AudioDevice,
+  getAudioInputDevices,
+  getAudioOutputDevices,
+  getSelectedAudioInput,
+  getSelectedAudioOutput,
+  setSelectedAudioInput,
+  setSelectedAudioOutput,
+  testAudioOutput,
+  createAudioLevelMeter,
+  setAudioConfigured,
+} from '../voice/audioDevices';
+import { AudioDeviceSetupModal } from './AudioDeviceSetupModal';
 import { loadSchedulePreferences, saveSchedulePreferences } from '../lib/smartScheduler';
 import { HABIT_COLORS, addHabit, deleteHabit, updateHabit } from '../lib/habitActions';
 import { useToday, usePWAInstall } from '../lib/hooks';
@@ -824,6 +837,108 @@ function VoiceStudioPreferencesCard() {
   const [warming, setWarming] = useState(false);
   const isIsolated = typeof window !== 'undefined' && window.crossOriginIsolated;
 
+  // Audio Device State
+  const [inputs, setInputs] = useState<AudioDevice[]>([]);
+  const [outputs, setOutputs] = useState<AudioDevice[]>([]);
+  const [currentInput, setCurrentInput] = useState<string>(() => getSelectedAudioInput());
+  const [currentOutput, setCurrentOutput] = useState<string>(() => getSelectedAudioOutput());
+  const [audioLevel, setAudioLevel] = useState<number>(0);
+  const [testPlaying, setTestPlaying] = useState(false);
+  const [testingMic, setTestingMic] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
+
+  // Floating HUD Artboard Style State
+  const [hudStyle, setHudStyle] = useState<string>(() => {
+    return localStorage.getItem('focusspace-hud-style') || '';
+  });
+
+  const streamRef = useRef<MediaStream | null>(null);
+  const stopMeterRef = useRef<(() => void) | null>(null);
+
+  const loadDevices = async () => {
+    const inDevs = await getAudioInputDevices();
+    const outDevs = await getAudioOutputDevices();
+    setInputs(inDevs);
+    setOutputs(outDevs);
+    const selIn = getSelectedAudioInput();
+    const selOut = getSelectedAudioOutput();
+    if (selIn) setCurrentInput(selIn);
+    else if (inDevs.length > 0) setCurrentInput(inDevs[0].deviceId);
+    if (selOut) setCurrentOutput(selOut);
+    else if (outDevs.length > 0) setCurrentOutput(outDevs[0].deviceId);
+  };
+
+  useEffect(() => {
+    void loadDevices();
+    return () => {
+      stopMeterRef.current?.();
+      streamRef.current?.getTracks().forEach(t => t.stop());
+    };
+  }, []);
+
+  const toggleTestMic = async () => {
+    if (testingMic) {
+      stopMeterRef.current?.();
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+      setTestingMic(false);
+      setAudioLevel(0);
+      return;
+    }
+
+    try {
+      setTestingMic(true);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: currentInput ? { deviceId: { exact: currentInput } } : true,
+        video: false,
+      });
+      streamRef.current = stream;
+      stopMeterRef.current = createAudioLevelMeter(stream, level => {
+        setAudioLevel(level);
+      });
+    } catch (err) {
+      console.warn('Could not test microphone:', err);
+      toast('Could not access microphone', 'error');
+      setTestingMic(false);
+    }
+  };
+
+  const handleSelectInput = (deviceId: string) => {
+    setCurrentInput(deviceId);
+    setSelectedAudioInput(deviceId);
+    setAudioConfigured(true);
+    toast('Microphone input updated', 'info');
+    if (testingMic) {
+      stopMeterRef.current?.();
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      setTestingMic(false);
+      setAudioLevel(0);
+    }
+  };
+
+  const handleSelectOutput = (deviceId: string) => {
+    setCurrentOutput(deviceId);
+    setSelectedAudioOutput(deviceId);
+    setAudioConfigured(true);
+    toast('Sound output updated', 'info');
+  };
+
+  const handleTestSound = async () => {
+    setTestPlaying(true);
+    await testAudioOutput(currentOutput);
+    setTimeout(() => setTestPlaying(false), 700);
+  };
+
+  const handleSelectHudStyle = (styleId: string) => {
+    setHudStyle(styleId);
+    if (styleId) {
+      localStorage.setItem('focusspace-hud-style', styleId);
+    } else {
+      localStorage.removeItem('focusspace-hud-style');
+    }
+    toast('Floating HUD artboard theme updated', 'info');
+  };
+
   const runWarmup = async () => {
     setWarming(true);
     setWarmupStatus('Initializing on-device WASM model...');
@@ -841,6 +956,16 @@ function VoiceStudioPreferencesCard() {
       setWarming(false);
     }
   };
+
+  const HUD_ARTBOARDS = [
+    { id: '', name: 'Match App Theme' },
+    { id: '01', name: '01 Nocturne Solaris' },
+    { id: '02', name: '02 Swiss Onyx' },
+    { id: '03', name: '03 Swiss Brutal' },
+    { id: '04', name: '04 Solaris Atelier' },
+    { id: '05', name: '05 Braun Split-Flap' },
+    { id: '06', name: '06 Orbital Capsule' },
+  ];
 
   return (
     <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
@@ -863,7 +988,128 @@ function VoiceStudioPreferencesCard() {
         </div>
       </div>
 
-      <div className="p-5 space-y-4 text-xs text-fg-muted">
+      <div className="p-5 space-y-5 text-xs text-fg-muted">
+        {/* Audio Hardware Devices Section */}
+        <div className="p-4 rounded-xl bg-surface-2/70 border border-line space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="font-semibold text-fg flex items-center gap-2">
+              <Sliders size={14} className="text-accent-text" /> Audio Hardware Routing
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowWizard(true)}
+              className="px-2.5 py-1 rounded-lg border border-line bg-surface text-[11px] font-semibold text-fg hover:bg-hover flex items-center gap-1 keycap cursor-pointer"
+            >
+              <RefreshCw size={11} /> Re-run Setup Wizard
+            </button>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            {/* Input Device (Mic) */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-fg flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <Mic size={12} className="text-accent" /> Microphone Input
+                </span>
+                <button
+                  type="button"
+                  onClick={toggleTestMic}
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded cursor-pointer transition ${
+                    testingMic ? 'bg-rose-500 text-white' : 'text-accent-text hover:underline'
+                  }`}
+                >
+                  {testingMic ? 'Stop Test' : 'Test Mic'}
+                </button>
+              </label>
+              <select
+                value={currentInput}
+                onChange={e => handleSelectInput(e.target.value)}
+                className="w-full h-8 px-2.5 rounded-lg bg-surface border border-line text-xs text-fg outline-none focus:border-accent cursor-pointer"
+              >
+                {inputs.length > 0 ? (
+                  inputs.map(d => (
+                    <option key={d.deviceId} value={d.deviceId}>
+                      {d.label}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">Default Microphone</option>
+                )}
+              </select>
+
+              {/* VU Meter */}
+              <div className="flex items-center gap-2 pt-1">
+                <div className="flex-1 h-1.5 rounded-full bg-surface border border-line overflow-hidden">
+                  <div
+                    className="h-full bg-accent transition-all duration-75"
+                    style={{ width: `${Math.round(audioLevel * 100)}%` }}
+                  />
+                </div>
+                <span className="text-[10px] font-mono text-fg-subtle tabular-nums w-7 text-right">
+                  {Math.round(audioLevel * 100)}%
+                </span>
+              </div>
+            </div>
+
+            {/* Output Device (Speakers) */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-fg flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <Volume2 size={12} className="text-accent" /> Sound Output (Speakers)
+                </span>
+                <button
+                  type="button"
+                  onClick={handleTestSound}
+                  disabled={testPlaying}
+                  className="text-[10px] font-bold text-accent-text hover:underline disabled:opacity-50 cursor-pointer"
+                >
+                  {testPlaying ? 'Playing…' : 'Play Chime'}
+                </button>
+              </label>
+              <select
+                value={currentOutput}
+                onChange={e => handleSelectOutput(e.target.value)}
+                className="w-full h-8 px-2.5 rounded-lg bg-surface border border-line text-xs text-fg outline-none focus:border-accent cursor-pointer"
+              >
+                {outputs.length > 0 ? (
+                  outputs.map(d => (
+                    <option key={d.deviceId} value={d.deviceId}>
+                      {d.label}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">Default Sound Output</option>
+                )}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Floating HUD Artboard Selector */}
+        <div className="p-4 rounded-xl bg-surface-2/70 border border-line space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="font-semibold text-fg">Always-on-Top Floating HUD Artboard Theme</div>
+            <span className="text-[10px] font-mono text-fg-subtle">320×76 &amp; 320×290</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {HUD_ARTBOARDS.map(art => (
+              <button
+                key={art.id}
+                type="button"
+                onClick={() => handleSelectHudStyle(art.id)}
+                className={`h-7 px-2.5 rounded-lg text-xs font-semibold transition border cursor-pointer ${
+                  hudStyle === art.id
+                    ? 'bg-accent text-accent-fg border-accent shadow-sm'
+                    : 'bg-surface border-line text-fg hover:border-line-strong'
+                }`}
+              >
+                {art.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 3 Engine Cards */}
         <div className="grid sm:grid-cols-3 gap-3">
           <div className="p-3.5 rounded-xl bg-surface-2 border border-line space-y-1">
             <div className="text-[10px] uppercase font-mono tracking-wider text-fg-subtle">Engine &amp; Model</div>
@@ -909,6 +1155,15 @@ function VoiceStudioPreferencesCard() {
           </div>
         )}
       </div>
+
+      <AudioDeviceSetupModal
+        isOpen={showWizard}
+        onClose={() => setShowWizard(false)}
+        onConfigured={() => {
+          setShowWizard(false);
+          void loadDevices();
+        }}
+      />
     </section>
   );
 }

@@ -1,4 +1,5 @@
 import { MicVAD } from '@ricky0123/vad-web';
+import { getSelectedAudioInput } from '../audioDevices';
 
 export interface VadControllerOptions {
   onSpeechStart?: () => void;
@@ -29,6 +30,15 @@ export class VadController {
           // Local asset path to ensure zero third-party calls
           baseAssetPath: '/vad/',
           onnxWASMBasePath: '/ort/',
+
+          getStream: async () => {
+            const inputDeviceId = getSelectedAudioInput();
+            const constraints: MediaStreamConstraints = {
+              audio: inputDeviceId ? { deviceId: { exact: inputDeviceId } } : true,
+              video: false,
+            };
+            return await navigator.mediaDevices.getUserMedia(constraints);
+          },
 
           // Optimal conversational pause settings (per Voice Guide):
           // ~1000ms redemption silence to allow thinking pauses

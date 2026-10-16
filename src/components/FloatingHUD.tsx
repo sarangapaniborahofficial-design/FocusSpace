@@ -25,6 +25,8 @@ import { useDictation } from '../voice/useDictation';
 import { createInputTarget } from '../voice/target/inputTarget';
 import type { DictationTarget } from '../voice/target/DictationTarget';
 import { DictationHud } from '../voice/ui/DictationHud';
+import { isAudioConfigured } from '../voice/audioDevices';
+import { AudioDeviceSetupModal } from './AudioDeviceSetupModal';
 
 export function FloatingHUDTrigger({ className = '' }: { className?: string }) {
   const { isOpen, isSupported } = usePipHUD();
@@ -79,17 +81,38 @@ function FloatingHUDContent({ isNativeWindow = false }: { isNativeWindow?: boole
   const [syncedTimer, setSyncedTimer] = useState<TimerSnapshot | null>(null);
   const [syncedTask, setSyncedTask] = useState<TaskSnapshot | null>(null);
   const [nativeExpanded, setNativeExpanded] = useState(false);
+  const [showAudioSetup, setShowAudioSetup] = useState(false);
 
   // Initialize native window styles & theme
   useEffect(() => {
     if (!isNativeWindow) return;
     const currentTheme = localStorage.getItem('focusspace-theme') || 'nocturne';
     document.documentElement.dataset.theme = currentTheme;
+    document.documentElement.style.background = 'transparent';
+    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.height = '100%';
     document.body.style.margin = '0';
     document.body.style.padding = '0';
     document.body.style.background = 'transparent';
     document.body.style.overflow = 'hidden';
+    document.body.style.height = '100%';
+    document.body.style.minWidth = '0';
     document.body.style.userSelect = 'none';
+
+    const rootEl = document.getElementById('root');
+    if (rootEl) {
+      rootEl.style.background = 'transparent';
+      rootEl.style.height = '100%';
+      rootEl.style.overflow = 'hidden';
+    }
+
+    // Set initial size
+    import('@tauri-apps/api/window').then(async ({ getCurrentWindow }) => {
+      const { LogicalSize } = await import('@tauri-apps/api/dpi');
+      try {
+        await getCurrentWindow().setSize(new LogicalSize(320, 76));
+      } catch {}
+    });
 
     // Request immediate sync from main window
     hudBridge.send({ type: 'REQUEST_SYNC', v: 1 });
@@ -100,6 +123,14 @@ function FloatingHUDContent({ isNativeWindow = false }: { isNativeWindow?: boole
         setSyncedTask(msg.activeTask);
       } else if (msg.type === 'RESIZE_HUD') {
         setNativeExpanded(msg.expanded);
+        if (isNativeWindow) {
+          import('@tauri-apps/api/window').then(async ({ getCurrentWindow }) => {
+            const { LogicalSize } = await import('@tauri-apps/api/dpi');
+            try {
+              await getCurrentWindow().setSize(new LogicalSize(320, msg.expanded ? 290 : 76));
+            } catch {}
+          });
+        }
       }
     });
 
@@ -143,9 +174,66 @@ function FloatingHUDContent({ isNativeWindow = false }: { isNativeWindow?: boole
     target: dictationTarget,
   });
 
+  const handleTopRowMouseDown = async (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button, input, textarea, a, [role="button"]')) {
+      return;
+    }
+    if (e.button === 0) {
+      if (isNativeWindow) {
+        try {
+          const { getCurrentWindow } = await import('@tauri-apps/api/window');
+          await getCurrentWindow().startDragging();
+        } catch (err) {
+          console.warn('startDragging failed:', err);
+        }
+      }
+    }
+  };
+
+  const handleTopRowDoubleClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button, input, textarea, a, [role="button"]')) {
+      return;
+    }
+    void handleToggleExpand();
+  };
+
+  const handleToggleExpand = async () => {
+    const next = !isExpanded;
+    if (isNativeWindow) {
+      setNativeExpanded(next);
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const { LogicalSize } = await import('@tauri-apps/api/dpi');
+        await getCurrentWindow().setSize(new LogicalSize(320, next ? 290 : 76));
+      } catch (err) {
+        console.warn('Native resize failed:', err);
+      }
+      hudBridge.send({ type: 'RESIZE_HUD', v: 1, expanded: next });
+    } else {
+      pipHUD.toggleExpanded();
+    }
+  };
+
+  const handleClose = async () => {
+    if (isNativeWindow) {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        await getCurrentWindow().hide();
+      } catch {}
+    } else {
+      pipHUD.close();
+    }
+  };
+
   const toggleVoice = (field: 'note' | 'subtask') => {
+    if (!isAudioConfigured()) {
+      setShowAudioSetup(true);
+      return;
+    }
     if (!isExpanded && field === 'note') {
-      handleToggleExpand();
+      void handleToggleExpand();
     }
     const el = field === 'note' ? scratchTextareaRef.current : subtaskInputRef.current;
     if (!el) {
@@ -230,17 +318,6 @@ function FloatingHUDContent({ isNativeWindow = false }: { isNativeWindow?: boole
     toast(`“${task.title}” completed!`, 'success');
   };
 
-  const handleToggleExpand = () => {
-    if (isNativeWindow) {
-      setNativeExpanded(!isExpanded);
-    }
-    pipHUD.toggleExpanded();
-  };
-
-  const handleClose = () => {
-    pipHUD.close();
-  };
-
   const completedSubtasks = (task?.subtasks || []).filter(s => s.completed).length;
   const totalSubtasks = (task?.subtasks || []).length;
 
@@ -250,20 +327,50 @@ function FloatingHUDContent({ isNativeWindow = false }: { isNativeWindow?: boole
 
   const isDictating = dictation.state === 'listening' || dictation.state === 'transcribing';
 
+  const savedStyle = typeof window !== 'undefined' ? localStorage.getItem('focusspace-hud-style') : null;
+  const currentTheme = typeof window !== 'undefined' ? localStorage.getItem('focusspace-theme') || 'nocturne' : 'nocturne';
+  const hudThemeClass = savedStyle
+    ? `hud-${savedStyle}`
+    : currentTheme === 'onyx'
+      ? 'hud-02'
+      : currentTheme === 'bauhaus'
+        ? 'hud-03'
+        : currentTheme === 'solaris' || currentTheme === 'light'
+          ? 'hud-04'
+          : 'hud-01';
+
+  const activeSec = Math.max(0, Math.floor((timerState.isOvertime ? timerState.overtimeMs ?? 0 : timerState.remainingMs ?? 0) / 1000));
+  const clockM = String(Math.floor(activeSec / 60)).padStart(2, '0');
+  const clockS = String(activeSec % 60).padStart(2, '0');
+  const clockPrefix = timerState.isOvertime ? '+' : '';
+
   return (
     <div
-      className={`hud-shell ${isExpanded ? 'hud-expanded' : 'hud-collapsed'} ${
+      className={`hud-shell ${hudThemeClass} ${isExpanded ? 'hud-expanded' : 'hud-collapsed'} ${
         isDictating ? 'hud-dictating' : ''
       }`}
     >
       {/* 76px Top Row (Tactile Hardware Readout) */}
-      <div data-tauri-drag-region className="hud-top-row">
-        {/* Clock */}
-        <div data-tauri-drag-region className="hud-clock">
-          {timerState.isOvertime
-            ? formatOvertimeClock(timerState.overtimeMs ?? 0)
-            : formatClock(timerState.remainingMs)}
-        </div>
+      <div
+        data-tauri-drag-region
+        onMouseDown={handleTopRowMouseDown}
+        onDoubleClick={handleTopRowDoubleClick}
+        className="hud-top-row select-none cursor-grab active:cursor-grabbing"
+      >
+        {/* Clock (Split flap for 05, classic digital for others) */}
+        {hudThemeClass === 'hud-05' ? (
+          <div data-tauri-drag-region className="flap-group">
+            <span className="flap-card">{clockPrefix}{clockM}</span>
+            <span style={{ fontWeight: 800, opacity: 0.6 }}>:</span>
+            <span className="flap-card">{clockS}</span>
+          </div>
+        ) : (
+          <div data-tauri-drag-region className="hud-clock">
+            {timerState.isOvertime
+              ? formatOvertimeClock(timerState.overtimeMs ?? 0)
+              : formatClock(timerState.remainingMs)}
+          </div>
+        )}
 
         {/* Task Title */}
         <div
@@ -283,7 +390,7 @@ function FloatingHUDContent({ isNativeWindow = false }: { isNativeWindow?: boole
             className="hud-icon-btn btn-mic"
             title={isDictating ? 'Stop Voice Dictation' : 'Voice Dictate Note'}
           >
-            <Mic size={16} />
+            <Mic size={17} />
           </button>
 
           {timerState.isOvertime ? (
@@ -292,7 +399,7 @@ function FloatingHUDContent({ isNativeWindow = false }: { isNativeWindow?: boole
               className="hud-icon-btn btn-pause"
               title="Bank Overtime & Start Break"
             >
-              <Coffee size={16} />
+              <Coffee size={17} />
             </button>
           ) : (
             <button
@@ -300,7 +407,7 @@ function FloatingHUDContent({ isNativeWindow = false }: { isNativeWindow?: boole
               className="hud-icon-btn btn-pause"
               title={timerState.running ? 'Pause Timer' : 'Resume Timer'}
             >
-              {timerState.running ? <Pause size={16} /> : <Play size={16} className="ml-0.5" />}
+              {timerState.running ? <Pause size={17} /> : <Play size={17} className="ml-0.5" />}
             </button>
           )}
 
@@ -309,7 +416,7 @@ function FloatingHUDContent({ isNativeWindow = false }: { isNativeWindow?: boole
             className="hud-icon-btn btn-util"
             title={isExpanded ? 'Collapse Drawer' : 'Expand Flow Drawer'}
           >
-            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
           </button>
 
           <button
@@ -317,7 +424,7 @@ function FloatingHUDContent({ isNativeWindow = false }: { isNativeWindow?: boole
             className="hud-icon-btn btn-util"
             title="Close HUD"
           >
-            <X size={15} />
+            <X size={14} />
           </button>
         </div>
 
@@ -432,6 +539,15 @@ function FloatingHUDContent({ isNativeWindow = false }: { isNativeWindow?: boole
           />
         </div>
       )}
+
+      <AudioDeviceSetupModal
+        isOpen={showAudioSetup}
+        onClose={() => setShowAudioSetup(false)}
+        onConfigured={() => {
+          setShowAudioSetup(false);
+          toggleVoice('note');
+        }}
+      />
     </div>
   );
 }

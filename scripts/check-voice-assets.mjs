@@ -30,6 +30,8 @@ const REQUIRED_FILES = [
   // ONNX Runtime Web consolidated binaries
   'public/ort/ort-wasm-simd-threaded.wasm',
   'public/ort/ort-wasm-simd-threaded.mjs',
+  'public/ort/ort-wasm-simd-threaded.asyncify.wasm',
+  'public/ort/ort-wasm-simd-threaded.asyncify.mjs',
 
   // Silero VAD v5 & audio worklet
   'public/vad/silero_vad_v5.onnx',
