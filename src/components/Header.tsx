@@ -81,7 +81,7 @@ export function Header({
       <HeaderTimerPill />
 
       {/* Right: Search, Quick Add, Layout Switcher, Shortcuts, Theme Switcher */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
         <button
           onClick={onSearch}
           aria-label="Search and commands"
@@ -89,7 +89,7 @@ export function Header({
         >
           <Search size={15} />
           <span>Search</span>
-          <kbd className="ml-2 font-mono text-[10px] border border-line bg-surface rounded px-1.5 py-0.5 text-fg-soft">Ctrl K</kbd>
+          <kbd className="hidden xl:inline ml-1 font-mono text-[10px] border border-line bg-surface rounded px-1.5 py-0.5 text-fg-soft">Ctrl K</kbd>
         </button>
         <button
           onClick={onSearch}
@@ -102,7 +102,7 @@ export function Header({
         <button
           onClick={onQuickAdd}
           aria-label="Quick add task"
-          className="h-9 px-3.5 rounded-xl bg-accent text-accent-fg hover:bg-accent-hover text-sm font-semibold flex items-center gap-1.5 keycap"
+          className="h-9 px-3 sm:px-3.5 rounded-xl bg-accent text-accent-fg hover:bg-accent-hover text-sm font-semibold flex items-center gap-1.5 keycap"
         >
           <Plus size={16} />
           <span className="hidden sm:inline">Quick Add</span>
@@ -113,10 +113,10 @@ export function Header({
             onClick={() => setLayoutMode(layoutMode === 'orbital' ? 'cockpit' : 'orbital')}
             title={`Navigation layout: ${layoutMode === 'orbital' ? 'Floating Layout' : 'Split View (Docked Timer)'}. Click to switch.`}
             aria-label="Switch layout style"
-            className="hidden lg:inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover text-xs font-semibold keycap"
+            className="hidden lg:inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover text-xs font-semibold keycap"
           >
             {layoutMode === 'orbital' ? <Orbit size={14} className="text-accent-text" /> : <Columns3 size={14} className="text-accent-text" />}
-            <span>{layoutMode === 'orbital' ? 'Floating' : 'Split View'}</span>
+            <span className="hidden xl:inline">{layoutMode === 'orbital' ? 'Floating' : 'Split View'}</span>
           </button>
         )}
 
@@ -137,7 +137,7 @@ export function Header({
           title={`Theme: ${THEME_META[currentTheme]?.label}. Switch to ${THEME_META[next]?.label}`}
           aria-label={`Theme: ${THEME_META[currentTheme]?.label}. Switch to ${THEME_META[next]?.label}`}
           onClick={() => setTheme(next)}
-          className="h-9 px-3 rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover flex items-center gap-1.5 text-xs font-semibold keycap"
+          className="h-9 px-2.5 sm:px-3 rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover flex items-center gap-1.5 text-xs font-semibold keycap shrink-0"
         >
           {currentTheme === 'solaris' ? (
             <Sun size={15} className="text-amber-600" />
@@ -148,7 +148,7 @@ export function Header({
           ) : (
             <Sparkles size={15} className="text-accent-text" />
           )}
-          <span className="hidden sm:inline">{THEME_META[currentTheme]?.short}</span>
+          <span className="hidden xl:inline">{THEME_META[currentTheme]?.short}</span>
         </button>
       </div>
     </header>

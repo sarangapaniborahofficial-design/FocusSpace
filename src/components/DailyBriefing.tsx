@@ -192,13 +192,13 @@ export function DailyBriefing({
         </div>
 
         {/* Metric Summary Rings */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 shrink-0">
-          <div className="rounded-2xl border border-line bg-surface-2 p-3.5 flex items-center gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 w-full xl:w-auto">
+          <div className="rounded-2xl border border-line bg-surface-2 p-3.5 flex items-center gap-3 min-w-0">
             <Ring value={completionRatio} size={38} stroke={4}>
               <span className="text-[10px] font-mono font-bold">{Math.round(completionRatio * 100)}%</span>
             </Ring>
-            <div>
-              <div className="text-lg font-bold font-mono tabular-nums leading-none">
+            <div className="min-w-0">
+              <div className="text-lg font-bold font-mono tabular-nums leading-none truncate">
                 {totalCount > 0 ? (
                   <>
                     {totalCount - openCount}
@@ -208,44 +208,44 @@ export function DailyBriefing({
                   '-'
                 )}
               </div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-fg-subtle mt-1">Completed</div>
+              <div className="text-[10px] font-mono uppercase tracking-wider text-fg-subtle mt-1 truncate">Completed</div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-line bg-surface-2 p-3.5">
+          <div className="rounded-2xl border border-line bg-surface-2 p-3.5 min-w-0">
             <div className="flex items-center justify-between text-fg-muted">
-              <span className="text-[10px] font-mono uppercase tracking-wider">Planned</span>
-              <Clock3 size={13} className="text-accent-text" />
+              <span className="text-[10px] font-mono uppercase tracking-wider truncate">Planned</span>
+              <Clock3 size={13} className="text-accent-text shrink-0" />
             </div>
-            <div className="text-lg font-bold font-mono tabular-nums mt-1.5">
+            <div className="text-lg font-bold font-mono tabular-nums mt-1.5 truncate">
               {openCount ? formatDuration(plannedMinutes) : '0m'}
             </div>
-            <div className="text-[10px] text-fg-subtle font-mono">{openCount} open tasks</div>
+            <div className="text-[10px] text-fg-subtle font-mono truncate">{openCount} open tasks</div>
           </div>
 
-          <div className="rounded-2xl border border-line bg-surface-2 p-3.5">
+          <div className="rounded-2xl border border-line bg-surface-2 p-3.5 min-w-0">
             <div className="flex items-center justify-between text-fg-muted">
-              <span className="text-[10px] font-mono uppercase tracking-wider">Habits</span>
-              <Flame size={13} className="text-amber-500" />
+              <span className="text-[10px] font-mono uppercase tracking-wider truncate">Habits</span>
+              <Flame size={13} className="text-amber-500 shrink-0" />
             </div>
-            <div className="text-lg font-bold font-mono tabular-nums mt-1.5">
+            <div className="text-lg font-bold font-mono tabular-nums mt-1.5 truncate">
               {habitsDone}/{totalHabits}
             </div>
-            <div className="text-[10px] text-fg-subtle font-mono">done today</div>
+            <div className="text-[10px] text-fg-subtle font-mono truncate">done today</div>
           </div>
 
           {onNavigate && (
             <button
               onClick={() => onNavigate('review')}
-              className="rounded-2xl border border-line bg-surface-2 hover:bg-hover p-3.5 text-left transition flex flex-col justify-between group keycap"
+              className="rounded-2xl border border-line bg-surface-2 hover:bg-hover p-3.5 text-left transition flex flex-col justify-between group keycap min-w-0"
             >
               <div className="flex items-center justify-between w-full text-fg-muted">
-                <span className="text-[10px] font-mono uppercase tracking-wider">Reflection</span>
-                <Trophy size={13} className="text-accent-text group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-mono uppercase tracking-wider truncate">Reflection</span>
+                <Trophy size={13} className="text-accent-text group-hover:scale-110 transition-transform shrink-0" />
               </div>
               <div className="flex items-center justify-between w-full mt-1.5">
-                <span className="text-xs font-semibold text-fg">Weekly Review</span>
-                <ArrowUpRight size={14} className="text-fg-muted" />
+                <span className="text-xs font-semibold text-fg truncate">Weekly Review</span>
+                <ArrowUpRight size={14} className="text-fg-muted shrink-0" />
               </div>
             </button>
           )}

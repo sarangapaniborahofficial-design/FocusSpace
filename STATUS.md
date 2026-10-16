@@ -136,6 +136,8 @@ These major initiatives and bug fixes are tracked in [`TODO.md`](file:///D:/focu
 
 ## Verification & Health Check
 
-- **Tests**: 18/18 Vitest unit tests passing (`src/lib/__tests__/*`)
+- **Tests**: 76/76 Vitest unit tests passing across 9 test suites (`src/lib/__tests__/*`, `src/voice/cleanup/*`)
 - **Type Checking & Production Build**: `tsc -b && vite build` passing with 0 errors
+- **Layout & Responsiveness Hardening**: Decoupled overlays/portals from main flex flow, full-bleed Cockpit mode, responsive Header controls, dynamic metrics grid, and multi-tier breakpoint scaling for Today workspace
 - **Git Invariant**: Commit and push reserved exclusively for user via GitHub Desktop
+

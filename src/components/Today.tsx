@@ -155,25 +155,25 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
       />
 
       {/* Main 2-Column Workspace */}
-      <div className="grid xl:grid-cols-[1fr_390px] gap-6 items-start">
+      <div className="grid 2xl:grid-cols-[1fr_380px] xl:grid-cols-[1fr_340px] grid-cols-1 gap-6 items-start">
         <div className="space-y-6 min-w-0">
           {/* Quick Capture Bar */}
           <TodayQuickCapture categories={cats} today={today} />
 
           {/* "Do this next" Suggestion */}
           {tasks !== undefined && plan.next && (
-            <section className="atelier-card rounded-3xl p-5 border-l-4 border-l-accent flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+            <section className="atelier-card rounded-3xl p-4 sm:p-5 border-l-4 border-l-accent flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="flex items-center gap-3.5 min-w-0 flex-1">
                 <span className="size-10 rounded-2xl bg-accent text-accent-fg grid place-items-center shrink-0 keycap">
                   <Sparkles size={18} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[11px] font-mono uppercase tracking-wider text-fg-muted">
+                  <div className="text-[11px] font-mono uppercase tracking-wider text-fg-muted truncate">
                     Do this next · <span className="text-accent-text">{plan.next.reason}</span>
                   </div>
                   <button
                     onClick={() => openTaskEditor(plan.next!.task.id)}
-                    className="font-semibold text-base sm:text-lg text-fg hover:underline underline-offset-4 truncate block text-left mt-0.5"
+                    className="font-semibold text-base sm:text-lg text-fg hover:underline underline-offset-4 truncate block text-left mt-0.5 max-w-full"
                   >
                     {plan.next.task.title}
                   </button>
@@ -181,7 +181,7 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
               </div>
               <button
                 onClick={() => focusOnTask(plan.next!.task)}
-                className="shrink-0 h-9 px-4 rounded-xl bg-accent text-accent-fg text-sm font-semibold flex items-center gap-1.5 hover:bg-accent-hover keycap"
+                className="shrink-0 h-9 px-4 rounded-xl bg-accent text-accent-fg text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-accent-hover keycap"
               >
                 Focus
               </button>
@@ -519,8 +519,8 @@ function TodayQuickCapture({ categories, today }: { categories: Category[]; toda
               void handleCreate();
             }
           }}
-          placeholder="Quick capture task... (e.g. Finish report @projects #Q3 !high ~45m 4pm)"
-          className="flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-subtle"
+          placeholder="Quick capture task... (@category #tag !urgent ~30m)"
+          className="flex-1 min-w-0 bg-transparent text-sm text-fg outline-none placeholder:text-fg-subtle"
         />
         <button
           onClick={() => void handleCreate()}

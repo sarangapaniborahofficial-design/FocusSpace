@@ -294,10 +294,10 @@ export default function App() {
   return (
     <div className={`h-screen overflow-hidden flex flex-col ${layoutMode === 'orbital' ? 'p-2 sm:p-4 gap-3' : 'p-0'}`}>
       <div
-        className={`w-full h-full max-w-[1680px] mx-auto bg-[var(--app-bg)] backdrop-blur-md text-fg flex overflow-hidden relative transition-[border-radius,box-shadow,gap,padding] duration-200 ease-out ${
+        className={`w-full h-full bg-[var(--app-bg)] backdrop-blur-md text-fg flex overflow-hidden relative transition-[border-radius,box-shadow,gap,padding] duration-200 ease-out ${
           layoutMode === 'orbital'
-            ? 'rounded-[28px] shadow-pop border border-line sm:gap-3 sm:p-3'
-            : 'rounded-none border-x border-line'
+            ? 'max-w-[1680px] mx-auto rounded-[28px] shadow-pop border border-line sm:gap-3 sm:p-3'
+            : 'w-full max-w-none rounded-none border-none'
         }`}
       >
         <Sidebar
@@ -361,34 +361,35 @@ export default function App() {
             )}
           </div>
         </div>
-
-        <TaskEditor />
-        <QuickAddModal open={quick} onClose={closeQuick} defaultCategory={isCategory ? active : undefined} />
-        <ShortcutsModal open={shortcuts} onClose={() => setShortcuts(false)} />
-        {search && <CommandPalette categories={categories} onClose={closeSearch} onNavigate={go} onNewTask={openQuick} onOpenTask={openTask} onOpenPage={openPage} onCycleTheme={cycleTheme} onOpenShortcuts={() => setShortcuts(true)} onReplayWelcome={() => triggerWelcome('full-daily')} />}
-        {active !== 'home' && layoutMode !== 'cockpit' && <MiniTimer onOpen={goHome} />}
-        <AppDock floating />
-        <FloatingHUDPortal />
-        <OnboardingWelcome
-          open={welcomeOpen}
-          variant={welcomeVariant}
-          theme={theme as Theme}
-          setTheme={t => setTheme(t)}
-          layoutMode={layoutMode}
-          setLayoutMode={setLayoutMode}
-          onComplete={completeWelcome}
-          tasks={welcomeTasks}
-          habits={welcomeHabits}
-          focusMinutesToday={focusMinutesToday}
-          soundscape={currentSoundscape.type}
-          onSelectSoundscape={handleWelcomeSelectSoundscape}
-          onAddQuickTask={handleWelcomeAddTask}
-          onToggleHabit={handleWelcomeToggleHabit}
-          onStartFocusTask={handleWelcomeStartFocusTask}
-        />
-        <Toaster />
-        <ReloadPrompt />
       </div>
+
+      {/* Global Overlays, Modals, Portals, and Docks decoupled from horizontal flex flow */}
+      <TaskEditor />
+      <QuickAddModal open={quick} onClose={closeQuick} defaultCategory={isCategory ? active : undefined} />
+      <ShortcutsModal open={shortcuts} onClose={() => setShortcuts(false)} />
+      {search && <CommandPalette categories={categories} onClose={closeSearch} onNavigate={go} onNewTask={openQuick} onOpenTask={openTask} onOpenPage={openPage} onCycleTheme={cycleTheme} onOpenShortcuts={() => setShortcuts(true)} onReplayWelcome={() => triggerWelcome('full-daily')} />}
+      {active !== 'home' && layoutMode !== 'cockpit' && <MiniTimer onOpen={goHome} />}
+      <AppDock floating />
+      <FloatingHUDPortal />
+      <OnboardingWelcome
+        open={welcomeOpen}
+        variant={welcomeVariant}
+        theme={theme as Theme}
+        setTheme={t => setTheme(t)}
+        layoutMode={layoutMode}
+        setLayoutMode={setLayoutMode}
+        onComplete={completeWelcome}
+        tasks={welcomeTasks}
+        habits={welcomeHabits}
+        focusMinutesToday={focusMinutesToday}
+        soundscape={currentSoundscape.type}
+        onSelectSoundscape={handleWelcomeSelectSoundscape}
+        onAddQuickTask={handleWelcomeAddTask}
+        onToggleHabit={handleWelcomeToggleHabit}
+        onStartFocusTask={handleWelcomeStartFocusTask}
+      />
+      <Toaster />
+      <ReloadPrompt />
     </div>
   );
 }
