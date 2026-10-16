@@ -61,15 +61,35 @@ export const priorityTone = (p: string) => ({
   Urgent: 'text-rose-700 dark:text-rose-400 bg-rose-500/15 font-medium',
 }[p] ?? 'text-fg-muted bg-surface-3');
 
-/** localStorage that never throws (private mode, blocked storage, quota). */
+const memoryStorage = new Map<string, string>();
+
+/** localStorage that never throws (private mode, blocked storage, quota, test runners). */
 export const storage = {
   get(key: string): string | null {
-    try { return localStorage.getItem(key); } catch { return null; }
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const val = localStorage.getItem(key);
+        if (val !== null) return val;
+      }
+    } catch { /* fallback to memory */ }
+    return memoryStorage.get(key) ?? null;
   },
   set(key: string, value: string) {
-    try { localStorage.setItem(key, value); } catch { /* storage unavailable */ }
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(key, value);
+        return;
+      }
+    } catch { /* fallback to memory */ }
+    memoryStorage.set(key, value);
   },
   remove(key: string) {
-    try { localStorage.removeItem(key); } catch { /* storage unavailable */ }
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(key);
+        return;
+      }
+    } catch { /* fallback to memory */ }
+    memoryStorage.delete(key);
   },
 };

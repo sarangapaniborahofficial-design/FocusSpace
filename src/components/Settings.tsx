@@ -206,7 +206,20 @@ function DataVaultCard() {
           'success'
         );
       } else {
-        toast(res.error || 'Failed to restore backup.', 'error');
+        if (res.safetySnapshot) {
+          const blob = new Blob([res.safetySnapshot], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `focusspace-emergency-safety-backup-${new Date().toISOString().slice(0, 10)}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          toast(`Restore failed: ${res.error}. An emergency safety snapshot was downloaded.`, 'error');
+        } else {
+          toast(res.error || 'Failed to restore backup.', 'error');
+        }
       }
     } catch (err: any) {
       toast(`Restore error: ${err?.message || 'Could not parse file'}`, 'error');

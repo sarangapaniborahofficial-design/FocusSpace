@@ -28,7 +28,7 @@ export class VadController {
         this.micVad = await MicVAD.new({
           // Local asset path to ensure zero third-party calls
           baseAssetPath: '/vad/',
-          onnxWASMBasePath: '/vad/',
+          onnxWASMBasePath: '/ort/',
 
           // Optimal conversational pause settings (per Voice Guide):
           // ~1000ms redemption silence to allow thinking pauses
@@ -82,10 +82,15 @@ export class VadController {
     }
   }
 
-  destroy(): void {
+  async destroy(): Promise<void> {
     if (this.micVad) {
-      this.micVad.pause().catch(() => {});
+      const vad = this.micVad;
       this.micVad = null;
+      try {
+        await vad.destroy();
+      } catch (err) {
+        console.warn('[FocusSpace VAD] Error during micVad.destroy():', err);
+      }
     }
     this.isListening = false;
   }

@@ -244,7 +244,7 @@ export function AppDock({
           {onTriggerVoice && (
             <button
               onClick={onTriggerVoice}
-              title="Universal Voice Typing (Ctrl+Shift+V)"
+              title="Universal Voice Typing (Alt+V)"
               className="size-10 sm:size-11 rounded-2xl border border-line bg-surface hover:bg-accent hover:text-accent-fg text-fg-muted hover:border-accent flex items-center justify-center transition keycap shrink-0 shadow-xs"
             >
               <Mic size={18} />

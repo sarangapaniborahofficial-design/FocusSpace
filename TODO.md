@@ -63,18 +63,86 @@ This document maintains the persistent, prioritized queue of upcoming sprints, f
 
 ---
 
-## ⏳ Phase 11 / Sprint 4: Mobile Companion & Windows Native Shell (Upcoming Backlog)
+---
 
-### [ ] Phase 11A: Tauri v2 Native Windows Flagship Wrapper
-- Sub-15MB installer, ~40MB RAM footprint.
-- Native Windows system tray with timer badge and global hotkey `Ctrl+Shift+Space`.
-- True frameless, transparent, draggable Always-on-Top HUD window (`WebviewWindow('hud')`).
-- Direct local JSON/SQLite backup folder write (`C:\Users\<User>\FocusSpace\Backups\`).
+## 🚀 Windows Hardening & Tauri v2 Roadmap (Active Implementation)
+**Reference:** [`WINDOWS_TAURI_GUIDE.md`](file:///d:/focusspace-phase75/FocusSpace/WINDOWS_TAURI_GUIDE.md)
 
-### [ ] Phase 11B: One-Way Android Feeder App & Windows Triage Tray
-- Mobile quick-capture envelope (`FocusSpaceDropEnvelope`).
-- Zero-cloud local transport: Local Wi-Fi Direct push (QR code scan, <50ms) or `.fsdrop` file drop.
-- Windows Flagship Morning/Evening Briefing "Phone Drop Triage Tray" (Enter to Task, J to Journal, P to Page).
+### ✅ Phase A: Stabilize the Web Build (Before Any Rust) — [GATE A REACHED]
+#### A1. Backup Fidelity
+- [x] Store each file blob's MIME type in the envelope (`fileBlobs[].type`) and restore it. Added test in `backup.test.ts` verifying PDF and PNG round-trip with exact MIME type and bytes.
+- [x] Add `schemaVersion` (Dexie version, currently 4) to the envelope. Importing a file from a newer schema fails with clear message.
+- [x] Add a small `settings` block to the envelope (theme key `focusspace-theme`). Restores theme on import.
+- [x] Add a pre-restore safety step: before `importFullBackup` clears tables, export the current database in memory and offer as emergency fallback download if restore throws.
+- [x] Manual restore test on owner's real data. Verified counts and attachments.
+
+#### A2. Voice Fixes (PWA Engine)
+- [x] **Chunking instead of truncation**: Split audio longer than 25s into chunks of at most 25s, preferring split point at the quietest 200ms RMS window within the last 3s of each chunk (`src/voice/engine/splitter.ts`). Transcribe sequentially and join with single space. Added unit tests for acoustic splitter.
+- [x] **ONNX loader deduplication**: Consolidated single active ONNX runtime WASM (`ort-wasm-simd-threaded.wasm`) and matching `.mjs` loader in `public/ort/`. Shrunk `public/` directory from 214 MB down to 59 MB (68% footprint reduction). Updated `wasmPaths` and `onnxWASMBasePath` to `/ort/`.
+- [x] **Asset verification script**: Created `scripts/check-voice-assets.mjs` verifying all 17 required model, tokenizer, wasm, mjs, and silero files. Wired into `package.json` (`postinstall` and `npm run check:voice`).
+- [x] **Real Gate 0 WER benchmark**: Extended `BenchPage.tsx` with Word Error Rate calculation (Levenshtein word distance in `wer.ts` + `wer.test.ts`) against reference transcripts. Updated `src/voice/README.md` with measured benchmarks.
+- [x] **Cross-origin isolation**: Added COOP/COEP headers (`Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`) in `vite.config.ts` for `server` and `preview`. Verified `crossOriginIsolated === true`.
+- [x] **Hotkey cleanup**: Removed `Ctrl+Shift+V` from global listener in `App.tsx`, `AppDock.tsx`, and `ShortcutsModal.tsx` (protecting standard paste-as-plain-text); retained `Alt+V` and dock trigger.
+- [x] **VAD teardown**: Called `vad.destroy()` in `VadController.destroy()` so microphone hardware stream is fully released and OS recording indicator turns off immediately.
+- [x] **Safe Range Undo**: `InputDictationTarget.removeLastInsert()` verifies text at recorded range still matches last inserted text before deleting. Added unit tests in `inputTarget.test.ts`.
+
+#### A3. Housekeeping
+- [x] Made `STATUS.md` and `TODO.md` accurate: real test count (100/100 tests passing), unverified claims removed, numbering corrected.
+- [x] Called `navigator.storage.persist()` at boot in `App.tsx` and logged result locally.
+
+#### 🛑 Gate A Verification (MEASURED RESULTS)
+- `npm test`: **100/100 passing** across 13 test suites in 680ms.
+- `npm run build`: Production build succeeded in 1.54s with 0 errors.
+- `npm run check:voice`: All 17/17 offline voice assets verified (58.85 MB payload).
+- Public directory footprint reduced from 214.00 MB to **59.09 MB** (-155 MB / -68%).
+- Cross-origin isolation: `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` configured in `vite.config.ts`.
+- Gate 0 WER evaluation and benchmark table updated in `src/voice/README.md` and `BenchPage.tsx`.
+
+---
+
+### ⏳ Phase B: Empty Tauri v2 Shell (Voice Off)
+- [ ] Scaffold Tauri v2 CLI with `identifier`: `com.focusspace.desktop` (frozen).
+- [ ] Add `src/lib/runtime.ts` exporting `isTauri()`.
+- [ ] Add `build:tauri` mode (disabling VitePWA, removing voice dist assets, voice feature flag off).
+- [ ] Strict CSP and baseline capabilities (single-instance, window-state).
+- [ ] **Gate B**: `npm run tauri dev` & `npm run tauri build` succeed; data persists across restarts; fonts render offline.
+
+### ⏳ Phase C: Data Safety (Vault Mirroring & Restore)
+- [ ] Rust commands: `write_vault_snapshot`, `list_vault_snapshots`, `read_vault_snapshot` with atomic temp write + rename.
+- [ ] Filename pattern validation `^focusspace-\d{4}-\d{2}-\d{2}(-\d{6})?\.json$` (path traversal guards with `cargo test`).
+- [ ] Snapshot scheduling (daily at 11:59 PM via `journalAutoSave`, boot check if older than 24h, manual button).
+- [ ] Settings restore UI with pre-restore safety snapshot.
+- [ ] **Gate C**: Delete all data, restore from snapshot; kill during write test; retention pruning test.
+
+### ⏳ Phase D: Native Adapters
+- [ ] `launcher.ts` opener plugin adapter with scheme allow-list (`https`, `spotify`, `vscode`).
+- [ ] `notifications.ts` Tauri notification plugin adapter.
+- [ ] Native system tray with timer tooltip and close-to-tray window intercept.
+- [ ] **Gate D**: 10-minute timer in tray, notification on finish, allow-listed schemes work, process clean exit.
+
+### ⏳ Phase E: Native Floating HUD Window
+- [ ] Cross-window bridge `src/lib/hudBridge.ts` via `BroadcastChannel('focusspace-hud-bus')`.
+- [ ] Declare `floating-hud` window in `tauri.conf.json` (320x76, frameless, transparent, alwaysOnTop, skipTaskbar).
+- [ ] Route `/?window=hud` rendering purely HUD view. `pipHud.ts` adapter.
+- [ ] **Gate E**: HUD sync within 1s of main window; works when main window hidden to tray; window state persists.
+
+### ⏳ Phase F: Global Hotkeys
+- [ ] Configurable global shortcuts (`Ctrl+Alt+Space` quick add, `Ctrl+Alt+H` toggle HUD).
+- [ ] Settings rebind UI with per-shortcut toggle and conflict handling.
+- [ ] **Gate F**: Hotkeys trigger with FocusSpace unfocused; rebindings persist; conflicts handled cleanly.
+
+### ⏳ Phase G: Voice in Tauri Build
+- [ ] Packaging decision: bundle minimal ~60MB pack vs on-demand download.
+- [ ] Re-enable voice flag with minimal CSP (`'wasm-unsafe-eval'`, `blob:`).
+- [ ] Cross-origin isolation in Tauri v2 / measured RTF.
+- [ ] WebView2 mic permission verification.
+- [ ] **Gate G**: Offline dictation verified in installed Tauri desktop app; Gate 0 benchmark recorded.
+
+### ⏳ Phase H: Release Hardening
+- [ ] NSIS installer packaging, WebView2 bootstrapper mode.
+- [ ] Error boundary with emergency backup export; local rotating log file.
+- [ ] First-run backup folder nudge (outside app data and outside OneDrive).
+- [ ] Complete test matrix execution.
 
 ---
 

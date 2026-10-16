@@ -189,13 +189,9 @@ export class AsrClient implements AsrEngine {
       await this.load();
     }
 
-    // Whisper 30s window guard: cap utterance at 25s (400,000 samples @ 16kHz)
-    const MAX_UTTERANCE_SAMPLES = 25 * 16000;
-    const safeAudio = audio.length > MAX_UTTERANCE_SAMPLES ? audio.slice(0, MAX_UTTERANCE_SAMPLES) : audio;
-
     return new Promise<string>((resolve, reject) => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      this.queue.push({ id, audio: safeAudio, resolve, reject });
+      this.queue.push({ id, audio, resolve, reject });
       if (!this.activeItem) {
         this.processNext();
       }

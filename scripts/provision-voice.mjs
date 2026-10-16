@@ -3,10 +3,13 @@
 /**
  * FocusSpace Voice Studio — Offline Asset Provisioner
  *
- * Copies Silero VAD ONNX models, audio worklet scripts, and onnxruntime WebAssembly
- * binaries directly from node_modules into public/vad/ and public/models/wasm/.
+ * Copies:
+ * 1. The single active ONNX Runtime Web WASM variant (ort-wasm-simd-threaded.wasm)
+ *    and its matching .mjs loader into public/ort/.
+ * 2. Silero VAD v5 model and audio worklet scripts into public/vad/.
  *
- * Guarantees 100% same-origin, zero-cloud offline execution without CDN fallbacks.
+ * Cleans up unused duplicate WASM binaries and legacy models, ensuring a minimal
+ * footprint and 100% same-origin, zero-cloud offline execution without CDN fallbacks.
  */
 
 import fs from 'node:fs';
@@ -20,13 +23,15 @@ const ROOT = path.resolve(__dirname, '..');
 const VAD_SRC = path.join(ROOT, 'node_modules', '@ricky0123', 'vad-web', 'dist');
 const ONNX_SRC = path.join(ROOT, 'node_modules', 'onnxruntime-web', 'dist');
 
-const PUBLIC_VAD = path.join(ROOT, 'public', 'vad');
-const PUBLIC_WASM = path.join(ROOT, 'public', 'models', 'wasm');
+const PUBLIC_DIR = path.join(ROOT, 'public');
+const PUBLIC_ORT = path.join(PUBLIC_DIR, 'ort');
+const PUBLIC_VAD = path.join(PUBLIC_DIR, 'vad');
+const LEGACY_WASM_DIR = path.join(PUBLIC_DIR, 'models', 'wasm');
 
-console.log('🎙️ FocusSpace Voice Studio — Provisioning offline runtime assets...');
+console.log('🎙️ FocusSpace Voice Studio — Provisioning consolidated offline runtime assets...');
 
+fs.mkdirSync(PUBLIC_ORT, { recursive: true });
 fs.mkdirSync(PUBLIC_VAD, { recursive: true });
-fs.mkdirSync(PUBLIC_WASM, { recursive: true });
 
 function copyIfExists(src, dest) {
   if (fs.existsSync(src)) {
@@ -38,9 +43,20 @@ function copyIfExists(src, dest) {
   return false;
 }
 
-// 1. Provision Silero VAD models and worklet bundle
+// 1. Provision the single active ONNX Runtime WASM binary and matching MJS loader into public/ort/
+if (fs.existsSync(ONNX_SRC)) {
+  const activeWasm = 'ort-wasm-simd-threaded.wasm';
+  const activeMjs = 'ort-wasm-simd-threaded.mjs';
+
+  copyIfExists(path.join(ONNX_SRC, activeWasm), path.join(PUBLIC_ORT, activeWasm));
+  copyIfExists(path.join(ONNX_SRC, activeMjs), path.join(PUBLIC_ORT, activeMjs));
+} else {
+  console.warn('  ⚠️ onnxruntime-web not found in node_modules.');
+}
+
+// 2. Provision Silero VAD v5 and audio worklet scripts into public/vad/
 if (fs.existsSync(VAD_SRC)) {
-  const vadFiles = fs.readdirSync(VAD_SRC).filter(f => f.endsWith('.onnx') || f.includes('worklet') || f.endsWith('.wasm'));
+  const vadFiles = ['silero_vad_v5.onnx', 'vad.worklet.bundle.min.js', 'vad.worklet.bundle.dev.js'];
   for (const f of vadFiles) {
     copyIfExists(path.join(VAD_SRC, f), path.join(PUBLIC_VAD, f));
   }
@@ -48,16 +64,29 @@ if (fs.existsSync(VAD_SRC)) {
   console.warn('  ⚠️ @ricky0123/vad-web not found in node_modules.');
 }
 
-// 2. Provision onnxruntime-web WASM binaries for transformers.js & VAD
-if (fs.existsSync(ONNX_SRC)) {
-  const wasmFiles = fs.readdirSync(ONNX_SRC).filter(f => f.endsWith('.wasm'));
-  for (const f of wasmFiles) {
-    copyIfExists(path.join(ONNX_SRC, f), path.join(PUBLIC_WASM, f));
-    // Also place in /vad/ for VAD wasm loader fallback
-    copyIfExists(path.join(ONNX_SRC, f), path.join(PUBLIC_VAD, f));
-  }
-} else {
-  console.warn('  ⚠️ onnxruntime-web not found in node_modules.');
+// 3. Clean up legacy duplicate models/wasm directory
+if (fs.existsSync(LEGACY_WASM_DIR)) {
+  fs.rmSync(LEGACY_WASM_DIR, { recursive: true, force: true });
+  console.log('  ✓ Cleaned up legacy directory: public/models/wasm/');
 }
 
-console.log('✅ Offline voice runtime assets provisioned successfully.\n');
+// 4. Remove stale/unused WASM variants and legacy models from public/vad/
+if (fs.existsSync(PUBLIC_VAD)) {
+  const entries = fs.readdirSync(PUBLIC_VAD);
+  for (const entry of entries) {
+    if (
+      entry.endsWith('.wasm') ||
+      entry === 'silero_vad_legacy.onnx' ||
+      entry === 'silero_vad_v6.onnx' ||
+      entry.endsWith('.d.ts') ||
+      entry.endsWith('.d.ts.map') ||
+      entry === 'worklet.js' ||
+      entry === 'worklet.js.map'
+    ) {
+      fs.rmSync(path.join(PUBLIC_VAD, entry), { force: true });
+      console.log(`  ✓ Removed redundant file: public/vad/${entry}`);
+    }
+  }
+}
+
+console.log('✅ Consolidated offline voice runtime assets provisioned successfully.\n');

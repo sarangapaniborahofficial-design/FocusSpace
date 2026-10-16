@@ -9,6 +9,7 @@ import {
   type FocusSpaceBackupEnvelope,
 } from '../backup';
 import type { Category, FocusLog, Goal, Habit, JournalEntry, Page, PageFile, PageLink, Task } from '../../types';
+import { storage } from '../utils';
 
 describe('FocusSpace Data Vault: Backup & Restore Engine', () => {
   beforeEach(async () => {
@@ -281,5 +282,172 @@ describe('FocusSpace Data Vault: Backup & Restore Engine', () => {
     const recoveredBlob = base64ToBlob(base64, 'text/plain');
     const recoveredText = await recoveredBlob.text();
     expect(recoveredText).toBe(original);
+  });
+
+  it('preserves file blob MIME types (PDF and PNG) with exact byte round-trip fidelity', async () => {
+    // 1. Prepare sample PDF binary header (%PDF-1.4...)
+    const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34]);
+    const pdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
+
+    // 2. Prepare sample PNG binary header (\x89PNG\r\n\x1a\n...)
+    const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const pngBlob = new Blob([pngBytes], { type: 'image/png' });
+
+    await db.fileBlobs.bulkAdd([
+      { id: 'blob-pdf-doc', blob: pdfBlob },
+      { id: 'blob-png-img', blob: pngBlob },
+    ]);
+
+    // Export
+    const backupJson = await exportFullBackup();
+    const parsed = JSON.parse(backupJson) as FocusSpaceBackupEnvelope;
+
+    // Verify envelope captures correct MIME types
+    const pdfEntry = parsed.data.fileBlobs?.find(b => b.id === 'blob-pdf-doc');
+    const pngEntry = parsed.data.fileBlobs?.find(b => b.id === 'blob-png-img');
+    expect(pdfEntry).toBeDefined();
+    expect(pdfEntry?.type).toBe('application/pdf');
+    expect(pngEntry).toBeDefined();
+    expect(pngEntry?.type).toBe('image/png');
+
+    // Clear database
+    await db.fileBlobs.clear();
+    expect(await db.fileBlobs.count()).toBe(0);
+
+    // Restore
+    const result = await importFullBackup(backupJson);
+    expect(result.success).toBe(true);
+    expect(result.imported.fileBlobs).toBe(2);
+
+    // Verify restored records in Dexie
+    const restoredPdf = await db.fileBlobs.get('blob-pdf-doc');
+    const restoredPng = await db.fileBlobs.get('blob-png-img');
+    expect(restoredPdf).toBeDefined();
+    expect(restoredPdf?.blob.type).toBe('application/pdf');
+    expect(new Uint8Array(await restoredPdf!.blob.arrayBuffer())).toEqual(pdfBytes);
+
+    expect(restoredPng).toBeDefined();
+    expect(restoredPng?.blob.type).toBe('image/png');
+    expect(new Uint8Array(await restoredPng!.blob.arrayBuffer())).toEqual(pngBytes);
+  });
+
+  it('rejects backups from newer schema versions with clear error message', async () => {
+    const validJson = await exportFullBackup();
+    const parsed = JSON.parse(validJson);
+    parsed.schemaVersion = 999; // Far newer than db.verno (4)
+
+    const result = await importFullBackup(JSON.stringify(parsed));
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Cannot import backup from newer database schema version 999');
+    expect(result.error).toContain(`current supported version is ${db.verno}`);
+  });
+
+  it('exports and restores settings block including focusspace-theme', async () => {
+    storage.set('focusspace-theme', 'onyx');
+    const backupJson = await exportFullBackup();
+    const parsed = JSON.parse(backupJson) as FocusSpaceBackupEnvelope;
+
+    expect(parsed.settings).toBeDefined();
+    expect(parsed.settings?.theme).toBe('onyx');
+
+    // Change theme locally
+    storage.set('focusspace-theme', 'solaris');
+    expect(storage.get('focusspace-theme')).toBe('solaris');
+
+    // Restore backup
+    const result = await importFullBackup(backupJson);
+    expect(result.success).toBe(true);
+    expect(storage.get('focusspace-theme')).toBe('onyx');
+  });
+
+  it('captures in-memory safety snapshot before database is cleared', async () => {
+    // Add existing data
+    await db.tasks.add({
+      id: 'existing-task',
+      title: 'Preserve me in safety snapshot',
+      categoryId: 'c1',
+      priority: 'Medium',
+      status: 'To Do',
+      estimatedDuration: 30,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as Task);
+
+    expect(await db.tasks.count()).toBe(1);
+
+    // Simulate an import payload that passes initial validation
+    const payload = {
+      app: 'FocusSpace',
+      version: 1,
+      schemaVersion: 4,
+      data: {
+        categories: [],
+        tasks: [],
+        habits: [],
+        goals: [],
+        focusLogs: [],
+        pages: [],
+        journalEntries: [],
+        pageLinks: [],
+        files: [],
+        fileBlobs: [],
+      },
+    };
+
+    const result = await importFullBackup(JSON.stringify(payload));
+    expect(result.success).toBe(true);
+  });
+
+  it('provides the in-memory safety snapshot if the restore transaction throws an error', async () => {
+    // 1. Seed prior state that must not be lost
+    await db.tasks.add({
+      id: 'pre-crash-task',
+      title: 'Critical unbacked-up task',
+      categoryId: 'c1',
+      priority: 'Urgent',
+      status: 'To Do',
+      estimatedDuration: 45,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as Task);
+
+    expect(await db.tasks.count()).toBe(1);
+
+    // 2. Mock db.transaction to simulate an unexpected storage write failure
+    const originalTransaction = db.transaction.bind(db);
+    (db as any).transaction = async () => {
+      throw new Error('Simulated IndexedDB transaction abort');
+    };
+
+    try {
+      const validPayload = {
+        app: 'FocusSpace',
+        version: 1,
+        schemaVersion: 4,
+        data: {
+          categories: [{ id: 'c1', name: 'Work' }],
+          tasks: [],
+          habits: [],
+          goals: [],
+          focusLogs: [],
+          pages: [],
+          journalEntries: [],
+          pageLinks: [],
+          files: [],
+          fileBlobs: [],
+        },
+      };
+
+      const result = await importFullBackup(JSON.stringify(validPayload));
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Simulated IndexedDB transaction abort');
+      expect(result.safetySnapshot).toBeDefined();
+
+      // Verify the safety snapshot contains the exact pre-crash task
+      const snapshot = JSON.parse(result.safetySnapshot!) as FocusSpaceBackupEnvelope;
+      expect(snapshot.data.tasks.some(t => t.id === 'pre-crash-task')).toBe(true);
+    } finally {
+      db.transaction = originalTransaction;
+    }
   });
 });

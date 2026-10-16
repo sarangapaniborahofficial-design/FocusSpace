@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "prepare-voice": "node scripts/provision-voice.mjs",
     "setup:voice": "node scripts/fetch-models.mjs",
-    "postinstall": "node scripts/provision-voice.mjs"
+    "check:voice": "node scripts/check-voice-assets.mjs",
+    "postinstall": "node scripts/provision-voice.mjs && node scripts/check-voice-assets.mjs"
   },
   "dependencies": {
     "@fontsource/geist-sans": "5.3.0",

@@ -218,7 +218,16 @@ export default function App() {
 
   useEffect(() => {
     boot();
-    void navigator.storage?.persist?.().catch(() => undefined);
+    if (typeof navigator !== 'undefined' && navigator.storage?.persist) {
+      navigator.storage
+        .persist()
+        .then(persisted => {
+          console.log(`[FocusSpace Storage] Persistent storage granted: ${persisted}`);
+        })
+        .catch(err => {
+          console.warn('[FocusSpace Storage] Persistent storage check failed:', err);
+        });
+    }
   }, [boot]);
 
   useEffect(() => {
@@ -263,7 +272,7 @@ export default function App() {
       const key = e.key.toLowerCase();
       const isEditing = e.target instanceof Element && Boolean(e.target.closest('input,textarea,select,[contenteditable="true"]'));
 
-      if ((mod && e.shiftKey && key === 'v') || (e.altKey && key === 'v')) {
+      if (e.altKey && key === 'v') {
         e.preventDefault();
         triggerUniversalVoice();
         return;

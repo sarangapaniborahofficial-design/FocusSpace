@@ -21,8 +21,9 @@ This document tracks progress towards the 1.0 release based on the project timel
 | 7.5 | Pages Foundation (Rich text, Journal) | ✅ **Completed** | TipTap rich-text editor, live interactive references, auto daily summaries. |
 | 8 | Production, PWA & Power Tools | ✅ **Completed** | Service worker offline caching, smart schedule preferences, global shortcuts cheatsheet. |
 | 9 | Command Hub & Daily Briefing | ✅ **Completed** | Native & web app launcher, AppDock, morning/midday/evening briefing, rollover & reflection export. |
-| 9.5| Reliability Hardening & Cleanup | ✅ **Completed** | Removed legacy JSON backup/sync, fixed appointment immutability, overdue rescheduling, category deletion goal remap, timezone fix, and shortcut typing guards. |
-| 10 | Polish, Bug Fixes, Native & Voice | 🔄 **In Progress (Sprint 3 & PWA Blockers Complete)** | Sprint 1, Sprint 2 & Sprint 3 complete: WCAG contrast suite, Floating HUD, Universal App Dock, Dedicated Journal tab, Category-grouped Pages, Flowy Onboarding, Offline Voice Typing Studio, and 4/4 Tauri v2 Readiness Blockers resolved. |
+| 10 | Polish, Bug Fixes, Native & Voice | ✅ **Completed** | Sprint 1, 2, 3 & Phase 10H complete: WCAG contrast suite, Floating HUD, Universal App Dock, Dedicated Journal, Category Pages, Flowy Onboarding, Voice Everywhere, Centered Dock, and Lag Elimination. |
+| Phase A | Web Build Stabilization (Tauri Readiness) | ✅ **Completed** | Phase A1 (Backup Fidelity), A2 (Voice Fixes & WASM Deduplication), A3 (Housekeeping). 100/100 tests passing. Gate A verified. |
+| Phase B–H | Tauri v2 Desktop Hardening | ⏳ **Queued** | Tauri v2 shell, atomic vault snapshots, native tray & HUD, global hotkeys, offline desktop voice. Reference: [`WINDOWS_TAURI_GUIDE.md`](file:///d:/focusspace-phase75/FocusSpace/WINDOWS_TAURI_GUIDE.md). |
 
 ---
 
@@ -60,8 +61,7 @@ This document tracks progress towards the 1.0 release based on the project timel
      - Cleaned up obsolete `runtimeCaching` rule in `vite.config.ts`.
    - **Blocker 4: Pinned Dependencies**:
      - Pinned all 18 dependencies previously using `"latest"` to exact semantic versions in `package.json`.
-
-2. ✅ **Sprint 3 — Universal Floating Dock & Offline Voice Typing Studio**:
+3. ✅ **Sprint 3 — Universal Floating Dock & Offline Voice Typing Studio**:
    - Universal persistent bottom dock across all workspace tabs with official vector SVG branding.
    - 100% offline Voice Typing Studio with Silero VAD, Web Worker Whisper WASM, and disfluency cleanup.
    - **Dedicated Journal Workspace Tab (`Journal.tsx`) & 11:59 PM Auto-Save Engine (`journalAutoSave.ts`)**:
@@ -78,7 +78,7 @@ This document tracks progress towards the 1.0 release based on the project timel
      - Cinematic GPU-accelerated morph transition into `Today.tsx` on completion; replayable on-demand from Settings or `Ctrl + K`.
    - **Comprehensive Automated Test Coverage**: Added 12 new unit tests across 2 new test suites (`journalAutoSave.test.ts` & `pagesGrouping.test.ts`), bringing the full test suite to **66 passing unit tests**.
 
-2. ✅ **Sprint 1 — Contrast Polish, Always-on-Top Floating HUD & Bottom Dock**:
+4. ✅ **Sprint 1 — Contrast Polish, Always-on-Top Floating HUD & Bottom Dock**:
    - **Swiss Brutal & Swiss Onyx Contrast Overhaul**: Enforced universal inversion rules in `src/index.css`. In Swiss Brutal, tab buttons render acid citron (`#c8ff29`) on black (`#0d0f0d`) with a **16.3:1** contrast ratio. In Swiss Onyx, active/accent items enforce pure pitch-black (`#000000 !important`) font with a **13.9:1** ratio.
    - **Automated WCAG 2.1 Contrast Suite (`colorContrast.test.ts`)**: 28 automated tests in Vitest calculating W3C relative luminance and contrast ratios, enforcing AA (4.5:1) / AAA (7:1) across all 4 themes (`solaris`, `bauhaus`, `nocturne`, `onyx`).
    - **Always-on-Top Floating HUD (`FloatingHUD.tsx` via Document Picture-in-Picture)**:
@@ -95,7 +95,7 @@ This document tracks progress towards the 1.0 release based on the project timel
      - Active task workspace indicator: glowing accent dot beneath apps matching current task.
      - Quick-launcher for Spotify, YouTube, Discord, Antigravity, VS Code, and GitHub with popover manager.
 
-2. ✅ **Reliability Hardening & Codebase Audit Remediation**:
+5. ✅ **Reliability Hardening & Codebase Audit Remediation**:
    - **JSON Backup Subsystem Deprecation**: Completely eliminated legacy JSON backup & folder sync (`backup.ts`, `backupExport.ts`, `backupReminder.ts`, `folderSync.ts`, and Settings UI) in preparation for the upcoming native desktop storage/backup engine.
    - **Fixed Appointment Immutability**: Fixed `applySmartScheduleTimeBlocks` to strictly preserve scheduled appointment times (`fixed-anchor`), and automatically reschedule overdue tasks' `dueDate` to today when accepted into today's time-block schedule.
    - **Category Deletion Goals Remapping**: `removeCategory` now transactionally remaps `db.goals` alongside tasks and pages to prevent orphaned category references.
@@ -104,13 +104,13 @@ This document tracks progress towards the 1.0 release based on the project timel
    - **Task Order & Launch Links Preservation**: `normalizeTask` now preserves manual drag-and-drop `order` and `launchLinks`.
    - **Test Suite Expanded**: Added unit tests for fixed appointment immutability and task order preservation (18/18 tests passing).
 
-2. ✅ **Sprint 6 — Command Hub & App Launchpad**:
+6. ✅ **Sprint 6 — Command Hub & App Launchpad**:
    - Zero-dependency unified launcher (`src/lib/launcher.ts`) supporting native URI protocols (`spotify://`, `discord://`, `antigravity://open`, `vscode://`, `cursor://`, `obsidian://`) and web workspaces (`youtube.com`, `github.com`, localhost).
    - Tailored `AppDock` component with one-click app launching for Spotify, YouTube, Discord, Antigravity, VS Code, and GitHub.
    - Task-level Workspace Links & 1-Click "Focus & Launch" in `TaskCard.tsx` and `TaskEditor.tsx`.
    - Command Palette (`Ctrl + K`) indexing of launch links under "Apps & Workspaces".
 
-3. ✅ **Sprint 7 — Dynamic Time-Aware Daily Briefing**:
+7. ✅ **Sprint 7 — Dynamic Time-Aware Daily Briefing**:
    - Adaptive `DailyBriefing.tsx` reacting to current time:
      - **Morning (05:00–12:00)**: Focus agenda, planned hours, 1-click Smart Schedule optimizer.
      - **Midday (12:00–18:00)**: Momentum tracking, completed vs remaining ratio.
@@ -132,27 +132,34 @@ The following initiatives were evaluated and deliberately deferred to preserve F
 
 ---
 
-## 📌 Priority Future Backlog (Next Queue: Phase 11 / Sprint 4)
+## 📌 Priority Roadmap: Windows Hardening & Tauri v2
 
-These major initiatives are tracked in [`TODO.md`](file:///D:/focusspace-phase75/FocusSpace/TODO.md) and scheduled for the upcoming native desktop and mobile companion development sprint (with all Phase 10A–10G foundation items completed and verified):
+This roadmap is tracked in [`TODO.md`](file:///d:/focusspace-phase75/FocusSpace/TODO.md) and governed by [`WINDOWS_TAURI_GUIDE.md`](file:///d:/focusspace-phase75/FocusSpace/WINDOWS_TAURI_GUIDE.md):
 
-1. 🎯 **Native Windows Desktop Shell (Tauri v2 & Rust)**:
-   - Package FocusSpace as an ultra-fast, lightweight Windows desktop application using Tauri v2 & Rust.
-   - Native Windows system tray with timer status badge, global Windows hotkeys (`Ctrl+Shift+Space`), and direct local JSON backup folder sync (`C:\Users\<User>\FocusSpace\Backups\`).
-   - True frameless, transparent, draggable Always-on-Top HUD window (`WebviewWindow('hud')`) replacing browser-based Document PiP.
-   - Tauri opener and notification plugins for native app launching and system notifications.
-2. 🎯 **One-Way Mobile Companion (Android Feeder App)**:
-   - Lightweight companion app for quick thought capture on mobile (`FocusSpaceDropEnvelope`).
-   - Zero-cloud transport: Local Wi-Fi Direct push (QR code scan, <50ms) or `.fsdrop` file drop.
-   - Desktop Morning/Evening Briefing "Phone Drop Triage Tray" (Enter to Task, J to Journal, P to Page).
+1. ✅ **Phase A: Web Build Stabilization (Tauri Readiness) — [GATE A REACHED]**:
+   - **A1. Backup Fidelity**: Preserve file blob MIME type, add Dexie `schemaVersion: 4` check, add `settings` theme block, pre-restore safety snapshot in memory, and manual restore test.
+   - **A2. Voice Fixes**: Replaced 25s truncation with acoustic quiet-window chunking (`splitter.ts`), deduplicated ONNX WASM & MJS loaders into `public/ort/` (shrunk public by 155 MB), created `check-voice-assets.mjs`, real Gate 0 WER benchmark in `BenchPage.tsx` and `src/voice/README.md`, cross-origin isolation (COOP/COEP in `vite.config.ts`), removed `Ctrl+Shift+V` hotkey (kept `Alt+V`), `micVad.destroy()` hardware release, safe range undo in `inputTarget.ts`.
+   - **A3. Housekeeping**: Accurate test count (100/100 tests), boot-time `navigator.storage.persist()`.
+   - **Gate A Measured Results**: 100/100 tests passing in 680ms; `tsc -b && vite build` clean in 1.54s; `check-voice-assets` verified 17/17 assets (58.85 MB); public directory shrunk to 59.09 MB; awaiting owner approval before Phase B.
+
+2. ⏳ **Phases B–H: Desktop Hardening**:
+   - **Phase B**: Empty Tauri v2 shell (`com.focusspace.desktop`, `build:tauri` mode, voice off, single instance).
+   - **Phase C**: Data safety (atomic local vault writes, 11:59 PM auto-snapshot, restore safety).
+   - **Phase D**: Native adapters (opener allow-list, native notifications, tray & close-to-tray).
+   - **Phase E**: Native floating HUD window (cross-window bus, frameless transparent window).
+   - **Phase F**: Configurable global hotkeys (`Ctrl+Alt+Space`, `Ctrl+Alt+H`).
+   - **Phase G**: Voice in Tauri build (minimal bundle packaging, COOP/COEP, mic permissions).
+   - **Phase H**: Release hardening (NSIS installer, crash boundary, uninstall data safety).
 
 ---
 
 ## Verification & Health Check
 
-- **Tests**: 81/81 Vitest unit tests passing across 10 test suites (`src/lib/__tests__/*`, `src/voice/cleanup/*`)
-- **Type Checking & Production Build**: `tsc -b && vite build` passing with 0 errors
-- **PWA Service Worker**: Workbox precaching 47 offline assets (fonts, icons, chunks, styles) with 0 external Google Fonts requests
-- **Layout & Responsiveness Hardening**: Decoupled overlays/portals from main flex flow, full-bleed Cockpit mode, responsive Header controls, dynamic metrics grid, and multi-tier breakpoint scaling for Today workspace
+- **Tests**: **100/100 Vitest unit tests passing** across 13 test suites (`src/lib/__tests__/*`, `src/voice/cleanup/*`, `src/voice/engine/*`, `src/voice/target/*`, `src/voice/bench/*`)
+- **Type Checking & Production Build**: `tsc -b && vite build` passing with 0 errors in 1.54s
+- **Voice Assets Integrity**: `npm run check:voice` passing with 17/17 verified offline assets (58.85 MB)
+- **Public Directory Footprint**: Reduced from 214.00 MB to **59.09 MB** (13.63 MB WASM/MJS, 2.23 MB VAD, 43.00 MB Whisper model)
+- **PWA Service Worker**: Workbox precaching 84 offline assets (fonts, icons, chunks, styles) with 0 external Google Fonts requests
+- **Cross-Origin Isolated**: `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` configured in `vite.config.ts`
 - **Git Invariant**: Commit and push reserved exclusively for user via GitHub Desktop
 

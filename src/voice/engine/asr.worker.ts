@@ -1,4 +1,5 @@
 import { env, pipeline } from '@huggingface/transformers';
+import { splitAudio } from './splitter';
 
 // Strict offline privacy invariants:
 // 1. Same-origin models only
@@ -9,15 +10,12 @@ env.localModelPath = '/models/';
 
 // Ensure ONNX WASM binaries load strictly from local origin rather than CDN
 if (env.backends?.onnx?.wasm) {
-  env.backends.onnx.wasm.wasmPaths = '/models/wasm/';
+  env.backends.onnx.wasm.wasmPaths = '/ort/';
   env.backends.onnx.wasm.numThreads = Math.min(4, Math.max(1, (navigator.hardwareConcurrency || 2) - 1));
 }
 
 let transcriber: any = null;
 let currentModel = 'whisper-tiny.en';
-
-// Whisper 30s window guard: enforce 25s maximum utterance (400,000 samples @ 16kHz)
-const MAX_UTTERANCE_SAMPLES = 25 * 16000;
 
 export type WorkerInMessage =
   | { type: 'load'; model?: string }
@@ -86,21 +84,25 @@ self.addEventListener('message', async (e: MessageEvent<WorkerInMessage>) => {
     }
 
     try {
-      // Enforce 25s max utterance cap to prevent Whisper 30s window overflow
-      const boundedAudio = audio.length > MAX_UTTERANCE_SAMPLES
-        ? audio.subarray(0, MAX_UTTERANCE_SAMPLES)
-        : audio;
-
+      const chunks = splitAudio(audio);
       const isEnglishOnly = currentModel.endsWith('.en');
       const transcribeOptions: Record<string, any> = {
         return_timestamps: false,
         ...(isEnglishOnly ? {} : { language: 'english', task: 'transcribe' }),
       };
 
-      const result = await transcriber(boundedAudio, transcribeOptions);
+      const texts: string[] = [];
+      for (const chunk of chunks) {
+        if (chunk.length < 3200) continue; // skip sub-200ms residue if any
+        const result = await transcriber(chunk, transcribeOptions);
+        const chunkText = typeof result?.text === 'string' ? result.text.trim() : '';
+        if (chunkText) {
+          texts.push(chunkText);
+        }
+      }
 
       const ms = Math.round(performance.now() - start);
-      const text = typeof result?.text === 'string' ? result.text.trim() : '';
+      const text = texts.join(' ').trim();
 
       self.postMessage({
         type: 'result',

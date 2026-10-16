@@ -70,10 +70,15 @@ export class InputDictationTarget implements DictationTarget {
   removeLastInsert(): void {
     if (!this.lastInsertRange) return;
 
-    const { start, end } = this.lastInsertRange;
+    const { start, end, text } = this.lastInsertRange;
     const val = this.element.value || '';
 
-    // Verify the segment still matches or falls within range
+    // Safety check: only delete if the text at the recorded range exactly matches what was inserted
+    if (val.slice(start, end) !== text) {
+      this.lastInsertRange = null;
+      return;
+    }
+
     const nextVal = val.slice(0, start) + val.slice(end);
     setNativeValue(this.element, nextVal);
 

@@ -13,12 +13,23 @@ import {
   type BackupFile,
 } from './normalize';
 import type { Category, FileBlob, FocusLog, Goal, Habit, JournalEntry, Page, PageFile, PageLink, Task } from '../types';
-import { isoToday } from './utils';
+import { isoToday, storage } from './utils';
+
+export interface SerializedFileBlob {
+  id: string;
+  base64: string;
+  type?: string;
+}
 
 export interface FocusSpaceBackupEnvelope {
   app: 'FocusSpace';
   version: 1;
+  schemaVersion?: number;
   exportedAt: string;
+  settings?: {
+    theme?: string;
+    [key: string]: any;
+  };
   data: {
     categories: Category[];
     tasks: Task[];
@@ -29,7 +40,7 @@ export interface FocusSpaceBackupEnvelope {
     journalEntries: JournalEntry[];
     pageLinks: PageLink[];
     files: PageFile[];
-    fileBlobs?: { id: string; base64: string }[];
+    fileBlobs?: SerializedFileBlob[];
   };
 }
 
@@ -51,6 +62,7 @@ export interface ImportResult {
   imported: ImportCounts;
   skipped: Partial<ImportCounts>;
   error?: string;
+  safetySnapshot?: string;
 }
 
 export async function blobToBase64(blob: Blob): Promise<string> {
@@ -101,18 +113,30 @@ export async function exportFullBackup(): Promise<string> {
     db.fileBlobs.toArray(),
   ]);
 
-  const serializedBlobs: { id: string; base64: string }[] = [];
+  const serializedBlobs: SerializedFileBlob[] = [];
   for (const b of rawBlobs) {
     if (b.blob) {
       const base64 = await blobToBase64(b.blob);
-      serializedBlobs.push({ id: b.id, base64 });
+      serializedBlobs.push({
+        id: b.id,
+        base64,
+        type: b.blob.type || 'application/octet-stream',
+      });
     }
+  }
+
+  const theme = storage.get('focusspace-theme');
+  const settings: Record<string, any> = {};
+  if (theme) {
+    settings.theme = theme;
   }
 
   const envelope: FocusSpaceBackupEnvelope = {
     app: 'FocusSpace',
     version: 1,
+    schemaVersion: db.verno,
     exportedAt: new Date().toISOString(),
+    settings,
     data: {
       categories,
       tasks,
@@ -172,6 +196,21 @@ export async function importFullBackup(jsonString: string): Promise<ImportResult
     };
   }
 
+  // Schema version guard: Reject backups created with a newer database schema
+  if (typeof raw.schemaVersion === 'number' && raw.schemaVersion > db.verno) {
+    return {
+      success: false,
+      imported: { categories: 0, tasks: 0, habits: 0, goals: 0, focusLogs: 0, pages: 0, journalEntries: 0, pageLinks: 0, files: 0, fileBlobs: 0 },
+      skipped: {},
+      error: `Cannot import backup from newer database schema version ${raw.schemaVersion} (current supported version is ${db.verno}). Please update FocusSpace.`,
+    };
+  }
+
+  // Restore settings block if present
+  if (raw.settings && typeof raw.settings === 'object' && typeof raw.settings.theme === 'string' && raw.settings.theme) {
+    storage.set('focusspace-theme', raw.settings.theme);
+  }
+
   const d = raw.data;
 
   const cleanCategories = normalizeList(d.categories, normalizeCategory);
@@ -196,14 +235,15 @@ export async function importFullBackup(jsonString: string): Promise<ImportResult
     } as PageFile;
   });
 
-  // Reconstruct blobs from base64
+  // Reconstruct blobs from base64 preserving original MIME type
   const cleanBlobs: FileBlob[] = [];
   let skippedBlobs = 0;
   if (Array.isArray(d.fileBlobs)) {
     for (const b of d.fileBlobs) {
       if (b && typeof b.id === 'string' && typeof b.base64 === 'string') {
         try {
-          const blob = base64ToBlob(b.base64);
+          const mimeType = typeof b.type === 'string' && b.type ? b.type : 'application/octet-stream';
+          const blob = base64ToBlob(b.base64, mimeType);
           cleanBlobs.push({ id: b.id, blob });
         } catch {
           skippedBlobs++;
@@ -214,47 +254,65 @@ export async function importFullBackup(jsonString: string): Promise<ImportResult
     }
   }
 
-  // Atomic restore inside transaction
-  await db.transaction(
-    'rw',
-    [
-      db.categories,
-      db.tasks,
-      db.habits,
-      db.goals,
-      db.focusLogs,
-      db.pages,
-      db.journalEntries,
-      db.pageLinks,
-      db.files,
-      db.fileBlobs,
-    ],
-    async () => {
-      await Promise.all([
-        db.categories.clear(),
-        db.tasks.clear(),
-        db.habits.clear(),
-        db.goals.clear(),
-        db.focusLogs.clear(),
-        db.pages.clear(),
-        db.journalEntries.clear(),
-        db.pageLinks.clear(),
-        db.files.clear(),
-        db.fileBlobs.clear(),
-      ]);
+  // Pre-restore in-memory safety snapshot before database is cleared
+  let safetySnapshot: string | undefined;
+  try {
+    safetySnapshot = await exportFullBackup();
+  } catch {
+    // Proceed even if safety snapshot export fails
+  }
 
-      if (cleanCategories.items.length) await db.categories.bulkAdd(cleanCategories.items);
-      if (cleanTasks.items.length) await db.tasks.bulkAdd(cleanTasks.items);
-      if (cleanHabits.items.length) await db.habits.bulkAdd(cleanHabits.items);
-      if (cleanGoals.items.length) await db.goals.bulkAdd(cleanGoals.items);
-      if (cleanLogs.items.length) await db.focusLogs.bulkAdd(cleanLogs.items);
-      if (cleanPages.items.length) await db.pages.bulkAdd(cleanPages.items);
-      if (cleanJournal.items.length) await db.journalEntries.bulkAdd(cleanJournal.items);
-      if (cleanLinks.items.length) await db.pageLinks.bulkAdd(cleanLinks.items);
-      if (cleanFiles.items.length) await db.files.bulkAdd(cleanFiles.items);
-      if (cleanBlobs.length) await db.fileBlobs.bulkAdd(cleanBlobs);
-    }
-  );
+  // Atomic restore inside transaction
+  try {
+    await db.transaction(
+      'rw',
+      [
+        db.categories,
+        db.tasks,
+        db.habits,
+        db.goals,
+        db.focusLogs,
+        db.pages,
+        db.journalEntries,
+        db.pageLinks,
+        db.files,
+        db.fileBlobs,
+      ],
+      async () => {
+        await Promise.all([
+          db.categories.clear(),
+          db.tasks.clear(),
+          db.habits.clear(),
+          db.goals.clear(),
+          db.focusLogs.clear(),
+          db.pages.clear(),
+          db.journalEntries.clear(),
+          db.pageLinks.clear(),
+          db.files.clear(),
+          db.fileBlobs.clear(),
+        ]);
+
+        if (cleanCategories.items.length) await db.categories.bulkAdd(cleanCategories.items);
+        if (cleanTasks.items.length) await db.tasks.bulkAdd(cleanTasks.items);
+        if (cleanHabits.items.length) await db.habits.bulkAdd(cleanHabits.items);
+        if (cleanGoals.items.length) await db.goals.bulkAdd(cleanGoals.items);
+        if (cleanLogs.items.length) await db.focusLogs.bulkAdd(cleanLogs.items);
+        if (cleanPages.items.length) await db.pages.bulkAdd(cleanPages.items);
+        if (cleanJournal.items.length) await db.journalEntries.bulkAdd(cleanJournal.items);
+        if (cleanLinks.items.length) await db.pageLinks.bulkAdd(cleanLinks.items);
+        if (cleanFiles.items.length) await db.files.bulkAdd(cleanFiles.items);
+        if (cleanBlobs.length) await db.fileBlobs.bulkAdd(cleanBlobs);
+      }
+    );
+  } catch (err: any) {
+    return {
+      success: false,
+      imported: { categories: 0, tasks: 0, habits: 0, goals: 0, focusLogs: 0, pages: 0, journalEntries: 0, pageLinks: 0, files: 0, fileBlobs: 0 },
+      skipped: {},
+      error: `Restore failed: ${err?.message || String(err)}`,
+      safetySnapshot,
+    };
+  }
 
   return {
     success: true,
