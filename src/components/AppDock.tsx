@@ -1,25 +1,39 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import React, { useRef, useState, useEffect } from 'react';
-import { Globe, Laptop, Mic, Pencil, Plus, Rocket, Trash2, X } from 'lucide-react';
+import { FolderOpen, Globe, Laptop, Mic, Pencil, Plus, Rocket, Trash2, X } from 'lucide-react';
 import { db } from '../db/db';
-import { APP_PRESETS, detectLaunchKind, launchTarget, normalizeWebUrl } from '../lib/launcher';
+import { APP_PRESETS, detectLaunchKind, launchTarget, normalizeWebUrl, isNativeFilePath } from '../lib/launcher';
 import { useTimerTaskId } from '../lib/timer';
 import { storage, uid } from '../lib/utils';
-import { isVoiceEnabled } from '../lib/runtime';
+import { getElectronAPI, isVoiceEnabled } from '../lib/runtime';
 import type { LaunchKind, LaunchLink, Task } from '../types';
 import { resolveBrandLogo } from './BrandIcons';
+import { BrowserSetupModal, BROWSER_OPTIONS } from './BrowserSetupModal';
 
-const GLOBAL_DOCK_STORAGE_KEY = 'focusspace-global-appdock';
+const GLOBAL_DOCK_STORAGE_KEY = 'focusspace-global-appdock-v3';
 
-const DEFAULT_GLOBAL_APPS: LaunchLink[] = [
-  { id: 'app-vscode', label: 'VS Code', url: 'vscode://file/', kind: 'app', icon: 'code' },
-  { id: 'app-cursor', label: 'Cursor', url: 'cursor://file/', kind: 'app', icon: 'cursor' },
-  { id: 'app-obsidian', label: 'Obsidian', url: 'obsidian://open', kind: 'app', icon: 'obsidian' },
-  { id: 'app-spotify', label: 'Spotify', url: 'spotify://', kind: 'app', icon: 'spotify' },
-  { id: 'app-youtube', label: 'YouTube', url: 'https://youtube.com', kind: 'web', icon: 'youtube' },
-  { id: 'app-discord', label: 'Discord', url: 'discord://', kind: 'app', icon: 'discord' },
-  { id: 'app-antigravity', label: 'Antigravity', url: 'antigravity://open', kind: 'app', icon: 'sparkles' },
-  { id: 'app-github', label: 'GitHub', url: 'https://github.com', kind: 'web', icon: 'github' },
+// Empty by default: user starts with a completely clean dock
+const DEFAULT_GLOBAL_APPS: LaunchLink[] = [];
+
+const POPULAR_NATIVE_PRESETS = [
+  { label: 'VS Code', path: 'vscode://file/', kind: 'app' as LaunchKind },
+  { label: 'Discord', path: 'discord://', kind: 'app' as LaunchKind },
+  { label: 'Spotify', path: 'spotify://', kind: 'app' as LaunchKind },
+  { label: 'Cursor', path: 'cursor://file/', kind: 'app' as LaunchKind },
+  { label: 'Obsidian', path: 'obsidian://open', kind: 'app' as LaunchKind },
+  { label: 'Slack', path: 'slack://open', kind: 'app' as LaunchKind },
+  { label: 'Notion', path: 'notion://open', kind: 'app' as LaunchKind },
+  { label: 'Terminal', path: 'cmd.exe', kind: 'file' as LaunchKind },
+];
+
+const POPULAR_WEB_PRESETS = [
+  { label: 'ChatGPT', url: 'https://chatgpt.com', kind: 'web' as LaunchKind },
+  { label: 'Claude', url: 'https://claude.ai', kind: 'web' as LaunchKind },
+  { label: 'YouTube', url: 'https://youtube.com', kind: 'web' as LaunchKind },
+  { label: 'GitHub', url: 'https://github.com', kind: 'web' as LaunchKind },
+  { label: 'Figma', url: 'https://figma.com', kind: 'web' as LaunchKind },
+  { label: 'Linear', url: 'https://linear.app', kind: 'web' as LaunchKind },
+  { label: 'Twitter / X', url: 'https://x.com', kind: 'web' as LaunchKind },
 ];
 
 function sanitizeLaunchLink(link: LaunchLink): LaunchLink {
@@ -53,7 +67,6 @@ export function AppDock({
   floating?: boolean;
   onTriggerVoice?: () => void;
 }) {
-  // Use narrow taskId subscription so the dock does NOT re-render on the 250ms timer interval!
   const activeTaskId = useTimerTaskId();
 
   const category = useLiveQuery(
@@ -72,21 +85,14 @@ export function AppDock({
     [activeTaskId]
   );
 
+  // Initialize dock with 0 apps by default (clean dock)
   const [globalApps, setGlobalApps] = useState<LaunchLink[]>(() => {
     const saved = storage.get(GLOBAL_DOCK_STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const sanitized = parsed.map(sanitizeLaunchLink);
-          const existingLabels = new Set(sanitized.map((p: LaunchLink) => p.label.toLowerCase()));
-          const missingDefaults = DEFAULT_GLOBAL_APPS.filter(d => !existingLabels.has(d.label.toLowerCase()));
-          if (missingDefaults.length > 0) {
-            const merged = [...sanitized, ...missingDefaults];
-            storage.set(GLOBAL_DOCK_STORAGE_KEY, JSON.stringify(merged));
-            return merged;
-          }
-          return sanitized;
+        if (Array.isArray(parsed)) {
+          return parsed.map(sanitizeLaunchLink);
         }
       } catch {
         /* fallback */
@@ -100,7 +106,11 @@ export function AppDock({
   const [contextMenuLink, setContextMenuLink] = useState<{ link: LaunchLink; x: number; y: number } | null>(null);
   const [newLabel, setNewLabel] = useState('');
   const [newUrl, setNewUrl] = useState('');
-  const [newKind, setNewKind] = useState<LaunchKind>('web');
+  const [newKind, setNewKind] = useState<LaunchKind>('app');
+  const [preferredBrowser, setPreferredBrowser] = useState<string>(() => {
+    return localStorage.getItem('focusspace-default-browser') || '';
+  });
+  const [browserModalOpen, setBrowserModalOpen] = useState(false);
 
   // Close context menu on outside click
   useEffect(() => {
@@ -109,7 +119,7 @@ export function AppDock({
     return () => window.removeEventListener('click', handleOutsideClick);
   }, []);
 
-  // Mouse hover physics for 60/120fps Gaussian scaling wave throttled via requestAnimationFrame
+  // Mouse hover physics for 60/120fps Gaussian scaling wave
   const dockRef = useRef<HTMLDivElement>(null);
   const rectRef = useRef<DOMRect | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -133,7 +143,7 @@ export function AppDock({
     setEditingLink(link);
     setNewLabel(link.label);
     setNewUrl(link.url);
-    setNewKind(link.kind || 'web');
+    setNewKind(link.kind || (isNativeFilePath(link.url) ? 'file' : 'web'));
     setAddOpen(true);
     setContextMenuLink(null);
   };
@@ -142,7 +152,36 @@ export function AppDock({
     setEditingLink(null);
     setNewLabel('');
     setNewUrl('');
-    setNewKind('web');
+    setNewKind('app');
+  };
+
+  const handlePickFile = async () => {
+    const api = getElectronAPI();
+    if (!api) return;
+    try {
+      const selectedPath = await api.pickAppFile();
+      if (selectedPath) {
+        setNewUrl(selectedPath);
+        setNewKind('file');
+        if (!newLabel.trim()) {
+          // Extract file name without extension
+          const match = selectedPath.match(/[^\\\/]+(?=\.[^\\\/]+$)/);
+          if (match) {
+            setNewLabel(match[0]);
+          } else {
+            const fallbackMatch = selectedPath.split(/[\\\/]/).pop();
+            if (fallbackMatch) setNewLabel(fallbackMatch);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('pickAppFile error:', err);
+    }
+  };
+
+  const handleSelectBrowser = (browserId: string) => {
+    setPreferredBrowser(browserId);
+    localStorage.setItem('focusspace-default-browser', browserId);
   };
 
   const saveOrUpdateLink = async (explicitLabel?: string, explicitUrl?: string, explicitKind?: LaunchKind) => {
@@ -151,6 +190,12 @@ export function AppDock({
     const targetKind = explicitKind ?? newKind;
 
     if (!targetLabel.trim() || !targetUrl.trim()) return;
+
+    // If it's a web app and no browser has been chosen yet, ask for the first time
+    if (targetKind === 'web' && !localStorage.getItem('focusspace-default-browser')) {
+      setBrowserModalOpen(true);
+    }
+
     const kind = targetKind || detectLaunchKind(targetUrl.trim());
     const finalUrl = kind === 'web' ? normalizeWebUrl(targetUrl.trim()) : targetUrl.trim();
 
@@ -162,6 +207,7 @@ export function AppDock({
       );
       await saveLinks(updated);
       cancelEditing();
+      setAddOpen(false);
     } else {
       const link: LaunchLink = {
         id: uid(),
@@ -175,10 +221,6 @@ export function AppDock({
     }
   };
 
-  const addLink = async (label = newLabel, url = newUrl, explicitKind = newKind) => {
-    await saveOrUpdateLink(label, url, explicitKind);
-  };
-
   const removeLink = async (id: string) => {
     if (editingLink?.id === id) {
       cancelEditing();
@@ -186,7 +228,6 @@ export function AppDock({
     await saveLinks(links.filter(l => l.id !== id));
   };
 
-  // High-performance hover tracking with 0 layout reflow thrashing
   const handleMouseEnter = () => {
     if (dockRef.current) {
       rectRef.current = dockRef.current.getBoundingClientRect();
@@ -216,7 +257,10 @@ export function AppDock({
     setMousePos(null);
   };
 
-  // FLOATING BOTTOM DOCK TRAY (Centered & Larger)
+  const currentBrowserName =
+    BROWSER_OPTIONS.find(b => b.id === (preferredBrowser || 'system'))?.name || 'System Default';
+
+  // FLOATING BOTTOM DOCK TRAY
   if (floating) {
     return (
       <>
@@ -226,80 +270,89 @@ export function AppDock({
           onMouseEnter={handleMouseEnter}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
-          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2.5 sm:px-6 sm:py-3.5 rounded-3xl bg-surface/90 backdrop-blur-xl border border-line-strong shadow-pop keycap transition-all duration-150 max-w-[calc(100vw-2rem)] overflow-x-auto scrollbar-none"
+          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2.5 sm:px-6 sm:py-3 rounded-3xl bg-surface/90 backdrop-blur-xl border border-line-strong shadow-pop keycap transition-all duration-150 max-w-[calc(100vw-2rem)] overflow-x-auto scrollbar-none"
           style={{ willChange: 'transform' }}
         >
-          {links.map((link, index) => {
-            const isAttached = isAppAttached(link, activeTask);
+          {links.length === 0 ? (
+            /* Clean Empty Dock State */
+            <button
+              onClick={() => setAddOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-surface border border-dashed border-line hover:border-accent hover:bg-hover text-xs font-semibold text-fg transition cursor-pointer"
+            >
+              <Plus size={14} className="text-accent-text" />
+              <span>Add App to Dock</span>
+            </button>
+          ) : (
+            links.map((link, index) => {
+              const isAttached = isAppAttached(link, activeTask);
 
-            // Calibrated Gaussian hover magnification wave for 56px base width
-            let scale = 1;
-            if (mousePos !== null && dockRef.current) {
-              const itemWidth = 56;
-              const itemCenter = index * (itemWidth + 8) + itemWidth / 2 + 16;
-              const d = Math.abs(mousePos - itemCenter);
-              scale = 1 + 0.28 * Math.exp(-Math.pow(d, 2) / (2 * Math.pow(65, 2)));
-            }
+              let scale = 1;
+              if (mousePos !== null && dockRef.current) {
+                const itemWidth = 56;
+                const itemCenter = index * (itemWidth + 8) + itemWidth / 2 + 16;
+                const d = Math.abs(mousePos - itemCenter);
+                scale = 1 + 0.28 * Math.exp(-Math.pow(d, 2) / (2 * Math.pow(65, 2)));
+              }
 
-            const translateY = -(scale - 1) * 16;
+              const translateY = -(scale - 1) * 16;
 
-            return (
-              <div
-                key={link.id}
-                style={{
-                  transform: `translate3d(0, ${translateY}px, 0) scale(${scale})`,
-                  transformOrigin: 'bottom center',
-                  transition: mousePos === null ? 'transform 0.25s cubic-bezier(0.2, 0, 0, 1)' : 'none',
-                }}
-                className="relative group shrink-0"
-              >
-                <button
-                  onClick={() => launchTarget(link.url, link.label, link.kind)}
-                  onContextMenu={e => {
-                    e.preventDefault();
-                    setContextMenuLink({
-                      link,
-                      x: e.clientX,
-                      y: e.clientY - 120,
-                    });
+              return (
+                <div
+                  key={link.id}
+                  style={{
+                    transform: `translate3d(0, ${translateY}px, 0) scale(${scale})`,
+                    transformOrigin: 'bottom center',
+                    transition: mousePos === null ? 'transform 0.25s cubic-bezier(0.2, 0, 0, 1)' : 'none',
                   }}
-                  title={`Launch ${link.label} (${link.url}) — Right-click to edit`}
-                  className={`size-12 sm:size-14 rounded-2xl border flex items-center justify-center transition cursor-pointer shadow-sm ${
-                    isAttached
-                      ? 'bg-accent/15 border-accent shadow-md'
-                      : 'bg-surface-2 border-line hover:border-line-strong hover:bg-hover'
-                  }`}
+                  className="relative group shrink-0"
                 >
-                  {resolveBrandLogo(link, 26)}
-                </button>
+                  <button
+                    onClick={() => launchTarget(link.url, link.label, link.kind)}
+                    onContextMenu={e => {
+                      e.preventDefault();
+                      setContextMenuLink({
+                        link,
+                        x: e.clientX,
+                        y: e.clientY - 120,
+                      });
+                    }}
+                    title={`Launch ${link.label} — Right-click to edit`}
+                    className={`size-12 sm:size-14 rounded-2xl border flex items-center justify-center transition cursor-pointer shadow-sm ${
+                      isAttached
+                        ? 'bg-accent/15 border-accent shadow-md'
+                        : 'bg-surface-2 border-line hover:border-line-strong hover:bg-hover'
+                    }`}
+                  >
+                    {resolveBrandLogo(link, 26)}
+                  </button>
 
-                {/* Active workspace indicator dot */}
-                {isAttached && (
-                  <span
-                    className="absolute -bottom-1 left-1/2 -translate-x-1/2 size-1.5 rounded-full bg-accent shadow-sm animate-pulse"
-                    title={`Attached to active task: ${activeTask?.title}`}
-                  />
-                )}
+                  {isAttached && (
+                    <span
+                      className="absolute -bottom-1 left-1/2 -translate-x-1/2 size-1.5 rounded-full bg-accent shadow-sm animate-pulse"
+                      title={`Attached to active task: ${activeTask?.title}`}
+                    />
+                  )}
 
-                {/* Tooltip Label */}
-                <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-inv text-on-inv text-[11px] font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-lg z-50">
-                  {link.label}
-                  <span className="ml-1 text-[9px] opacity-75 uppercase">
-                    ({link.kind === 'web' ? 'Web' : 'App'})
+                  <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-inv text-on-inv text-[11px] font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-lg z-50">
+                    {link.label}
+                    <span className="ml-1 text-[9px] opacity-75 uppercase">
+                      ({link.kind === 'web' ? 'Web' : 'App'})
+                    </span>
                   </span>
-                </span>
-              </div>
-            );
-          })}
+                </div>
+              );
+            })
+          )}
 
           <div className="w-px h-8 bg-line mx-1" />
 
-          {/* Voice Typing Trigger Button */}
+          {/* Voice Typing Button */}
           {onTriggerVoice && isVoiceEnabled() && (
             <button
               onClick={onTriggerVoice}
               title="Universal Voice Typing (Alt+V)"
-              className="size-10 sm:size-11 rounded-2xl border border-line bg-surface hover:bg-accent hover:text-accent-fg text-fg-muted hover:border-accent flex items-center justify-center transition keycap shrink-0 shadow-xs"
+              aria-label="Universal Voice Typing"
+              className="size-10 sm:size-11 rounded-2xl border border-line bg-surface hover:bg-accent hover:text-accent-fg text-fg-muted hover:border-accent flex items-center justify-center transition keycap shrink-0 shadow-xs cursor-pointer"
             >
               <Mic size={18} />
             </button>
@@ -315,14 +368,15 @@ export function AppDock({
                 setAddOpen(true);
               }
             }}
-            title="Add or Manage Workspace Apps"
-            className="size-10 sm:size-11 rounded-2xl border border-line bg-surface hover:bg-hover text-fg-muted hover:text-fg flex items-center justify-center transition keycap shrink-0 shadow-xs"
+            title="Add or Manage Dock Apps"
+            aria-label="Add App"
+            className="size-10 sm:size-11 rounded-2xl border border-line bg-surface hover:bg-hover text-fg-muted hover:text-fg flex items-center justify-center transition keycap shrink-0 shadow-xs cursor-pointer"
           >
             {addOpen ? <X size={16} /> : <Plus size={16} />}
           </button>
         </div>
 
-        {/* Right-click Context Menu for Dock Icons */}
+        {/* Right-click Context Menu */}
         {contextMenuLink && (
           <div
             style={{
@@ -346,9 +400,7 @@ export function AppDock({
               <span>Launch App</span>
             </button>
             <button
-              onClick={() => {
-                startEditing(contextMenuLink.link);
-              }}
+              onClick={() => startEditing(contextMenuLink.link)}
               className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-hover text-fg text-left transition cursor-pointer"
             >
               <Pencil size={13} className="text-fg-muted" />
@@ -367,16 +419,16 @@ export function AppDock({
           </div>
         )}
 
-        {/* Modal / Popover for Managing Apps */}
+        {/* Modal Popover for Adding / Managing Apps */}
         {addOpen && (
-          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[360px] pop-in p-5 rounded-3xl bg-surface border border-line-strong shadow-pop space-y-4">
+          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[380px] max-w-[calc(100vw-2rem)] pop-in p-5 rounded-3xl bg-surface border border-line-strong shadow-pop space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-xs font-semibold text-fg">
-                  {editingLink ? `Edit "${editingLink.label}"` : 'Manage Workspace Dock'}
+                <h3 className="text-xs font-bold text-fg">
+                  {editingLink ? `Edit "${editingLink.label}"` : 'Add App to Dock'}
                 </h3>
                 <p className="text-[11px] text-fg-subtle">
-                  {editingLink ? 'Update name, target scheme, or type' : 'Pin desktop tools or web applications'}
+                  Pin native desktop executables or web applications with official SVG icons.
                 </p>
               </div>
               <button
@@ -384,91 +436,160 @@ export function AppDock({
                   cancelEditing();
                   setAddOpen(false);
                 }}
-                className="text-fg-muted hover:text-fg cursor-pointer"
+                className="text-fg-muted hover:text-fg cursor-pointer p-1"
+                aria-label="Close"
               >
                 <X size={15} />
               </button>
             </div>
 
-            {/* Existing Links Pill Grid */}
-            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto py-1">
-              {links.map(l => (
-                <span
-                  key={l.id}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs transition ${
-                    editingLink?.id === l.id
-                      ? 'bg-accent/15 border-accent text-accent-text font-semibold'
-                      : 'bg-surface-2 border-line text-fg'
-                  }`}
-                >
-                  <span className="font-medium">{l.label}</span>
-                  <span className="text-[9px] text-fg-subtle uppercase">({l.kind})</span>
-                  <button
-                    onClick={() => startEditing(l)}
-                    className="text-fg-subtle hover:text-accent-text transition cursor-pointer"
-                    title={`Edit ${l.label}`}
-                  >
-                    <Pencil size={11} />
-                  </button>
-                  <button
-                    onClick={() => void removeLink(l.id)}
-                    className="text-fg-subtle hover:text-rose-500 transition cursor-pointer"
-                    title={`Remove ${l.label}`}
-                  >
-                    <X size={11} />
-                  </button>
-                </span>
-              ))}
+            {/* Kind Toggle: Native App vs Web App */}
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-surface-2 border border-line text-xs">
+              <button
+                type="button"
+                onClick={() => setNewKind('app')}
+                className={`flex-1 py-1.5 px-3 rounded-lg font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                  newKind !== 'web'
+                    ? 'bg-accent text-accent-fg shadow-xs'
+                    : 'text-fg-muted hover:text-fg'
+                }`}
+              >
+                <Laptop size={13} />
+                <span>Native Desktop App</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewKind('web')}
+                className={`flex-1 py-1.5 px-3 rounded-lg font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                  newKind === 'web'
+                    ? 'bg-accent text-accent-fg shadow-xs'
+                    : 'text-fg-muted hover:text-fg'
+                }`}
+              >
+                <Globe size={13} />
+                <span>Web App</span>
+              </button>
             </div>
 
-            {/* Add / Edit App Form */}
-            <div className="space-y-3 pt-2 border-t border-line">
-              {/* Kind Toggle: Web App vs Native App */}
-              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-surface-2 border border-line text-xs">
-                <button
-                  type="button"
-                  onClick={() => setNewKind('web')}
-                  className={`flex-1 py-1 px-2 rounded-lg font-medium flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                    newKind === 'web'
-                      ? 'bg-accent text-accent-fg shadow-xs'
-                      : 'text-fg-muted hover:text-fg'
-                  }`}
-                >
-                  <Globe size={13} />
-                  <span>Web App</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setNewKind('app')}
-                  className={`flex-1 py-1 px-2 rounded-lg font-medium flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                    newKind === 'app'
-                      ? 'bg-accent text-accent-fg shadow-xs'
-                      : 'text-fg-muted hover:text-fg'
-                  }`}
-                >
-                  <Laptop size={13} />
-                  <span>Native App</span>
-                </button>
+            {/* Quick Presets for Selected Kind */}
+            <div className="space-y-1">
+              <span className="text-[10px] font-mono text-fg-subtle uppercase tracking-wider">
+                Popular Official Brands:
+              </span>
+              <div className="flex flex-wrap gap-1">
+                {(newKind === 'web' ? POPULAR_WEB_PRESETS : POPULAR_NATIVE_PRESETS).map(preset => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => {
+                      setNewLabel(preset.label);
+                      setNewUrl(newKind === 'web' ? (preset as any).url : (preset as any).path);
+                      setNewKind(preset.kind);
+                    }}
+                    className="px-2 py-0.5 rounded-lg bg-surface-2 border border-line hover:border-accent text-[11px] font-medium text-fg flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    {resolveBrandLogo({ id: 'preview', label: preset.label, url: (preset as any).url || (preset as any).path, kind: preset.kind }, 13)}
+                    <span>{preset.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Form Fields */}
+            <div className="space-y-2.5 pt-1">
+              <div>
+                <label className="text-[11px] font-semibold text-fg-muted block mb-1">
+                  Application Name
+                </label>
+                <input
+                  value={newLabel}
+                  onChange={e => setNewLabel(e.target.value)}
+                  placeholder={newKind === 'web' ? 'e.g. ChatGPT, YouTube, Linear' : 'e.g. Discord, Spotify, VS Code'}
+                  className="w-full h-9 rounded-xl bg-surface-2 border border-line px-3 text-xs outline-none text-fg placeholder:text-fg-subtle"
+                />
               </div>
 
-              <input
-                value={newLabel}
-                onChange={e => setNewLabel(e.target.value)}
-                placeholder={newKind === 'web' ? 'Name (e.g. YouTube, GitHub)' : 'Name (e.g. Spotify, VS Code)'}
-                className="w-full h-9 rounded-xl bg-surface-2 border border-line px-3 text-xs outline-none text-fg placeholder:text-fg-subtle"
-              />
+              <div>
+                <label className="text-[11px] font-semibold text-fg-muted flex items-center justify-between mb-1">
+                  <span>{newKind === 'web' ? 'Web URL' : 'File Location / Executable Path'}</span>
+                  {newKind !== 'web' && getElectronAPI() && (
+                    <button
+                      type="button"
+                      onClick={handlePickFile}
+                      className="text-accent-text hover:underline flex items-center gap-1 font-bold text-[10px] cursor-pointer"
+                    >
+                      <FolderOpen size={11} />
+                      <span>Browse File…</span>
+                    </button>
+                  )}
+                </label>
+                <div className="flex gap-1.5">
+                  <input
+                    value={newUrl}
+                    onChange={e => setNewUrl(e.target.value)}
+                    placeholder={
+                      newKind === 'web'
+                        ? 'e.g. https://chatgpt.com'
+                        : 'e.g. C:\\Users\\...\\Discord.exe or notepad.exe'
+                    }
+                    className="flex-1 h-9 rounded-xl bg-surface-2 border border-line px-3 text-xs font-mono outline-none text-fg placeholder:text-fg-subtle"
+                  />
+                  {newKind !== 'web' && getElectronAPI() && (
+                    <button
+                      type="button"
+                      onClick={handlePickFile}
+                      title="Select executable file"
+                      className="h-9 px-2.5 rounded-xl border border-line bg-surface-2 hover:bg-hover text-xs font-semibold text-fg flex items-center gap-1 cursor-pointer"
+                    >
+                      <FolderOpen size={13} />
+                    </button>
+                  )}
+                </div>
+              </div>
 
-              <input
-                value={newUrl}
-                onChange={e => setNewUrl(e.target.value)}
-                placeholder={newKind === 'web' ? 'youtube.com or https://...' : 'spotify://, vscode://, discord://'}
-                className="w-full h-9 rounded-xl bg-surface-2 border border-line px-3 text-xs font-mono outline-none text-fg placeholder:text-fg-subtle"
-                onKeyDown={e => {
-                  if (e.key === 'Enter') void saveOrUpdateLink();
-                }}
-              />
+              {/* Web App: Browser Selector */}
+              {newKind === 'web' && (
+                <div className="p-2.5 rounded-xl bg-surface-2 border border-line flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <Globe size={14} className="text-accent" />
+                    <div>
+                      <div className="text-[10px] uppercase font-mono text-fg-subtle">Target Browser</div>
+                      <div className="font-semibold text-fg">{currentBrowserName}</div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setBrowserModalOpen(true)}
+                    className="text-[11px] font-bold text-accent-text hover:underline cursor-pointer"
+                  >
+                    Change…
+                  </button>
+                </div>
+              )}
 
-              <div className="flex items-center gap-2">
+              {/* Live SVG Logo Preview */}
+              {newLabel.trim() && (
+                <div className="p-2.5 rounded-xl bg-surface-2 border border-line flex items-center gap-3">
+                  <div className="size-10 rounded-xl bg-surface border border-line flex items-center justify-center shrink-0">
+                    {resolveBrandLogo(
+                      {
+                        id: 'preview',
+                        label: newLabel,
+                        url: newUrl,
+                        kind: newKind,
+                      },
+                      22
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-mono uppercase text-fg-subtle">Official Vector Icon Preview</div>
+                    <div className="text-xs font-semibold text-fg truncate max-w-[220px]">{newLabel}</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 pt-1">
                 {editingLink && (
                   <button
                     type="button"
@@ -479,21 +600,30 @@ export function AppDock({
                   </button>
                 )}
                 <button
+                  type="button"
                   onClick={() => void saveOrUpdateLink()}
                   disabled={!newLabel.trim() || !newUrl.trim()}
                   className="flex-1 h-9 rounded-xl bg-accent text-accent-fg text-xs font-semibold hover:bg-accent-hover disabled:opacity-40 transition keycap shadow-xs cursor-pointer"
                 >
-                  {editingLink ? 'Save Changes' : `Pin ${newKind === 'web' ? 'Web Application' : 'Native App'}`}
+                  {editingLink ? 'Save Changes' : 'Pin to Dock'}
                 </button>
               </div>
             </div>
           </div>
         )}
+
+        {/* First-time / On-demand Browser Setup Modal */}
+        <BrowserSetupModal
+          open={browserModalOpen}
+          currentBrowser={preferredBrowser}
+          onSelect={handleSelectBrowser}
+          onClose={() => setBrowserModalOpen(false)}
+        />
       </>
     );
   }
 
-  // INLINE CARD MODE (for CategoryView / Settings)
+  // INLINE CARD MODE (Settings / Category View)
   return (
     <section className="atelier-card rounded-3xl p-4 sm:p-5 overflow-hidden">
       <div className="flex items-center justify-between gap-3 mb-3">
@@ -525,35 +655,17 @@ export function AppDock({
 
       {addOpen && (
         <div className="pop-in mb-4 p-4 rounded-2xl bg-surface-2 border border-line space-y-3">
-          {editingLink ? (
-            <div className="flex items-center justify-between text-xs text-accent-text font-semibold px-1">
-              <span>Editing "{editingLink.label}"</span>
-              <button
-                type="button"
-                onClick={cancelEditing}
-                className="text-fg-subtle hover:text-fg text-[11px] underline cursor-pointer"
-              >
-                Cancel edit
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] font-mono text-fg-subtle uppercase">Quick presets:</span>
-              {APP_PRESETS.map(preset => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  onClick={() => void addLink(preset.label, preset.url, preset.kind)}
-                  className="px-2.5 py-1 rounded-lg bg-surface border border-line text-[11px] text-fg-soft hover:bg-hover hover:text-fg transition cursor-pointer"
-                >
-                  + {preset.label} <span className="text-[9px] text-fg-subtle">({preset.kind})</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Segmented Type Picker */}
           <div className="flex items-center gap-1.5 p-1 rounded-xl bg-surface border border-line text-xs w-fit">
+            <button
+              type="button"
+              onClick={() => setNewKind('app')}
+              className={`py-1 px-3 rounded-lg font-medium flex items-center gap-1.5 transition cursor-pointer ${
+                newKind !== 'web' ? 'bg-accent text-accent-fg shadow-xs' : 'text-fg-muted hover:text-fg'
+              }`}
+            >
+              <Laptop size={13} />
+              <span>Native App</span>
+            </button>
             <button
               type="button"
               onClick={() => setNewKind('web')}
@@ -564,40 +676,39 @@ export function AppDock({
               <Globe size={13} />
               <span>Web App</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setNewKind('app')}
-              className={`py-1 px-3 rounded-lg font-medium flex items-center gap-1.5 transition cursor-pointer ${
-                newKind === 'app' ? 'bg-accent text-accent-fg shadow-xs' : 'text-fg-muted hover:text-fg'
-              }`}
-            >
-              <Laptop size={13} />
-              <span>Native App</span>
-            </button>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2">
             <input
               value={newLabel}
               onChange={e => setNewLabel(e.target.value)}
-              placeholder="App Name (e.g. YouTube or VS Code)"
+              placeholder="App Name (e.g. Discord, YouTube)"
               className="flex-1 h-9 rounded-xl bg-surface border border-line px-3 text-xs outline-none"
             />
-            <input
-              value={newUrl}
-              onChange={e => setNewUrl(e.target.value)}
-              placeholder={newKind === 'web' ? 'youtube.com or https://...' : 'vscode://, spotify://'}
-              className="flex-1 h-9 rounded-xl bg-surface border border-line px-3 text-xs font-mono outline-none"
-              onKeyDown={e => {
-                if (e.key === 'Enter') void saveOrUpdateLink();
-              }}
-            />
+            <div className="flex-1 flex gap-1">
+              <input
+                value={newUrl}
+                onChange={e => setNewUrl(e.target.value)}
+                placeholder={newKind === 'web' ? 'https://chatgpt.com' : 'C:\\...\\app.exe or discord://'}
+                className="flex-1 h-9 rounded-xl bg-surface border border-line px-3 text-xs font-mono outline-none"
+              />
+              {newKind !== 'web' && getElectronAPI() && (
+                <button
+                  type="button"
+                  onClick={handlePickFile}
+                  title="Browse for executable"
+                  className="h-9 px-2 rounded-xl border border-line bg-surface hover:bg-hover text-xs font-semibold text-fg flex items-center gap-1 cursor-pointer"
+                >
+                  <FolderOpen size={13} />
+                </button>
+              )}
+            </div>
             <button
               onClick={() => void saveOrUpdateLink()}
               disabled={!newLabel.trim() || !newUrl.trim()}
               className="h-9 px-4 rounded-xl bg-accent text-accent-fg text-xs font-semibold hover:bg-accent-hover disabled:opacity-40 transition keycap shrink-0 shadow-xs cursor-pointer"
             >
-              {editingLink ? 'Save Changes' : 'Pin to Dock'}
+              {editingLink ? 'Save' : 'Pin to Dock'}
             </button>
           </div>
         </div>
@@ -610,7 +721,7 @@ export function AppDock({
             onClick={() => setAddOpen(true)}
             className="mt-2 text-xs font-semibold text-accent-text hover:underline cursor-pointer"
           >
-            + Pin your primary tools (YouTube, VS Code, Figma, Slack, GitHub)
+            + Add your first native or web application
           </button>
         </div>
       ) : (
@@ -661,6 +772,13 @@ export function AppDock({
           })}
         </div>
       )}
+
+      <BrowserSetupModal
+        open={browserModalOpen}
+        currentBrowser={preferredBrowser}
+        onSelect={handleSelectBrowser}
+        onClose={() => setBrowserModalOpen(false)}
+      />
     </section>
   );
 }

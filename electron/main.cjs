@@ -8,6 +8,7 @@ const {
   shell,
   protocol,
   net,
+  dialog,
 } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
@@ -85,6 +86,7 @@ function createMainWindow() {
     backgroundColor: '#0d0c0b',
     icon: path.join(__dirname, '../public/icon-512.png'),
     autoHideMenuBar: true,
+    fullscreen: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -220,6 +222,29 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('window:toggle-fullscreen', () => {
+    if (!mainWindow) return false;
+    const next = !mainWindow.isFullScreen();
+    mainWindow.setFullScreen(next);
+    return next;
+  });
+
+  ipcMain.handle('window:is-fullscreen', () => {
+    return Boolean(mainWindow && mainWindow.isFullScreen());
+  });
+
+  ipcMain.handle('app:quit', () => {
+    app.isQuitting = true;
+    app.quit();
+  });
+
+  ipcMain.handle('app:minimize-to-tray', () => {
+    if (mainWindow) {
+      mainWindow.hide();
+    }
+    return true;
+  });
+
   // --- 2. Atomic Disk Vault Mirroring ---
   ipcMain.handle('vault:get-backup-dir', async () => getBackupDir());
 
@@ -285,6 +310,71 @@ app.whenReady().then(() => {
     }
     await shell.openExternal(url);
     return { opened: true };
+  });
+
+  ipcMain.handle('shell:open-in-browser', async (_, { url, browser }) => {
+    const { spawn } = require('child_process');
+    const parsed = new URL(url);
+    if (!ALLOWED_PROTOCOLS.has(parsed.protocol)) {
+      throw new Error(`Disallowed URI protocol: ${parsed.protocol}`);
+    }
+
+    if (!browser || browser === 'system' || browser === 'default') {
+      await shell.openExternal(url);
+      return { opened: true };
+    }
+
+    const BROWSER_COMMANDS = {
+      chrome: 'chrome',
+      edge: 'msedge',
+      brave: 'brave',
+      firefox: 'firefox',
+    };
+
+    const cmd = BROWSER_COMMANDS[browser.toLowerCase()] || browser;
+    try {
+      spawn('cmd.exe', ['/c', 'start', '""', cmd, url], {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+      }).unref();
+      return { opened: true };
+    } catch (err) {
+      console.warn(`Browser spawn error for ${browser}, falling back to default:`, err);
+      await shell.openExternal(url);
+      return { opened: true, fallback: true };
+    }
+  });
+
+  ipcMain.handle('shell:launch-native-app', async (_, { path: appPath, args: appArgs = [] }) => {
+    const { spawn } = require('child_process');
+    if (!appPath || typeof appPath !== 'string') {
+      throw new Error('Invalid executable path');
+    }
+    try {
+      spawn('cmd.exe', ['/c', 'start', '""', appPath, ...appArgs], {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+      }).unref();
+      return { launched: true };
+    } catch (err) {
+      console.warn(`Launch error for native app ${appPath}:`, err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle('dialog:pick-app', async () => {
+    const res = await dialog.showOpenDialog(mainWindow, {
+      title: 'Select Application File',
+      properties: ['openFile'],
+      filters: [
+        { name: 'Executables & Shortcuts (*.exe, *.lnk, *.bat)', extensions: ['exe', 'lnk', 'bat', 'cmd'] },
+        { name: 'All Files (*.*)', extensions: ['*'] },
+      ],
+    });
+    if (res.canceled || !res.filePaths || res.filePaths.length === 0) return null;
+    return res.filePaths[0];
   });
 
   // --- 4. Conflict-Free Global Hotkeys ---

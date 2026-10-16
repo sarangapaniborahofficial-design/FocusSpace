@@ -34,7 +34,7 @@ import { toggleHabitDay } from './lib/habitActions';
 import { computeStreaks } from './lib/analytics';
 import { checkAndNotifyOverdue } from './lib/notifications';
 import { isoToday, storage, uid } from './lib/utils';
-import { isElectron, isVoiceEnabled } from './lib/runtime';
+import { getElectronAPI, isElectron, isVoiceEnabled } from './lib/runtime';
 import { hudBridge, type TaskSnapshot } from './lib/hudBridge';
 import type { FocusLog, Habit, LayoutMode, Page, Subtask, Task, Theme } from './types';
 import { useDictation } from './voice/useDictation';
@@ -43,6 +43,7 @@ import type { DictationTarget } from './voice/target/DictationTarget';
 import { DictationHud } from './voice/ui/DictationHud';
 import { isAudioConfigured } from './voice/audioDevices';
 import { AudioDeviceSetupModal } from './components/AudioDeviceSetupModal';
+import { QuitConfirmModal } from './components/QuitConfirmModal';
 
 const STATIC_VIEWS = ['home', 'calendar', 'review', 'analytics', 'journal', 'pages', 'settings'];
 const VIEW_TITLES: Record<string, string> = {
@@ -85,6 +86,7 @@ export default function App() {
   const [shortcuts, setShortcuts] = useState(false);
   const [theme, setTheme] = useState(() => normalizeTheme(storage.get('focusspace-theme')));
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(() => (storage.get('focusspace-layout') === 'cockpit' ? 'cockpit' : 'orbital'));
+  const [quitModalOpen, setQuitModalOpen] = useState(false);
 
   const lastFocusedInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [globalDictationTarget, setGlobalDictationTarget] = useState<DictationTarget | null>(null);
@@ -405,6 +407,30 @@ export default function App() {
       if (mod && e.key === '3') { e.preventDefault(); go('pages'); return; }
       if (mod && e.key === '4') { e.preventDefault(); go('analytics'); return; }
       if (mod && e.key === '5') { e.preventDefault(); go('review'); return; }
+      if (e.key === 'F11') {
+        const api = getElectronAPI();
+        if (api) {
+          e.preventDefault();
+          void api.toggleFullscreen();
+          return;
+        }
+      }
+
+      if (e.key === 'Escape') {
+        if (quick) { setQuick(false); return; }
+        if (search) { setSearch(false); return; }
+        if (shortcuts) { setShortcuts(false); return; }
+        if (drawer) { setDrawer(false); return; }
+        if (audioSetupOpen) { setAudioSetupOpen(false); return; }
+        if (quitModalOpen) { setQuitModalOpen(false); return; }
+
+        if (nav.view === 'home' && !isEditing) {
+          e.preventDefault();
+          setQuitModalOpen(true);
+          return;
+        }
+      }
+
       if (e.code === 'Space' && !e.repeat && !mod && !e.altKey) {
         const el = e.target;
         if (el instanceof Element && el.closest('input,textarea,select,button,a,[contenteditable="true"],[role="dialog"]')) return;
@@ -414,7 +440,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [go, triggerUniversalVoice]);
+  }, [go, triggerUniversalVoice, quick, search, shortcuts, drawer, audioSetupOpen, quitModalOpen, nav.view]);
 
   const closeQuick = useCallback(() => setQuick(false), []);
   const closeSearch = useCallback(() => setSearch(false), []);
@@ -486,6 +512,7 @@ export default function App() {
             setTheme={setTheme}
             layoutMode={layoutMode}
             setLayoutMode={setLayoutMode}
+            onQuit={() => setQuitModalOpen(true)}
           />
 
           <div className="flex-1 min-h-0 flex overflow-hidden gap-3">
@@ -568,6 +595,7 @@ export default function App() {
         onToggleHabit={handleWelcomeToggleHabit}
         onStartFocusTask={handleWelcomeStartFocusTask}
       />
+      <QuitConfirmModal open={quitModalOpen} onClose={() => setQuitModalOpen(false)} />
       <Toaster />
       {!isElectron() && <ReloadPrompt />}
     </div>

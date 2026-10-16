@@ -1,7 +1,8 @@
-import { Columns3, Keyboard, LayoutGrid, Menu, Moon, Orbit, Pause, Play, Plus, Search, Sparkles, Sun } from 'lucide-react';
+import { Columns3, Keyboard, LayoutGrid, Maximize2, Menu, Minimize2, Moon, Orbit, Pause, Play, Plus, Power, Search, Sparkles, Sun } from 'lucide-react';
 import { MODE_LABELS, formatClock, timer, useTimer } from '../lib/timer';
 import type { LayoutMode } from '../types';
 import { FloatingHUDTrigger } from './FloatingHUD';
+import { getElectronAPI } from '../lib/runtime';
 
 const THEME_META: Record<string, { label: string; short: string }> = {
   nocturne: { label: 'Nocturne Solaris', short: 'Nocturne' },
@@ -43,6 +44,7 @@ export function Header({
   setTheme,
   layoutMode = 'orbital',
   setLayoutMode,
+  onQuit,
 }: {
   title: string;
   onMenu: () => void;
@@ -53,6 +55,7 @@ export function Header({
   setTheme: (v: string) => void;
   layoutMode?: LayoutMode;
   setLayoutMode?: (m: LayoutMode) => void;
+  onQuit?: () => void;
 }) {
   const currentTheme = THEMES.includes(theme) ? theme : 'nocturne';
   const next = THEMES[(THEMES.indexOf(currentTheme) + 1) % THEMES.length];
@@ -150,6 +153,32 @@ export function Header({
           )}
           <span className="hidden xl:inline">{THEME_META[currentTheme]?.short}</span>
         </button>
+
+        {getElectronAPI() && (
+          <button
+            onClick={() => void getElectronAPI()?.toggleFullscreen()}
+            title="Toggle Fullscreen (F11)"
+            aria-label="Toggle Fullscreen"
+            className="size-9 grid place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover transition-colors keycap shrink-0 cursor-pointer"
+          >
+            <Maximize2 size={15} />
+          </button>
+        )}
+
+        {onQuit && (
+          <button
+            onClick={onQuit}
+            title="Exit FocusSpace (Press Esc on Home)"
+            aria-label="Exit FocusSpace"
+            className="h-9 px-2.5 sm:px-3 rounded-xl border border-red-500/35 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:border-red-500/60 hover:text-red-300 transition-colors flex items-center gap-1.5 text-xs font-bold keycap cursor-pointer shrink-0"
+          >
+            <Power size={14} className="text-red-400" />
+            <span className="hidden sm:inline">Quit</span>
+            <kbd className="hidden lg:inline-block px-1 py-0.2 rounded bg-black/40 text-[9px] font-mono text-fg-subtle border border-line">
+              ESC
+            </kbd>
+          </button>
+        )}
       </div>
     </header>
   );

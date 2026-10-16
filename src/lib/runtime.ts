@@ -17,7 +17,14 @@ export interface ElectronAPI {
   resizeHud: (expanded: boolean) => Promise<{ width: number; height: number }>;
   isHudVisible: () => Promise<boolean>;
   showMainWindow: () => void;
+  toggleFullscreen: () => Promise<boolean>;
+  isFullscreen: () => Promise<boolean>;
+  quitApp: () => Promise<void>;
+  minimizeToTray: () => Promise<boolean>;
   openExternal: (url: string) => Promise<{ opened: boolean }>;
+  openInBrowser: (url: string, browser?: string) => Promise<{ opened: boolean; fallback?: boolean }>;
+  launchNativeApp: (path: string, args?: string[]) => Promise<{ launched: boolean }>;
+  pickAppFile: () => Promise<string | null>;
 }
 
 declare global {

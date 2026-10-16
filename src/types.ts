@@ -14,6 +14,9 @@ export interface LaunchLink {
   url: string;
   kind?: LaunchKind;
   icon?: string;
+  iconSvg?: string;
+  customIconUrl?: string;
+  browser?: string;
 }
 
 export interface Subtask { id: string; title: string; completed: boolean; }

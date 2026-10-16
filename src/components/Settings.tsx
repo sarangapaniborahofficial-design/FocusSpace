@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Activity, Bell, BookOpen, Calendar, Check, Database, Download, Flame, Keyboard, Mic, Palette, Pencil, Plus, RefreshCw, ShieldCheck, Sliders, Smartphone, Sparkles, Target, Trash2, Upload, Volume2, X, Zap } from 'lucide-react';
+import { Activity, Bell, BookOpen, Calendar, Check, Database, Download, Flame, Globe, Keyboard, Maximize, Mic, Palette, Pencil, Plus, RefreshCw, ShieldCheck, Sliders, Smartphone, Sparkles, Target, Trash2, Upload, Volume2, X, Zap } from 'lucide-react';
 import { isNotificationSupported, getNotificationPermission, requestNotificationPermission, sendNotification } from '../lib/notifications';
 import { useEffect, useRef, useState } from 'react';
 import { db } from '../db/db';
@@ -8,6 +8,7 @@ import { takeNativeVaultSnapshot } from '../lib/journalAutoSave';
 import { isDesktop } from '../lib/runtime';
 import { hudBridge } from '../lib/hudBridge';
 import { getAsrClient } from '../voice/engine/AsrClient';
+import { BROWSER_OPTIONS } from './BrowserSetupModal';
 import {
   type AudioDevice,
   getAudioInputDevices,
@@ -141,6 +142,7 @@ export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMod
       <div className="p-4 space-y-2">{categories.map(c => <div key={c.id} className="flex items-center gap-3 rounded-2xl border border-line bg-surface-2 p-3"><span className="size-3 rounded-full" style={{background:c.color}}/><div className="flex-1 min-w-0"><div className="text-sm truncate">{c.name}</div><div className="text-[11px] text-fg-subtle">{c.id}</div></div><button onClick={()=>openEdit(c)} className="text-xs text-fg-muted hover:text-fg px-2 py-1.5 rounded-xl hover:bg-hover">Edit</button><button onClick={()=>{setDeleteTarget(c);setMoveTo(categories.find(x=>x.id!==c.id)?.id??'')}} className="text-fg-subtle hover:text-red-300 p-2 rounded-xl hover:bg-hover" title="Delete"><Trash2 size={15}/></button></div>)}</div>
     </section>
 
+    <DockPreferencesCard />
     <DataVaultCard />
     <IcsExportCard />
     <HabitsCard />
@@ -171,11 +173,102 @@ export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMod
 
     <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
       <div className="p-5 border-b border-line"><div className="flex items-center gap-2 font-medium"><Keyboard size={16}/> Keyboard shortcuts</div><p className="text-xs text-fg-subtle mt-1">Available from any view. Use ⌘ instead of Ctrl on a Mac.</p></div>
-      <dl className="p-5 grid sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">{[['Ctrl K','Search tasks and run commands'],['Ctrl N','Quick add a task'],['Ctrl /','Open shortcuts cheatsheet'],['Space','Start or pause the timer'],['Ctrl 1-5','Quick view navigation'],['Esc','Close a dialog']].map(([keys,what])=><div key={keys} className="flex items-center justify-between gap-4"><dt className="text-fg-muted">{what}</dt><dd><kbd className="text-[11px] border border-line rounded px-1.5 py-0.5 text-fg-soft">{keys}</kbd></dd></div>)}</dl>
+      <dl className="p-5 grid sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">{[['Ctrl K','Search tasks and run commands'],['Ctrl N','Quick add a task'],['Ctrl /','Open shortcuts cheatsheet'],['Space','Start or pause the timer'],['Ctrl 1-5','Quick view navigation'],['Esc','Close a dialog / Prompt quit on home']].map(([keys,what])=><div key={keys} className="flex items-center justify-between gap-4"><dt className="text-fg-muted">{what}</dt><dd><kbd className="text-[11px] border border-line rounded px-1.5 py-0.5 text-fg-soft">{keys}</kbd></dd></div>)}</dl>
     </section>
 
     {deleteTarget && <div className="fade-in fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-4" onMouseDown={()=>setDeleteTarget(null)}><div role="dialog" aria-modal="true" aria-label={`Delete ${deleteTarget.name}`} onMouseDown={e=>e.stopPropagation()} className="pop-in w-full max-w-md rounded-2xl border border-line bg-surface shadow-2xl p-5"><div className="flex items-start justify-between"><div><h2 className="font-semibold">Delete {deleteTarget.name}?</h2><p className="text-xs text-fg-subtle mt-1">Tasks and pages in this category must be moved before it is deleted.</p></div><button onClick={()=>setDeleteTarget(null)}><X size={17} className="text-fg-subtle"/></button></div><label className="block text-xs text-fg-muted mt-5">Move tasks and pages to<select value={moveTo} onChange={e=>setMoveTo(e.target.value)} className="mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line px-3 text-sm">{categories.filter(c=>c.id!==deleteTarget.id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><div className="flex justify-end gap-2 mt-5"><button onClick={()=>setDeleteTarget(null)} className="h-8 px-3 rounded-xl text-sm text-fg-muted">Cancel</button><button disabled={!moveTo||busy} onClick={()=>void removeCategory()} className="h-8 px-3 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium disabled:opacity-40 transition-colors">Move & delete</button></div></div></div>}
   </div>;
+}
+
+function DockPreferencesCard() {
+  const [preferredBrowser, setPreferredBrowser] = useState(() => storage.get('focusspace-default-browser') || 'system');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    if (isDesktop() && window.electronAPI?.isFullscreen) {
+      window.electronAPI.isFullscreen().then(setIsFullscreen);
+    }
+  }, []);
+
+  const handleSelectBrowser = (id: string) => {
+    setPreferredBrowser(id);
+    storage.set('focusspace-default-browser', id);
+    toast('Default web browser preference saved.', 'success');
+  };
+
+  const handleToggleFullscreen = async () => {
+    if (window.electronAPI?.toggleFullscreen) {
+      const next = await window.electronAPI.toggleFullscreen();
+      setIsFullscreen(next);
+      toast(next ? 'Entered Fullscreen Mode' : 'Exited Fullscreen Mode', 'info');
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
+      <div className="p-5 border-b border-line flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2 font-medium">
+            <Globe size={16} className="text-accent-text" /> Application Dock & Browser Integration
+          </div>
+          <p className="text-xs text-fg-subtle mt-1">
+            Choose your preferred browser for dock web apps, and manage distraction-free desktop display settings.
+          </p>
+        </div>
+      </div>
+
+      <div className="p-5 space-y-4">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-subtle mb-2.5">
+            Preferred Web Browser
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {BROWSER_OPTIONS.map((opt) => {
+              const active = preferredBrowser === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  onClick={() => handleSelectBrowser(opt.id)}
+                  className={`p-3 rounded-xl border text-left transition flex items-center gap-3 cursor-pointer ${
+                    active
+                      ? 'border-accent bg-accent/10 shadow-sm'
+                      : 'border-line bg-surface-2 hover:bg-hover'
+                  }`}
+                >
+                  <div className="shrink-0">{opt.renderIcon(22)}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold text-fg flex items-center justify-between">
+                      <span className="truncate">{opt.name}</span>
+                      {active && <Check size={14} className="text-accent shrink-0" />}
+                    </div>
+                    <div className="text-[10px] text-fg-subtle truncate mt-0.5">{opt.description}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {isDesktop() && (
+          <div className="pt-3 border-t border-line flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-semibold text-fg">Distraction-Free Window</div>
+              <div className="text-[11px] text-fg-subtle">
+                FocusSpace runs borderless to cover the Windows taskbar. Toggle with <kbd className="px-1.5 py-0.5 rounded border border-line bg-surface-2 font-mono text-[10px]">F11</kbd> or this button.
+              </div>
+            </div>
+            <button
+              onClick={handleToggleFullscreen}
+              className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-xs font-semibold hover:bg-hover flex items-center gap-2 cursor-pointer keycap"
+            >
+              <Maximize size={14} />
+              {isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+            </button>
+          </div>
+        )}
+      </div>
+    </section>
+  );
 }
 
 

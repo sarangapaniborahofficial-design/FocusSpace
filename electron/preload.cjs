@@ -25,9 +25,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isHudVisible: () =>
     ipcRenderer.invoke('hud:is-visible'),
 
-  // Main Window & External App Launching
+  // Main Window Controls & Power
   showMainWindow: () =>
     ipcRenderer.send('window:show-main'),
+  toggleFullscreen: () =>
+    ipcRenderer.invoke('window:toggle-fullscreen'),
+  isFullscreen: () =>
+    ipcRenderer.invoke('window:is-fullscreen'),
+  quitApp: () =>
+    ipcRenderer.invoke('app:quit'),
+  minimizeToTray: () =>
+    ipcRenderer.invoke('app:minimize-to-tray'),
+
+  // External App Launching & File Selection
   openExternal: (url) =>
     ipcRenderer.invoke('shell:open-external', { url }),
+  openInBrowser: (url, browser) =>
+    ipcRenderer.invoke('shell:open-in-browser', { url, browser }),
+  launchNativeApp: (path, args) =>
+    ipcRenderer.invoke('shell:launch-native-app', { path, args }),
+  pickAppFile: () =>
+    ipcRenderer.invoke('dialog:pick-app'),
 });
