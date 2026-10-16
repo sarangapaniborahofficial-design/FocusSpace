@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
+import { FocusSpaceLogo } from './FocusSpaceLogo';
 import {
   BarChart3,
   BookOpen,
@@ -105,7 +106,7 @@ export function Sidebar({
             className="flex items-center gap-3 min-w-0 group"
           >
             <div className="size-9 rounded-xl bg-accent text-accent-fg grid place-items-center shrink-0 keycap group-hover:scale-105 transition-transform">
-              <Sparkles size={18} />
+              <FocusSpaceLogo size={20} />
             </div>
             {!compact && (
               <div className="text-left min-w-0">

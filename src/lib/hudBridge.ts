@@ -29,11 +29,20 @@ export interface TaskSnapshot {
   subtasks?: Array<{ id: string; title: string; completed: boolean }>;
 }
 
+export interface TodoItemSnapshot {
+  id: string;
+  title: string;
+  completed: boolean;
+  priority?: string;
+  categoryName?: string;
+}
+
 export interface HudStatePayload {
   type: 'STATE_SYNC';
   v: 1;
   timer: TimerSnapshot;
   activeTask: TaskSnapshot | null;
+  todayTasks?: TodoItemSnapshot[];
   theme?: string;
   hudStyleOverride?: string | null;
 }
@@ -44,9 +53,13 @@ export type HudMessage =
   | { type: 'TOGGLE_TIMER'; v: 1 }
   | { type: 'BANK_OVERTIME'; v: 1 }
   | { type: 'COMPLETE_TASK'; v: 1; taskId: string }
+  | { type: 'TOGGLE_TASK'; v: 1; taskId: string }
+  | { type: 'ADD_TASK'; v: 1; title: string; priority?: string }
+  | { type: 'SET_ACTIVE_TASK'; v: 1; taskId: string }
   | { type: 'COMPLETE_SUBTASK'; v: 1; taskId: string; subtaskId: string }
   | { type: 'ADD_SUBTASK'; v: 1; taskId: string; title: string }
   | { type: 'SAVE_SCRATCHPAD'; v: 1; taskId: string; text: string }
+  | { type: 'SHOW_DASHBOARD'; v: 1 }
   | { type: 'CLOSE_HUD'; v: 1 }
   | { type: 'RESIZE_HUD'; v: 1; expanded: boolean };
 

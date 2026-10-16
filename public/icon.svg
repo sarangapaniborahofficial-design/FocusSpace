@@ -1,0 +1,26 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#0D0C0B"/>
+  <rect x="32" y="32" width="448" height="448" rx="88" stroke="#FF5526" stroke-width="16" stroke-opacity="0.3" fill="#1A1714"/>
+  
+  <!-- Subtle Cardinal Ticks -->
+  <line x1="256" y1="32" x2="256" y2="76" stroke="#FF5526" stroke-width="16" stroke-linecap="round"/>
+  <line x1="256" y1="436" x2="256" y2="480" stroke="#FF5526" stroke-width="16" stroke-linecap="round"/>
+  <line x1="32" y1="256" x2="76" y2="256" stroke="#FF5526" stroke-width="16" stroke-linecap="round"/>
+  <line x1="436" y1="256" x2="480" y2="256" stroke="#FF5526" stroke-width="16" stroke-linecap="round"/>
+
+  <!-- Orbital Ring -->
+  <circle cx="256" cy="256" r="144" stroke="#FF5526" stroke-width="8" stroke-dasharray="14 16" stroke-opacity="0.5"/>
+
+  <!-- Diamond Aperture -->
+  <polygon points="256,128 384,256 256,384 128,256" stroke="#FF5526" stroke-width="16" stroke-linejoin="round" fill="#FF5526" fill-opacity="0.12"/>
+
+  <!-- Precision Focal Square -->
+  <rect x="192" y="192" width="128" height="128" rx="20" stroke="#FF5526" stroke-width="12" fill="#FF5526" fill-opacity="0.3"/>
+
+  <!-- Glowing Central Singularity -->
+  <circle cx="256" cy="256" r="32" fill="#FF5526"/>
+
+  <!-- Central Crosshair Notch -->
+  <line x1="236" y1="256" x2="276" y2="256" stroke="#0D0C0B" stroke-width="8" stroke-linecap="round"/>
+  <line x1="256" y1="236" x2="256" y2="276" stroke="#0D0C0B" stroke-width="8" stroke-linecap="round"/>
+</svg>

@@ -265,6 +265,25 @@ export default function App() {
           };
         }
       }
+
+      // Collect today's pending & completed tasks for the HUD Todo List
+      const allTasks = await db.tasks.toArray();
+      const todayStr = isoToday();
+      const todayTasks = allTasks
+        .filter(t => !t.completedAt || t.completedAt.slice(0, 10) === todayStr || t.status !== 'Submitted/Done')
+        .sort((a, b) => {
+          if (a.status === 'Submitted/Done' && b.status !== 'Submitted/Done') return 1;
+          if (a.status !== 'Submitted/Done' && b.status === 'Submitted/Done') return -1;
+          return (b.updatedAt || '').localeCompare(a.updatedAt || '');
+        })
+        .slice(0, 15)
+        .map(t => ({
+          id: t.id,
+          title: t.title,
+          completed: t.status === 'Submitted/Done',
+          priority: t.priority,
+        }));
+
       hudBridge.send({
         type: 'STATE_SYNC',
         v: 1,
@@ -280,6 +299,7 @@ export default function App() {
           taskTitle: tState.taskTitle,
         },
         activeTask: activeTaskSnapshot,
+        todayTasks,
         theme: normalizeTheme(storage.get('focusspace-theme')),
         hudStyleOverride: storage.get('focusspace-hud-style'),
       });
@@ -303,6 +323,49 @@ export default function App() {
         if (task) {
           await db.tasks.put(withStatus(task, 'Submitted/Done'));
           void syncState();
+        }
+      } else if (msg.type === 'TOGGLE_TASK') {
+        const task = await db.tasks.get(msg.taskId);
+        if (task) {
+          const isDone = task.status === 'Submitted/Done';
+          await db.tasks.put(withStatus(task, isDone ? 'To Do' : 'Submitted/Done'));
+          void syncState();
+        }
+      } else if (msg.type === 'ADD_TASK') {
+        const title = msg.title.trim();
+        if (title) {
+          const categories = await db.categories.toArray();
+          const defaultCatId = categories[0]?.id || 'inbox';
+          const nowIso = new Date().toISOString();
+          const newTask: Task = {
+            id: uid(),
+            title,
+            status: 'To Do',
+            priority: (msg.priority as any) || 'Medium',
+            categoryId: defaultCatId,
+            projectTag: '',
+            estimatedDuration: 25,
+            dueDate: isoToday(),
+            dueTime: '',
+            subtasks: [],
+            notes: '',
+            colorCode: '#60a5fa',
+            createdAt: nowIso,
+            updatedAt: nowIso,
+          };
+          await db.tasks.add(newTask);
+          void syncState();
+        }
+      } else if (msg.type === 'SET_ACTIVE_TASK') {
+        const task = await db.tasks.get(msg.taskId);
+        if (task) {
+          timer.setTask({ id: task.id, title: task.title });
+          void syncState();
+        }
+      } else if (msg.type === 'SHOW_DASHBOARD') {
+        go('home');
+        if (window.electronAPI?.showMainWindow) {
+          window.electronAPI.showMainWindow();
         }
       } else if (msg.type === 'COMPLETE_SUBTASK') {
         const task = await db.tasks.get(msg.taskId);
@@ -353,8 +416,26 @@ export default function App() {
     document.documentElement.dataset.theme = clean;
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', clean === 'nocturne' ? '#040404' : clean === 'onyx' ? '#020302' : clean === 'bauhaus' ? '#e9ece4' : '#f3eee4');
-    document.documentElement.style.colorScheme = (clean === 'nocturne' || clean === 'onyx') ? 'dark' : 'light';
     storage.set('focusspace-theme', clean);
+    const tState = getTimerState();
+    hudBridge.send({
+      type: 'STATE_SYNC',
+      v: 1,
+      timer: {
+        mode: tState.mode,
+        remainingMs: tState.remainingMs,
+        totalMs: (tState.durations[tState.mode] || 25) * 60_000,
+        durationMinutes: tState.durations[tState.mode] || 25,
+        running: tState.running,
+        isOvertime: Boolean(tState.isOvertime),
+        overtimeMs: tState.overtimeMs || 0,
+        taskId: tState.taskId,
+        taskTitle: tState.taskTitle,
+      },
+      activeTask: null,
+      theme: clean,
+      hudStyleOverride: storage.get('focusspace-hud-style'),
+    });
   }, [theme]);
 
   useEffect(() => {

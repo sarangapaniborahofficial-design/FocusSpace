@@ -6,14 +6,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 export default defineConfig(({ mode }) => {
-  const isTauriMode = mode === 'tauri';
+  const isDesktopMode = mode === 'desktop' || mode === 'electron';
 
   return {
     plugins: [
       react(),
       tailwindcss(),
       VitePWA({
-        disable: isTauriMode,
+        disable: isDesktopMode,
         registerType: 'prompt',
         manifest: {
           name: 'FocusSpace',

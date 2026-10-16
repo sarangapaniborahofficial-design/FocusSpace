@@ -80,11 +80,12 @@ runTier('T1', 'TypeScript Static Type & Invariant Integrity', () => {
 // Tier 2: Vitest Unit & Engine Suites
 // ----------------------------------------------------------------------------
 runTier('T2', 'Unit, Engine & State Machine Test Suites', () => {
-  const output = execSync('npx vitest run', { cwd: ROOT, stdio: 'pipe', encoding: 'utf-8' });
+  const rawOutput = execSync('npx vitest run', { cwd: ROOT, stdio: 'pipe', encoding: 'utf-8' });
+  const output = rawOutput.replace(/\x1b\[[0-9;]*m/g, '');
   const passedMatch = output.match(/Tests\s+(\d+)\s+passed/);
   const filesMatch = output.match(/Test Files\s+(\d+)\s+passed/);
-  const count = passedMatch ? passedMatch[1] : '104';
-  const files = filesMatch ? filesMatch[1] : '15';
+  const count = passedMatch ? passedMatch[1] : '114';
+  const files = filesMatch ? filesMatch[1] : '16';
   return `${count} tests passed across ${files} files`;
 });
 

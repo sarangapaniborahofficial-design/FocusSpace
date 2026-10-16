@@ -1,10 +1,29 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { PictureInPicture2 } from 'lucide-react';
+import {
+  PictureInPicture2,
+  ListTodo,
+  CheckSquare,
+  Volume2,
+  VolumeX,
+  Headphones,
+  FileText,
+  LayoutDashboard,
+  Mic,
+  Plus,
+  Play,
+  Pause,
+  ChevronUp,
+  ChevronDown,
+  X,
+  Sparkles,
+} from 'lucide-react';
 import { getElectronAPI } from '../lib/runtime';
-import { subscribeHudBridge, sendHudCommand, requestHudSync, HudStatePayload } from '../lib/hudBridge';
+import { subscribeHudBridge, sendHudCommand, requestHudSync, HudStatePayload, TodoItemSnapshot } from '../lib/hudBridge';
 import { pipHUD, usePipHUD } from '../lib/pipHud';
 import { useDictation } from '../voice/useDictation';
+import { ambientSound, AMBIENT_TRACKS, type AmbientTrack, type AmbientSoundState } from '../lib/ambientSound';
+import { FocusSpaceLogo } from './FocusSpaceLogo';
 
 export type HudArtboardId = '01' | '02' | '03' | '04' | '05' | '06';
 
@@ -64,10 +83,15 @@ export function FloatingHUDPortal() {
   }
 }
 
+type HudTab = 'todo' | 'subtasks' | 'notes' | 'ambient';
+
 export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWindow = false }) => {
   const [expanded, setExpanded] = useState(false);
   const [hudState, setHudState] = useState<HudStatePayload | null>(null);
+  const [activeTab, setActiveTab] = useState<HudTab>('todo');
+  const [newTaskTitle, setNewTaskTitle] = useState('');
   const [scratchpad, setScratchpad] = useState('');
+  const [ambientState, setAmbientState] = useState<AmbientSoundState>(() => ambientSound.getState());
   const noteRef = useRef<HTMLTextAreaElement | null>(null);
 
   const { isListening, toggle: toggleDictation } = useDictation({
@@ -80,6 +104,11 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
     },
   });
 
+  // Keep ambient sound state in sync
+  useEffect(() => {
+    return ambientSound.subscribe(setAmbientState);
+  }, []);
+
   useEffect(() => {
     if (isNativeWindow) {
       document.documentElement.classList.add('hud-window-mode');
@@ -87,6 +116,9 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
     const unsub = subscribeHudBridge((msg) => {
       if (msg.type === 'STATE_SYNC') {
         setHudState(msg);
+        if (msg.theme) {
+          document.documentElement.dataset.theme = msg.theme;
+        }
         if (msg.activeTask?.scratchpadNotes !== undefined) {
           setScratchpad(msg.activeTask.scratchpadNotes || '');
         }
@@ -101,8 +133,14 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
     };
   }, [isNativeWindow]);
 
-  const handleToggleExpand = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const currentTheme = hudState?.theme || localStorage.getItem('focusspace-theme') || 'nocturne';
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = currentTheme;
+  }, [currentTheme]);
+
+  const handleToggleExpand = async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     const next = !expanded;
     setExpanded(next);
     const api = getElectronAPI();
@@ -128,6 +166,20 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
     sendHudCommand({ type: 'TOGGLE_TIMER', v: 1 });
   };
 
+  const handleOpenDashboard = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const api = getElectronAPI();
+    if (api) {
+      api.showMainWindow();
+    }
+    sendHudCommand({ type: 'SHOW_DASHBOARD', v: 1 });
+  };
+
+  const handleToggleAmbient = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    ambientSound.toggle();
+  };
+
   const handleToggleSubtask = (subtaskId: string) => {
     if (!hudState?.activeTask?.id) return;
     sendHudCommand({
@@ -136,6 +188,35 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
       taskId: hudState.activeTask.id,
       subtaskId,
     });
+  };
+
+  const handleToggleTask = (taskId: string) => {
+    sendHudCommand({
+      type: 'TOGGLE_TASK',
+      v: 1,
+      taskId,
+    });
+  };
+
+  const handleSelectActiveTask = (taskId: string) => {
+    sendHudCommand({
+      type: 'SET_ACTIVE_TASK',
+      v: 1,
+      taskId,
+    });
+  };
+
+  const handleAddTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    const title = newTaskTitle.trim();
+    if (!title) return;
+    sendHudCommand({
+      type: 'ADD_TASK',
+      v: 1,
+      title,
+      priority: 'Medium',
+    });
+    setNewTaskTitle('');
   };
 
   const handleScratchpadChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -168,22 +249,24 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
     : Math.min(100, Math.max(0, Math.round(((durationSec - totalSec) / durationSec) * 100)));
 
   const artboardId = resolveHudArtboard(
-    hudState?.theme || localStorage.getItem('focusspace-theme') || 'nocturne',
+    currentTheme,
     hudState?.hudStyleOverride || localStorage.getItem('focusspace-hud-style')
   );
 
   const isSplitFlap = artboardId === '05';
   const subtasks = hudState?.activeTask?.subtasks || [];
+  const todayTasks = hudState?.todayTasks || [];
+  const pendingTasksCount = todayTasks.filter((t) => !t.completed).length;
 
   return (
     <div className="hud-stage">
       <div
-        className={`hud-shell ${expanded ? 'hud-expanded' : 'hud-collapsed'} hud-${artboardId} ${
+        className={`hud-shell ${expanded ? 'hud-expanded' : 'hud-collapsed'} hud-${artboardId} hud-theme-${currentTheme} ${
           isListening ? 'dictating' : ''
         }`}
       >
-        {/* Top 76px Bar — Native Chromium Drag Surface */}
-        <div className="hud-top-row" onDoubleClick={handleToggleExpand}>
+        {/* Top 76px Bar — Native 0ms Chromium Drag Surface */}
+        <div className="hud-top-row" onDoubleClick={() => handleToggleExpand()}>
           {isSplitFlap ? (
             <div className="flap-group">
               <span className="flap-card">
@@ -197,11 +280,37 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
             <div className="hud-clock">{fullClock}</div>
           )}
 
-          <div className="hud-task-title">
+          <div
+            className="hud-task-title cursor-pointer"
+            onClick={handleOpenDashboard}
+            title="Open FocusSpace Dashboard"
+          >
             {isListening
               ? '🎙 Listening for note…'
               : hudState?.activeTask?.title || 'Free Focus Session'}
           </div>
+
+          {/* Jump to Dashboard Button */}
+          <button
+            type="button"
+            className="hud-icon-btn btn-dash hud-no-drag"
+            onClick={handleOpenDashboard}
+            title="Return to Main Dashboard (Ctrl+Alt+D)"
+            aria-label="Dashboard"
+          >
+            <LayoutDashboard size={15} />
+          </button>
+
+          {/* Ambient Music / Soundscape Quick-Toggle */}
+          <button
+            type="button"
+            className={`hud-icon-btn btn-ambient hud-no-drag ${ambientState.playing ? 'ambient-active' : ''}`}
+            onClick={handleToggleAmbient}
+            title={ambientState.playing ? `Pause ${ambientState.track} Sound` : 'Play Ambient Focus Audio'}
+            aria-label="Ambient Audio"
+          >
+            {ambientState.playing ? <Volume2 size={15} /> : <Headphones size={15} />}
+          </button>
 
           {/* Voice Dictate Button */}
           <button
@@ -214,7 +323,7 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
             title="Voice Dictate Note"
             aria-label="Dictate"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="9" y="3" width="6" height="11" rx="3" />
               <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
             </svg>
@@ -225,27 +334,27 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
             type="button"
             className="hud-icon-btn btn-pause hud-no-drag"
             onClick={handleToggleTimer}
-            title={timer?.running ? 'Pause' : 'Start / Resume'}
+            title={timer?.running ? 'Pause Timer' : 'Start / Resume Timer'}
             aria-label={timer?.running ? 'Pause' : 'Resume'}
           >
             {timer?.running ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M8 5v14M16 5v14" />
               </svg>
             ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M7 5v14l12-7z" />
               </svg>
             )}
           </button>
 
-          {/* Compact Expand Chevron + Close X Stack */}
+          {/* Expand Chevron + Close X */}
           <div className="hud-util-col hud-no-drag">
             <button
               type="button"
               className="hud-mini-ctrl"
               onClick={handleToggleExpand}
-              title={expanded ? 'Collapse Drawer' : 'Expand Subtasks & Notes'}
+              title={expanded ? 'Collapse Drawer' : 'Expand Tasks, Audio & Notes'}
               aria-label="Toggle Drawer"
             >
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
@@ -265,52 +374,211 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
             </button>
           </div>
 
-          {/* 6px Bottom Progress Rail */}
+          {/* 6px Bottom Progress Track */}
           <div className="hud-progress-track">
             <div className="hud-progress-fill" style={{ width: `${progressPct}%` }} />
           </div>
         </div>
 
-        {/* Expanded 290px Drawer: Subtasks + Scratchpad */}
+        {/* Expanded 368px Drawer: Tabs, Interactive To-Do, Audio & Notes */}
         {expanded && (
           <div className="hud-drawer hud-no-drag">
-            <div className="hud-subtasks-scroll">
-              {subtasks.length === 0 ? (
-                <div className="hud-subtask" style={{ opacity: 0.55, cursor: 'default' }}>
-                  <span>No subtasks on active task</span>
-                </div>
-              ) : (
-                subtasks.map((st) => (
-                  <div
-                    key={st.id}
-                    className="hud-subtask"
-                    onClick={() => handleToggleSubtask(st.id)}
-                    style={st.completed ? { textDecoration: 'line-through', opacity: 0.65 } : undefined}
-                  >
-                    <span className={`hud-checkbox ${st.completed ? 'checked' : ''}`}>
-                      {st.completed && (
-                        <span style={{ display: 'flex', transform: 'scale(.65)' }}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M5 12l5 5 9-10" />
-                          </svg>
-                        </span>
-                      )}
-                    </span>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {st.title}
-                    </span>
-                  </div>
-                ))
-              )}
+            {/* Segmented Tab Bar */}
+            <div className="hud-tab-bar">
+              <button
+                type="button"
+                className={`hud-tab-item ${activeTab === 'todo' ? 'active' : ''}`}
+                onClick={() => setActiveTab('todo')}
+              >
+                <ListTodo size={13} />
+                <span>Tasks</span>
+                {pendingTasksCount > 0 && <span className="hud-tab-badge">{pendingTasksCount}</span>}
+              </button>
+
+              <button
+                type="button"
+                className={`hud-tab-item ${activeTab === 'subtasks' ? 'active' : ''}`}
+                onClick={() => setActiveTab('subtasks')}
+              >
+                <CheckSquare size={13} />
+                <span>Subtasks</span>
+                {subtasks.length > 0 && <span className="hud-tab-badge">{subtasks.length}</span>}
+              </button>
+
+              <button
+                type="button"
+                className={`hud-tab-item ${activeTab === 'ambient' ? 'active' : ''}`}
+                onClick={() => setActiveTab('ambient')}
+              >
+                <Headphones size={13} />
+                <span>Audio</span>
+                {ambientState.playing && <span className="hud-sound-dot" />}
+              </button>
+
+              <button
+                type="button"
+                className={`hud-tab-item ${activeTab === 'notes' ? 'active' : ''}`}
+                onClick={() => setActiveTab('notes')}
+              >
+                <FileText size={13} />
+                <span>Notes</span>
+              </button>
             </div>
 
-            <textarea
-              ref={noteRef}
-              className="hud-note-box"
-              placeholder="Quick note for this task…"
-              value={scratchpad}
-              onChange={handleScratchpadChange}
-            />
+            {/* Tab 1: Interactive To-Do List */}
+            {activeTab === 'todo' && (
+              <div className="hud-tab-content">
+                <div className="hud-tasks-scroll">
+                  {todayTasks.length === 0 ? (
+                    <div className="hud-empty-state">
+                      <ListTodo size={20} className="opacity-40" />
+                      <span>No active tasks today</span>
+                    </div>
+                  ) : (
+                    todayTasks.map((t) => (
+                      <div
+                        key={t.id}
+                        className={`hud-task-row ${t.completed ? 'completed' : ''} ${
+                          hudState?.activeTask?.id === t.id ? 'active-focus-task' : ''
+                        }`}
+                      >
+                        <span
+                          className={`hud-checkbox ${t.completed ? 'checked' : ''}`}
+                          onClick={() => handleToggleTask(t.id)}
+                        >
+                          {t.completed && (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M5 12l5 5 9-10" />
+                            </svg>
+                          )}
+                        </span>
+                        <span
+                          className="hud-task-label"
+                          onClick={() => handleSelectActiveTask(t.id)}
+                          title="Click to focus on this task"
+                        >
+                          {t.title}
+                        </span>
+                        {t.priority && t.priority !== 'Medium' && (
+                          <span className={`hud-priority-tag priority-${t.priority.toLowerCase()}`}>
+                            {t.priority[0]}
+                          </span>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Quick Add Task Form */}
+                <form onSubmit={handleAddTask} className="hud-quick-add-form">
+                  <input
+                    type="text"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    placeholder="+ Add new task & press Enter"
+                    className="hud-quick-input"
+                  />
+                  <button type="submit" className="hud-quick-submit" disabled={!newTaskTitle.trim()}>
+                    <Plus size={14} />
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* Tab 2: Subtasks of Active Task */}
+            {activeTab === 'subtasks' && (
+              <div className="hud-tab-content">
+                <div className="hud-tasks-scroll">
+                  {subtasks.length === 0 ? (
+                    <div className="hud-empty-state">
+                      <CheckSquare size={20} className="opacity-40" />
+                      <span>No subtasks on current task</span>
+                    </div>
+                  ) : (
+                    subtasks.map((st) => (
+                      <div
+                        key={st.id}
+                        className={`hud-task-row ${st.completed ? 'completed' : ''}`}
+                        onClick={() => handleToggleSubtask(st.id)}
+                      >
+                        <span className={`hud-checkbox ${st.completed ? 'checked' : ''}`}>
+                          {st.completed && (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M5 12l5 5 9-10" />
+                            </svg>
+                          )}
+                        </span>
+                        <span className="hud-task-label">{st.title}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Tab 3: Ambient Sound Generator */}
+            {activeTab === 'ambient' && (
+              <div className="hud-tab-content hud-ambient-tab">
+                <div className="hud-ambient-grid">
+                  {AMBIENT_TRACKS.map((t) => {
+                    const isCurrent = ambientState.track === t.id && ambientState.playing;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          if (ambientState.track === t.id && ambientState.playing) {
+                            ambientSound.stop();
+                          } else {
+                            ambientSound.start(t.id);
+                          }
+                        }}
+                        className={`hud-ambient-pill ${isCurrent ? 'active' : ''}`}
+                      >
+                        <span className="text-sm">{t.icon}</span>
+                        <span className="hud-pill-name">{t.name}</span>
+                        {isCurrent && <span className="hud-pulse-dot" />}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="hud-volume-row">
+                  <button
+                    type="button"
+                    onClick={() => ambientSound.toggle()}
+                    className="hud-vol-btn"
+                  >
+                    {ambientState.playing ? <Volume2 size={15} /> : <VolumeX size={15} />}
+                  </button>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={ambientState.volume}
+                    onChange={(e) => ambientSound.setVolume(parseFloat(e.target.value))}
+                    className="hud-vol-slider"
+                  />
+                  <span className="hud-vol-val font-mono text-[10px]">
+                    {Math.round(ambientState.volume * 100)}%
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 4: Scratchpad Notes */}
+            {activeTab === 'notes' && (
+              <div className="hud-tab-content">
+                <textarea
+                  ref={noteRef}
+                  className="hud-note-box"
+                  placeholder="Capture quick thoughts or click the mic to voice dictate notes directly into this task…"
+                  value={scratchpad}
+                  onChange={handleScratchpadChange}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>

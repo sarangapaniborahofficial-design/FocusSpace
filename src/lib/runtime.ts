@@ -23,7 +23,7 @@ export interface ElectronAPI {
   minimizeToTray: () => Promise<boolean>;
   openExternal: (url: string) => Promise<{ opened: boolean }>;
   openInBrowser: (url: string, browser?: string) => Promise<{ opened: boolean; fallback?: boolean }>;
-  launchNativeApp: (path: string, args?: string[]) => Promise<{ launched: boolean }>;
+  launchNativeApp: (path: string) => Promise<{ launched: boolean }>;
   pickAppFile: () => Promise<string | null>;
 }
 

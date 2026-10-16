@@ -9,6 +9,7 @@ const {
   protocol,
   net,
   dialog,
+  session,
 } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
@@ -47,10 +48,10 @@ const ALLOWED_PROTOCOLS = new Set([
   'antigravity:',
 ]);
 
-// Dimensions: 320x76 (collapsed) and 320x290 (expanded) + 12px shadow canvas padding
+// Dimensions: 320x76 (collapsed) and 320x368 (expanded) + 12px shadow canvas padding
 const HUD_WIDTH = 332;
 const HUD_COLLAPSED_HEIGHT = 88;
-const HUD_EXPANDED_HEIGHT = 302;
+const HUD_EXPANDED_HEIGHT = 380;
 
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
@@ -65,6 +66,11 @@ if (!gotTheLock) {
   });
 }
 
+// Clean shutdown handler: guarantees Windows restart, logoff, or shutdown never hangs
+app.on('before-quit', () => {
+  app.isQuitting = true;
+});
+
 function getBackupDir() {
   return path.join(app.getPath('userData'), 'Backups');
 }
@@ -74,6 +80,22 @@ function getAppUrl(query = '') {
     return `http://localhost:5173/${query}`;
   }
   return `app://focusspace/index.html${query}`;
+}
+
+function applyNavigationLock(webContents) {
+  // 1. Deny all window.open() popup requests from untrusted scripts
+  webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+
+  // 2. Lock navigation strictly to the internal application origin
+  webContents.on('will-navigate', (event, targetUrl) => {
+    try {
+      const parsed = new URL(targetUrl);
+      if (isDev && parsed.origin === 'http://localhost:5173') return;
+      if (parsed.protocol === 'app:' && parsed.hostname === 'focusspace') return;
+    } catch {}
+    console.warn('[Security Lock] Blocked unauthorized window navigation to:', targetUrl);
+    event.preventDefault();
+  });
 }
 
 function createMainWindow() {
@@ -91,11 +113,12 @@ function createMainWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
       backgroundThrottling: false, // Keep Pomodoro & BroadcastChannel running at full speed when minimized to tray
     },
   });
 
+  applyNavigationLock(mainWindow.webContents);
   mainWindow.loadURL(getAppUrl());
 
   mainWindow.on('close', (e) => {
@@ -126,7 +149,7 @@ function createHudWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
       backgroundThrottling: false,
     },
   });
@@ -135,6 +158,7 @@ function createHudWindow() {
   hudWindow.setAlwaysOnTop(true, 'screen-saver');
   hudWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
+  applyNavigationLock(hudWindow.webContents);
   hudWindow.loadURL(getAppUrl('?window=hud'));
 
   hudWindow.on('close', (e) => {
@@ -154,26 +178,94 @@ function setHudDimensions(expanded) {
   hudWindow.setResizable(false);
 }
 
+function findBrowserExecutables(browserId) {
+  const env = process.env;
+  const pf = env['ProgramFiles'] || 'C:\\Program Files';
+  const pfX86 = env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+  const localAppData = env['LOCALAPPDATA'] || '';
+
+  const map = {
+    chrome: [
+      path.join(pf, 'Google\\Chrome\\Application\\chrome.exe'),
+      path.join(pfX86, 'Google\\Chrome\\Application\\chrome.exe'),
+      path.join(localAppData, 'Google\\Chrome\\Application\\chrome.exe'),
+      'chrome.exe',
+    ],
+    edge: [
+      path.join(pfX86, 'Microsoft\\Edge\\Application\\msedge.exe'),
+      path.join(pf, 'Microsoft\\Edge\\Application\\msedge.exe'),
+      'msedge.exe',
+    ],
+    brave: [
+      path.join(pf, 'BraveSoftware\\Brave-Browser\\Application\\brave.exe'),
+      path.join(localAppData, 'BraveSoftware\\Brave-Browser\\Application\\brave.exe'),
+      'brave.exe',
+    ],
+    firefox: [
+      path.join(pf, 'Mozilla Firefox\\firefox.exe'),
+      path.join(pfX86, 'Mozilla Firefox\\firefox.exe'),
+      'firefox.exe',
+    ],
+  };
+
+  return map[browserId.toLowerCase()] || [];
+}
+
 app.whenReady().then(() => {
-  // Serve bundled dist/ files via app://focusspace/ with COOP/COEP headers for WASM threads
+  // Zero-Network Privacy Guard: Enforces 100% offline data integrity
+  // Blocks any unauthorized cloud telemetry, tracking, or network leaks
+  if (session && session.defaultSession) {
+    session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
+      const u = details.url;
+      if (
+        u.startsWith('app://') ||
+        u.startsWith('devtools://') ||
+        u.startsWith('chrome-extension://') ||
+        (isDev && u.startsWith('http://localhost:5173')) ||
+        u.startsWith('https://www.google.com/s2/favicons')
+      ) {
+        callback({ cancel: false });
+      } else {
+        console.warn('[Zero-Network Privacy Guard] Blocked outgoing network request:', u);
+        callback({ cancel: true });
+      }
+    });
+  }
+
+  // Serve bundled dist/ files via app://focusspace/ with COOP/COEP headers and path traversal guards
   protocol.handle('app', async (request) => {
     const url = new URL(request.url);
     let relPath = decodeURIComponent(url.pathname);
     if (relPath === '/' || relPath === '') relPath = '/index.html';
 
-    const distPath = path.join(__dirname, '../dist', relPath);
-    const response = await net.fetch(pathToFileURL(distPath).toString());
+    const distDir = path.resolve(__dirname, '../dist');
+    const distPath = path.resolve(distDir, '.' + relPath);
 
-    const headers = new Headers(response.headers);
-    headers.set('Cross-Origin-Opener-Policy', 'same-origin');
-    headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
-    headers.set('Cross-Origin-Resource-Policy', 'same-origin');
+    // Path traversal verification
+    if (!distPath.startsWith(distDir)) {
+      console.error('[Security] Attempted path traversal blocked:', relPath);
+      return new Response('Access Denied: Path Traversal Detected', { status: 403 });
+    }
 
-    return new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers,
-    });
+    try {
+      const response = await net.fetch(pathToFileURL(distPath).toString());
+      const headers = new Headers(response.headers);
+      headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+      headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
+      headers.set('Cross-Origin-Resource-Policy', 'same-origin');
+      headers.set(
+        'Content-Security-Policy',
+        "default-src 'self' app:; connect-src 'self' app: data: blob:; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' app:; style-src 'self' 'unsafe-inline' app:; font-src 'self' app: data:; img-src 'self' app: data: blob: https://www.google.com; media-src 'self' app: data: blob:; worker-src 'self' app: blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self';"
+      );
+
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+    } catch {
+      return new Response('Not Found', { status: 404 });
+    }
   });
 
   createMainWindow();
@@ -217,6 +309,7 @@ app.whenReady().then(() => {
 
   ipcMain.on('window:show-main', () => {
     if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.show();
       mainWindow.focus();
     }
@@ -302,7 +395,7 @@ app.whenReady().then(() => {
     return fs.readFile(path.join(getBackupDir(), filename), 'utf8');
   });
 
-  // --- 3. Native URI & App Launcher ---
+  // --- 3. Secure External URI & App Launcher (Zero cmd.exe, Zero Shell Injection) ---
   ipcMain.handle('shell:open-external', async (_, { url }) => {
     const parsed = new URL(url);
     if (!ALLOWED_PROTOCOLS.has(parsed.protocol)) {
@@ -313,10 +406,23 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('shell:open-in-browser', async (_, { url, browser }) => {
-    const { spawn } = require('child_process');
-    const parsed = new URL(url);
-    if (!ALLOWED_PROTOCOLS.has(parsed.protocol)) {
-      throw new Error(`Disallowed URI protocol: ${parsed.protocol}`);
+    if (!url || typeof url !== 'string') {
+      throw new Error('Invalid URL');
+    }
+    // Disallow control characters to prevent argument/header injections
+    if (/[\x00-\x1f\x7f]/.test(url)) {
+      throw new Error('URL contains forbidden control characters');
+    }
+
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new Error('Malformed URL provided');
+    }
+
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new Error(`Only HTTP/HTTPS protocols allowed for web browser launch, got: ${parsed.protocol}`);
     }
 
     if (!browser || browser === 'system' || browser === 'default') {
@@ -324,49 +430,75 @@ app.whenReady().then(() => {
       return { opened: true };
     }
 
-    const BROWSER_COMMANDS = {
-      chrome: 'chrome',
-      edge: 'msedge',
-      brave: 'brave',
-      firefox: 'firefox',
-    };
+    // Spawn browser executable directly with shell: false — never through cmd.exe
+    const { spawn } = require('child_process');
+    const candidates = findBrowserExecutables(browser);
 
-    const cmd = BROWSER_COMMANDS[browser.toLowerCase()] || browser;
-    try {
-      spawn('cmd.exe', ['/c', 'start', '""', cmd, url], {
-        detached: true,
-        stdio: 'ignore',
-        windowsHide: true,
-      }).unref();
-      return { opened: true };
-    } catch (err) {
-      console.warn(`Browser spawn error for ${browser}, falling back to default:`, err);
-      await shell.openExternal(url);
-      return { opened: true, fallback: true };
+    for (const exePath of candidates) {
+      try {
+        const child = spawn(exePath, [url], {
+          detached: true,
+          stdio: 'ignore',
+          shell: false,
+          windowsHide: false,
+        });
+        child.unref();
+        return { opened: true };
+      } catch {
+        continue;
+      }
     }
+
+    // Safe fallback to OS default browser via Electron native shell
+    await shell.openExternal(url);
+    return { opened: true, fallback: true };
   });
 
-  ipcMain.handle('shell:launch-native-app', async (_, { path: appPath, args: appArgs = [] }) => {
-    const { spawn } = require('child_process');
+  ipcMain.handle('shell:launch-native-app', async (_, { path: appPath }) => {
     if (!appPath || typeof appPath !== 'string') {
       throw new Error('Invalid executable path');
     }
-    try {
-      spawn('cmd.exe', ['/c', 'start', '""', appPath, ...appArgs], {
-        detached: true,
-        stdio: 'ignore',
-        windowsHide: true,
-      }).unref();
-      return { launched: true };
-    } catch (err) {
-      console.warn(`Launch error for native app ${appPath}:`, err);
-      throw err;
+
+    // Strictly disallow shell metacharacters and control characters
+    if (/[\x00-\x1f\x7f&|;><^%\r\n]/.test(appPath)) {
+      throw new Error('Executable path contains forbidden shell characters');
     }
+
+    const resolved = path.resolve(appPath);
+    const ext = path.extname(resolved).toLowerCase();
+    const allowedExts = new Set(['.exe', '.lnk', '.bat', '.cmd']);
+    if (!allowedExts.has(ext)) {
+      throw new Error(`Forbidden file extension for native app: ${ext}`);
+    }
+
+    // Verify target file actually exists on local filesystem
+    try {
+      await fs.stat(resolved);
+    } catch {
+      throw new Error(`File does not exist on disk: ${resolved}`);
+    }
+
+    // If shortcut or script, open safely via Windows ShellExecuteEx without cmd.exe
+    if (ext === '.lnk' || ext === '.bat' || ext === '.cmd') {
+      await shell.openPath(resolved);
+      return { launched: true };
+    }
+
+    // Directly spawn native executable without shell: false and dropping arbitrary renderer args
+    const { spawn } = require('child_process');
+    const child = spawn(resolved, [], {
+      detached: true,
+      stdio: 'ignore',
+      shell: false,
+      windowsHide: false,
+    });
+    child.unref();
+    return { launched: true };
   });
 
   ipcMain.handle('dialog:pick-app', async () => {
     const res = await dialog.showOpenDialog(mainWindow, {
-      title: 'Select Application File',
+      title: 'Select Application Executable or Shortcut',
       properties: ['openFile'],
       filters: [
         { name: 'Executables & Shortcuts (*.exe, *.lnk, *.bat)', extensions: ['exe', 'lnk', 'bat', 'cmd'] },
@@ -378,21 +510,40 @@ app.whenReady().then(() => {
   });
 
   // --- 4. Conflict-Free Global Hotkeys ---
-  globalShortcut.register('CommandOrControl+Alt+Space', () => {
+  const regSpace = globalShortcut.register('CommandOrControl+Alt+Space', () => {
     if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.show();
       mainWindow.focus();
     }
   });
+  if (!regSpace) {
+    console.warn('[Hotkeys] Failed to register CommandOrControl+Alt+Space');
+  }
 
-  globalShortcut.register('CommandOrControl+Alt+H', () => {
+  const regHud = globalShortcut.register('CommandOrControl+Alt+H', () => {
     if (!hudWindow) return;
-    if (hudWindow.isVisible()) hudWindow.hide();
-    else {
+    if (hudWindow.isVisible()) {
+      hudWindow.hide();
+    } else {
       hudWindow.show();
       hudWindow.setAlwaysOnTop(true, 'screen-saver');
     }
   });
+  if (!regHud) {
+    console.warn('[Hotkeys] Failed to register CommandOrControl+Alt+H');
+  }
+
+  const regDash = globalShortcut.register('CommandOrControl+Alt+D', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+  if (!regDash) {
+    console.warn('[Hotkeys] Failed to register CommandOrControl+Alt+D');
+  }
 
   // --- 5. System Tray ---
   try {

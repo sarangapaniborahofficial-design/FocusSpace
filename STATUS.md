@@ -22,8 +22,7 @@ This document tracks progress towards the 1.0 release based on the project timel
 | 8 | Production, PWA & Power Tools | ✅ **Completed** | Service worker offline caching, smart schedule preferences, global shortcuts cheatsheet. |
 | 9 | Command Hub & Daily Briefing | ✅ **Completed** | Native & web app launcher, AppDock, morning/midday/evening briefing, rollover & reflection export. |
 | 10 | Polish, Bug Fixes, Native & Voice | ✅ **Completed** | Sprint 1, 2, 3 & Phase 10H complete: WCAG contrast suite, Floating HUD, Universal App Dock, Dedicated Journal, Category Pages, Flowy Onboarding, Voice Everywhere, Centered Dock, and Lag Elimination. |
-| Phase A | Web Build Stabilization (Tauri Readiness) | ✅ **Completed** | Phase A1 (Backup Fidelity), A2 (Voice Fixes & WASM Deduplication), A3 (Housekeeping). 100/100 tests passing. Gate A verified. |
-| Phase B–D | Tauri v2 Windows Native Desktop & Fast-Track Guide | ✅ **Completed** | Native Windows `.exe` and MSI/NSIS installers built with Voice enabled, atomic vault mirroring, system tray, native floating HUD, conflict-free hotkeys (`Ctrl+Alt+Space`, `Ctrl+Alt+H`, `Ctrl+Alt+D`). All 104 Vitest tests + 3 Rust unit tests passed. |
+| Phase B–D | Electron Windows Native Desktop & Security Hardening | ✅ **Completed** | Hardened Electron 44.8.0 runtime delivering Cross-Origin Isolation (COOP/COEP) for offline WASM SIMD threading, 0ms native drag floating HUD with theme-sync, zero-network privacy enforcement, atomic vault disk snapshots, and conflict-free global hotkeys. 114 passing tests across 16 files verified by Argus. |
 
 ---
 

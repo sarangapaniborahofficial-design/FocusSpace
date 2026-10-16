@@ -25,7 +25,17 @@ DEST_ZIPS = [
     os.path.join(ARTIFACT_DIR, 'FocusSpace_Clean_Codebase.zip'),
 ]
 
-EXCLUDE_DIRS = {'node_modules', '.git', 'dist', 'dist-electron', '__pycache__', 'target'}
+EXCLUDE_DIR_NAMES = {'node_modules', '.git', 'dist', 'dist-electron', '__pycache__'}
+
+def is_excluded_dir(root: str, d: str) -> bool:
+    if d in EXCLUDE_DIR_NAMES:
+        return True
+    if d == 'target':
+        rel = os.path.relpath(os.path.join(root, d), SRC_DIR)
+        # Only exclude rust cargo build artifacts (top-level target or src-tauri/target), NOT src/voice/target
+        if rel in {'target', os.path.join('src-tauri', 'target')}:
+            return True
+    return False
 
 def package_zip():
     print("[*] FocusSpace -- Packaging clean codebase...")
@@ -34,7 +44,7 @@ def package_zip():
     file_count = 0
     with zipfile.ZipFile(temp_zip, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
         for root, dirs, files in os.walk(SRC_DIR):
-            dirs[:] = [d for d in dirs if d not in EXCLUDE_DIRS]
+            dirs[:] = [d for d in dirs if not is_excluded_dir(root, d)]
             for f in files:
                 if f.endswith('.pyc') or f == '.DS_Store':
                     continue

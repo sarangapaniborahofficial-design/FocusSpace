@@ -594,7 +594,7 @@ html.hud-window-mode #root {
   font-family: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
 }
 .hud-collapsed { height: 76px; }
-.hud-expanded { height: 290px; }
+.hud-expanded { height: 368px; }
 
 /* NATIVE 0ms CHROMIUM DRAG REGION */
 .hud-top-row {
@@ -604,7 +604,7 @@ html.hud-window-mode #root {
   padding: 8px 10px 10px 12px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   -webkit-app-region: drag;
 }
 
@@ -615,6 +615,14 @@ html.hud-window-mode #root {
 .hud-drawer,
 .hud-subtask,
 .hud-note-box,
+.hud-tab-bar,
+.hud-tab-item,
+.hud-task-row,
+.hud-checkbox,
+.hud-quick-input,
+.hud-quick-submit,
+.hud-ambient-pill,
+.hud-vol-slider,
 button,
 input,
 textarea {
@@ -624,7 +632,7 @@ textarea {
 .hud-clock {
   font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace;
   font-weight: 800;
-  font-size: 36px;
+  font-size: 34px;
   letter-spacing: -2px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -642,18 +650,23 @@ textarea {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  transition: opacity 0.12s ease;
+}
+.hud-task-title:hover {
+  opacity: 0.8;
 }
 
 .hud-icon-btn {
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   cursor: pointer;
-  transition: transform 0.12s ease, opacity 0.12s ease;
+  border-radius: 8px;
+  transition: transform 0.12s ease, opacity 0.12s ease, background 0.12s ease;
 }
 .hud-icon-btn:active { transform: translateY(1px) scale(0.97); }
 
@@ -665,8 +678,8 @@ textarea {
   flex-shrink: 0;
 }
 .hud-mini-ctrl {
-  width: 20px;
-  height: 18px;
+  width: 18px;
+  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -686,33 +699,131 @@ textarea {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 6px;
+  height: 5px;
 }
 .hud-progress-fill {
   height: 100%;
   transition: width 0.25s ease;
 }
 
+/* Expanded 368px Drawer */
 .hud-drawer {
-  padding: 4px 12px 0;
+  padding: 6px 12px 10px;
   display: flex;
   flex-direction: column;
-  height: 214px;
+  height: 292px;
   box-sizing: border-box;
+  gap: 8px;
 }
-.hud-subtasks-scroll {
-  max-height: 112px;
-  overflow-y: auto;
-}
-.hud-subtask {
+
+/* Segmented Tab Bar */
+.hud-tab-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 4px;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+.hud-tab-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.65;
+  cursor: pointer;
+  transition: background 0.12s ease, opacity 0.12s ease;
+}
+.hud-tab-item:hover { opacity: 0.9; }
+.hud-tab-item.active {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+.hud-tab-badge {
+  font-size: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 0 4px;
+  border-radius: 99px;
+  background: var(--color-accent, #ff5526);
+  color: #fff;
+  font-weight: 800;
+}
+.hud-sound-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: #2ef2b8;
+  animation: pulse 1.2s infinite ease-in-out;
+}
+
+/* Tab Content */
+.hud-tab-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Tasks & Subtasks Scroll List */
+.hud-tasks-scroll {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-right: 2px;
+}
+.hud-empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11px;
+  opacity: 0.55;
+  padding: 20px 0;
+}
+
+.hud-task-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 12px;
   font-weight: 700;
-  padding: 7px 0;
+  padding: 6px 6px;
+  border-radius: 6px;
+  transition: background 0.1s ease;
+}
+.hud-task-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.hud-task-row.completed {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+.hud-task-row.active-focus-task {
+  border-left: 2px solid var(--color-accent, #ff5526);
+  padding-left: 6px;
+}
+.hud-task-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   cursor: pointer;
-  user-select: none;
 }
 .hud-checkbox {
   width: 16px;
@@ -721,17 +832,145 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s ease;
 }
+.hud-priority-tag {
+  font-size: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.priority-urgent { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+.priority-high { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.priority-low { background: rgba(156, 163, 175, 0.2); color: #9ca3af; }
+
+/* Quick Add Task Form */
+.hud-quick-add-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+.hud-quick-input {
+  flex: 1;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.2);
+  color: inherit;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 0 8px;
+  outline: none;
+}
+.hud-quick-input:focus {
+  border-color: var(--color-accent, #ff5526);
+}
+.hud-quick-submit {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: var(--color-accent, #ff5526);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.12s ease;
+}
+.hud-quick-submit:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* Ambient Sound Grid */
+.hud-ambient-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  flex: 1;
+  padding: 4px 0;
+}
+.hud-ambient-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.15);
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s ease;
+}
+.hud-ambient-pill:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+.hud-ambient-pill.active {
+  border-color: var(--color-accent, #ff5526);
+  background: rgba(255, 85, 38, 0.12);
+}
+.hud-pill-name {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 700;
+}
+.hud-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--color-accent, #ff5526);
+  animation: pulse 1s infinite ease-in-out;
+}
+
+/* Volume Slider */
+.hud-volume-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 2px;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+.hud-vol-btn {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.75;
+  display: flex;
+  align-items: center;
+  padding: 0;
+}
+.hud-vol-slider {
+  flex: 1;
+  accent-color: var(--color-accent, #ff5526);
+  height: 4px;
+  cursor: pointer;
+}
+.hud-vol-val {
+  font-size: 10px;
+  opacity: 0.65;
+  width: 28px;
+  text-align: right;
+}
+
 .hud-note-box {
-  margin-top: auto;
-  margin-bottom: 10px;
-  height: 68px;
+  flex: 1;
   width: 100%;
   box-sizing: border-box;
   padding: 8px 10px;
   font-family: inherit;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   resize: none;
   outline: none;
 }
@@ -739,129 +978,203 @@ textarea {
 /* =======================================================================
    01. NOCTURNE SOLARIS (Tactile Pitch-Black Hardware + Vermilion Keycap)
    ======================================================================= */
-.hud-01 {
+.hud-01, .hud-theme-nocturne {
   background: #0d0c0b;
   border: 1.5px solid #2c2723;
   border-radius: 14px;
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 4px 4px 0 #000000;
   color: #f4efe6;
 }
-.hud-01 .hud-clock {
+.hud-01 .hud-clock, .hud-theme-nocturne .hud-clock {
   color: #ff5526;
   text-shadow: 0 0 18px rgba(255, 85, 38, 0.25);
 }
-.hud-01 .hud-task-title { color: #f4efe6; font-weight: 700; }
-.hud-01 .btn-mic {
+.hud-01 .hud-task-title, .hud-theme-nocturne .hud-task-title { color: #f4efe6; font-weight: 700; }
+.hud-01 .btn-mic, .hud-theme-nocturne .btn-mic {
   background: #ff5526;
   color: #0b0a09;
   border: 1.5px solid #ff7650;
   border-radius: 9px;
   box-shadow: 0 2px 0 #8f280b;
 }
-.hud-01 .btn-pause {
+.hud-01 .btn-pause,
+.hud-01 .btn-dash,
+.hud-01 .btn-ambient,
+.hud-theme-nocturne .btn-pause,
+.hud-theme-nocturne .btn-dash,
+.hud-theme-nocturne .btn-ambient {
   background: #181614;
   color: #f4efe6;
   border: 1.5px solid #352f2a;
   border-radius: 9px;
   box-shadow: 0 2px 0 #050504;
 }
-.hud-01 .hud-progress-track { background: #1c1916; }
-.hud-01 .hud-progress-fill { background: #ff5526; }
-.hud-01 .hud-subtask { border-bottom: 1px solid #26221e; color: #e4ddd3; }
-.hud-01 .hud-checkbox {
+.hud-01 .btn-ambient.ambient-active,
+.hud-theme-nocturne .btn-ambient.ambient-active {
+  background: rgba(255, 85, 38, 0.2);
+  border-color: #ff5526;
+  color: #ff5526;
+}
+.hud-01 .hud-progress-track, .hud-theme-nocturne .hud-progress-track { background: #1c1916; }
+.hud-01 .hud-progress-fill, .hud-theme-nocturne .hud-progress-fill { background: #ff5526; }
+.hud-01 .hud-subtask, .hud-theme-nocturne .hud-subtask { border-bottom: 1px solid #26221e; color: #e4ddd3; }
+.hud-01 .hud-checkbox, .hud-theme-nocturne .hud-checkbox {
   border: 1.5px solid #4a423b;
   border-radius: 4px;
   background: #151311;
 }
-.hud-01 .hud-checkbox.checked {
+.hud-01 .hud-checkbox.checked, .hud-theme-nocturne .hud-checkbox.checked {
   background: #ff5526;
   border-color: #ff5526;
   color: #0b0a09;
 }
-.hud-01 .hud-note-box {
+.hud-01 .hud-note-box, .hud-theme-nocturne .hud-note-box {
   background: #141210;
   border: 1.5px dashed #38312b;
   border-radius: 8px;
   color: #f4efe6;
 }
+.hud-01 .hud-tab-item.active, .hud-theme-nocturne .hud-tab-item.active {
+  background: #24201c;
+  color: #ff5526;
+}
+.hud-01 .hud-quick-input, .hud-theme-nocturne .hud-quick-input {
+  background: #141210;
+  border: 1px solid #38312b;
+  color: #f4efe6;
+}
+.hud-01 .hud-quick-submit, .hud-theme-nocturne .hud-quick-submit {
+  background: #ff5526;
+  color: #0b0a09;
+}
 
 /* =======================================================================
    02. SWISS ONYX (Pitch-Black Architectural Grid + Acid Citron)
    ======================================================================= */
-.hud-02 {
+.hud-02, .hud-theme-onyx {
   background: #0a0c0a;
   border: 2px solid #323b32;
   box-shadow: 5px 5px 0 #000000;
   color: #f4f7f0;
 }
-.hud-02 .hud-clock { color: #c8ff29; }
-.hud-02 .hud-task-title { color: #f4f7f0; letter-spacing: 0.02em; }
-.hud-02 .btn-mic {
+.hud-02 .hud-clock, .hud-theme-onyx .hud-clock { color: #c8ff29; }
+.hud-02 .hud-task-title, .hud-theme-onyx .hud-task-title { color: #f4f7f0; letter-spacing: 0.02em; }
+.hud-02 .btn-mic, .hud-theme-onyx .btn-mic {
   background: #c8ff29;
   color: #080a08;
   border: 2px solid #000;
   box-shadow: 2px 2px 0 #000;
 }
-.hud-02 .btn-pause {
+.hud-02 .btn-pause,
+.hud-02 .btn-dash,
+.hud-02 .btn-ambient,
+.hud-theme-onyx .btn-pause,
+.hud-theme-onyx .btn-dash,
+.hud-theme-onyx .btn-ambient {
   background: #141814;
   color: #f4f7f0;
   border: 2px solid #394239;
 }
-.hud-02 .hud-progress-track { background: #181c18; }
-.hud-02 .hud-progress-fill { background: #c8ff29; }
-.hud-02 .hud-subtask { border-bottom: 1.5px solid #242b24; color: #f4f7f0; }
-.hud-02 .hud-checkbox { border: 1.5px solid #c8ff29; }
-.hud-02 .hud-checkbox.checked { background: #c8ff29; color: #060806; }
-.hud-02 .hud-note-box {
+.hud-02 .btn-ambient.ambient-active,
+.hud-theme-onyx .btn-ambient.ambient-active {
+  background: #c8ff29;
+  border-color: #000;
+  color: #060806;
+}
+.hud-02 .hud-progress-track, .hud-theme-onyx .hud-progress-track { background: #181c18; }
+.hud-02 .hud-progress-fill, .hud-theme-onyx .hud-progress-fill { background: #c8ff29; }
+.hud-02 .hud-subtask, .hud-theme-onyx .hud-subtask { border-bottom: 1.5px solid #242b24; color: #f4f7f0; }
+.hud-02 .hud-checkbox, .hud-theme-onyx .hud-checkbox { border: 1.5px solid #c8ff29; }
+.hud-02 .hud-checkbox.checked, .hud-theme-onyx .hud-checkbox.checked { background: #c8ff29; color: #060806; }
+.hud-02 .hud-note-box, .hud-theme-onyx .hud-note-box {
   background: #0f130f;
   border: 1.5px dashed #3a453a;
   color: #c8ff29;
   font-family: 'JetBrains Mono', monospace;
 }
+.hud-02 .hud-tab-item.active, .hud-theme-onyx .hud-tab-item.active {
+  background: #181c18;
+  color: #c8ff29;
+  border: 1px solid #394239;
+}
+.hud-02 .hud-quick-input, .hud-theme-onyx .hud-quick-input {
+  background: #0f130f;
+  border: 1.5px solid #3a453a;
+  color: #c8ff29;
+}
+.hud-02 .hud-quick-submit, .hud-theme-onyx .hud-quick-submit {
+  background: #c8ff29;
+  color: #060806;
+}
 
 /* =======================================================================
    03. SWISS BRUTAL (Exact Reference Mockup Match)
    ======================================================================= */
-.hud-03 {
+.hud-03, .hud-theme-bauhaus {
   background: #ffffff;
   border: 3px solid #000000;
   box-shadow: 5px 5px 0 #000000;
   color: #000000;
 }
-.hud-03 .hud-clock { color: #000000; font-size: 38px; }
-.hud-03 .hud-task-title { color: #000000; }
-.hud-03 .btn-mic {
+.hud-03 .hud-clock, .hud-theme-bauhaus .hud-clock { color: #000000; font-size: 36px; }
+.hud-03 .hud-task-title, .hud-theme-bauhaus .hud-task-title { color: #000000; }
+.hud-03 .btn-mic, .hud-theme-bauhaus .btn-mic {
   border: 2px solid #000000;
   background: #ffe14d;
   color: #000000;
+  box-shadow: 2px 2px 0 #000000;
 }
-.hud-03 .btn-pause {
+.hud-03 .btn-pause,
+.hud-03 .btn-dash,
+.hud-03 .btn-ambient,
+.hud-theme-bauhaus .btn-pause,
+.hud-theme-bauhaus .btn-dash,
+.hud-theme-bauhaus .btn-ambient {
   border: 2px solid #000000;
-  background: #000000;
-  color: #ffffff;
+  background: #ffffff;
+  color: #000000;
+  box-shadow: 2px 2px 0 #000000;
 }
-.hud-03 .hud-progress-track { background: #000000; }
-.hud-03 .hud-progress-fill { background: #ffe14d; }
-.hud-03 .hud-subtask { border-bottom: 2px solid #000000; color: #000000; }
-.hud-03 .hud-checkbox { border: 2px solid #000000; }
-.hud-03 .hud-checkbox.checked { background: #000000; color: #ffffff; }
-.hud-03 .hud-note-box {
+.hud-03 .btn-ambient.ambient-active,
+.hud-theme-bauhaus .btn-ambient.ambient-active {
+  background: #ffe14d;
+}
+.hud-03 .hud-progress-track, .hud-theme-bauhaus .hud-progress-track { background: #000000; }
+.hud-03 .hud-progress-fill, .hud-theme-bauhaus .hud-progress-fill { background: #ffe14d; }
+.hud-03 .hud-subtask, .hud-theme-bauhaus .hud-subtask { border-bottom: 2px solid #000000; color: #000000; }
+.hud-03 .hud-checkbox, .hud-theme-bauhaus .hud-checkbox { border: 2px solid #000000; }
+.hud-03 .hud-checkbox.checked, .hud-theme-bauhaus .hud-checkbox.checked { background: #000000; color: #ffffff; }
+.hud-03 .hud-note-box, .hud-theme-bauhaus .hud-note-box {
   background: #ffffff;
   border: 2px dashed #000000;
   color: #000000;
+}
+.hud-03 .hud-tab-item.active, .hud-theme-bauhaus .hud-tab-item.active {
+  background: #ffe14d;
+  color: #000000;
+  border: 1.5px solid #000000;
+}
+.hud-03 .hud-quick-input, .hud-theme-bauhaus .hud-quick-input {
+  background: #ffffff;
+  border: 2px solid #000000;
+  color: #000000;
+}
+.hud-03 .hud-quick-submit, .hud-theme-bauhaus .hud-quick-submit {
+  background: #000000;
+  color: #ffffff;
 }
 
 /* =======================================================================
    04. SOLARIS ATELIER (Warm Drafting Paper + International Orange)
    ======================================================================= */
-.hud-04 {
+.hud-04, .hud-theme-solaris {
   background: #fffdf9;
   border: 2px solid #161412;
   border-radius: 14px;
   box-shadow: 4px 4px 0 #161412;
   color: #161412;
 }
-.hud-04 .hud-clock {
+.hud-04 .hud-clock, .hud-theme-solaris .hud-clock {
   color: #161412;
   background: #f3ede2;
   padding: 3px 6px;
@@ -869,39 +1182,62 @@ textarea {
   border: 1px solid #d5cbb8;
   font-size: 30px;
 }
-.hud-04 .hud-task-title { color: #161412; }
-.hud-04 .btn-mic {
+.hud-04 .hud-task-title, .hud-theme-solaris .hud-task-title { color: #161412; }
+.hud-04 .btn-mic, .hud-theme-solaris .btn-mic {
   background: #e04f26;
   color: #ffffff;
   border: 1.5px solid #161412;
   border-radius: 9px;
   box-shadow: 0 2px 0 #161412;
 }
-.hud-04 .btn-pause {
+.hud-04 .btn-pause,
+.hud-04 .btn-dash,
+.hud-04 .btn-ambient,
+.hud-theme-solaris .btn-pause,
+.hud-theme-solaris .btn-dash,
+.hud-theme-solaris .btn-ambient {
   background: #f3ede2;
   color: #161412;
   border: 1.5px solid #161412;
   border-radius: 9px;
   box-shadow: 0 2px 0 #161412;
 }
-.hud-04 .hud-progress-track { background: #e5dec9; }
-.hud-04 .hud-progress-fill { background: #e04f26; }
-.hud-04 .hud-subtask { border-bottom: 1.5px solid #e2dacb; color: #161412; }
-.hud-04 .hud-checkbox {
+.hud-04 .btn-ambient.ambient-active,
+.hud-theme-solaris .btn-ambient.ambient-active {
+  background: #e04f26;
+  color: #ffffff;
+}
+.hud-04 .hud-progress-track, .hud-theme-solaris .hud-progress-track { background: #e5dec9; }
+.hud-04 .hud-progress-fill, .hud-theme-solaris .hud-progress-fill { background: #e04f26; }
+.hud-04 .hud-subtask, .hud-theme-solaris .hud-subtask { border-bottom: 1.5px solid #e2dacb; color: #161412; }
+.hud-04 .hud-checkbox, .hud-theme-solaris .hud-checkbox {
   border: 1.5px solid #161412;
   border-radius: 4px;
   background: #f6f1e7;
 }
-.hud-04 .hud-checkbox.checked {
+.hud-04 .hud-checkbox.checked, .hud-theme-solaris .hud-checkbox.checked {
   background: #e04f26;
   border-color: #161412;
   color: #ffffff;
 }
-.hud-04 .hud-note-box {
+.hud-04 .hud-note-box, .hud-theme-solaris .hud-note-box {
   background: #f6f1e7;
   border: 1.5px dashed #9e9383;
   border-radius: 8px;
   color: #161412;
+}
+.hud-04 .hud-tab-item.active, .hud-theme-solaris .hud-tab-item.active {
+  background: #ede6d6;
+  color: #e04f26;
+}
+.hud-04 .hud-quick-input, .hud-theme-solaris .hud-quick-input {
+  background: #f6f1e7;
+  border: 1.5px solid #9e9383;
+  color: #161412;
+}
+.hud-04 .hud-quick-submit, .hud-theme-solaris .hud-quick-submit {
+  background: #e04f26;
+  color: #ffffff;
 }
 
 /* =======================================================================

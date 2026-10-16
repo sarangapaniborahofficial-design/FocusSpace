@@ -42,8 +42,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('shell:open-external', { url }),
   openInBrowser: (url, browser) =>
     ipcRenderer.invoke('shell:open-in-browser', { url, browser }),
-  launchNativeApp: (path, args) =>
-    ipcRenderer.invoke('shell:launch-native-app', { path, args }),
+  launchNativeApp: (path) =>
+    ipcRenderer.invoke('shell:launch-native-app', { path }),
   pickAppFile: () =>
     ipcRenderer.invoke('dialog:pick-app'),
 });
