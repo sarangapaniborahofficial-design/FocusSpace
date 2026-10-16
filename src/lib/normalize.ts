@@ -1,4 +1,4 @@
-import type { Category, FocusLog, Habit, JournalEntry, Page, PageFile, PageLink, PageLinkKind, Priority, Recurrence, Status, Subtask, Task } from '../types';
+import type { Category, FocusLog, Goal, GoalType, Habit, JournalEntry, Page, PageFile, PageLink, PageLinkKind, Priority, Recurrence, Status, Subtask, Task } from '../types';
 import { richTextToPlainText, sanitizeDoc } from './richtext';
 import { uid } from './utils';
 
@@ -28,7 +28,15 @@ function normalizeRecurrence(raw: any): Recurrence | undefined {
 
 export function normalizeCategory(raw: any): Category | null {
   if (!raw || typeof raw.id !== 'string' || typeof raw.name !== 'string' || !raw.name.trim()) return null;
-  return { id: raw.id, name: raw.name.trim(), color: str(raw.color, '#a1a1aa'), ...(typeof raw.icon === 'string' ? { icon: raw.icon } : {}) };
+  return {
+    id: raw.id,
+    name: raw.name.trim(),
+    color: str(raw.color, '#a1a1aa'),
+    ...(typeof raw.icon === 'string' ? { icon: raw.icon } : {}),
+    ...(Array.isArray(raw.launchLinks)
+      ? { launchLinks: raw.launchLinks.filter((l: any) => l && typeof l.id === 'string' && typeof l.url === 'string') }
+      : {}),
+  };
 }
 
 export function normalizeTask(raw: any): Task | null {
@@ -76,6 +84,25 @@ export function normalizeHabit(raw: any): Habit | null {
     active: raw.active !== false,
     completions,
     ...(typeof raw.targetLabel === 'string' ? { targetLabel: raw.targetLabel } : {}),
+  };
+}
+
+const GOAL_TYPES: GoalType[] = ['manual', 'tasks-completed', 'focus-hours', 'habit-streak'];
+
+export function normalizeGoal(raw: any): Goal | null {
+  if (!raw || typeof raw.id !== 'string' || typeof raw.title !== 'string' || !raw.title.trim()) return null;
+  const now = new Date().toISOString();
+  return {
+    id: raw.id,
+    ...(typeof raw.categoryId === 'string' ? { categoryId: raw.categoryId } : {}),
+    title: raw.title.trim(),
+    metricLabel: str(raw.metricLabel, 'Progress'),
+    currentValue: num(raw.currentValue, 0),
+    targetValue: Math.max(1, num(raw.targetValue, 100)),
+    ...(GOAL_TYPES.includes(raw.goalType) ? { goalType: raw.goalType } : { goalType: 'manual' }),
+    ...(dateOnly(raw.deadline) ? { deadline: dateOnly(raw.deadline) } : {}),
+    createdAt: timestamp(raw.createdAt, now),
+    updatedAt: timestamp(raw.updatedAt, now),
   };
 }
 

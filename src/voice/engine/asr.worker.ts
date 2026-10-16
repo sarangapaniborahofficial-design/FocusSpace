@@ -7,13 +7,17 @@ env.allowRemoteModels = false;
 env.allowLocalModels = true;
 env.localModelPath = '/models/';
 
-// Limit threads to keep UI fluid
+// Ensure ONNX WASM binaries load strictly from local origin rather than CDN
 if (env.backends?.onnx?.wasm) {
+  env.backends.onnx.wasm.wasmPaths = '/models/wasm/';
   env.backends.onnx.wasm.numThreads = Math.min(4, Math.max(1, (navigator.hardwareConcurrency || 2) - 1));
 }
 
 let transcriber: any = null;
 let currentModel = 'whisper-tiny.en';
+
+// Whisper 30s window guard: enforce 25s maximum utterance (400,000 samples @ 16kHz)
+const MAX_UTTERANCE_SAMPLES = 25 * 16000;
 
 export type WorkerInMessage =
   | { type: 'load'; model?: string }
@@ -32,6 +36,7 @@ self.addEventListener('message', async (e: MessageEvent<WorkerInMessage>) => {
   if (msg.type === 'load') {
     try {
       if (msg.model) currentModel = msg.model;
+      const isEnglishOnly = currentModel.endsWith('.en');
 
       // Initialize pipeline with progress tracking
       transcriber = await pipeline('automatic-speech-recognition', currentModel, {
@@ -47,20 +52,18 @@ self.addEventListener('message', async (e: MessageEvent<WorkerInMessage>) => {
         },
       });
 
-      // Warmup inference on 1 second of silence so the first real user utterance executes fast
+      // Warmup inference on 1 second of silence so the first real user utterance executes fast.
+      // English-only Whisper models reject 'language: english'; only multilingual models accept it.
       try {
         const silence1s = new Float32Array(16000);
-        await transcriber(silence1s, {
-          language: 'english',
-          task: 'transcribe',
-        });
-      } catch {
-        /* warmup catch */
+        const warmupOptions = isEnglishOnly ? {} : { language: 'english', task: 'transcribe' };
+        await transcriber(silence1s, warmupOptions);
+      } catch (warmupErr) {
+        console.warn('[FocusSpace ASR Worker] Warmup non-fatal warning:', warmupErr);
       }
 
       self.postMessage({ type: 'ready' } satisfies WorkerOutMessage);
     } catch (err: any) {
-      // If local files are not yet downloaded in dev mode, provide helpful error or fallback info
       self.postMessage({
         type: 'error',
         message: err?.message || 'Failed to initialize speech recognition engine',
@@ -83,11 +86,18 @@ self.addEventListener('message', async (e: MessageEvent<WorkerInMessage>) => {
     }
 
     try {
-      const result = await transcriber(audio, {
-        language: 'english',
-        task: 'transcribe',
+      // Enforce 25s max utterance cap to prevent Whisper 30s window overflow
+      const boundedAudio = audio.length > MAX_UTTERANCE_SAMPLES
+        ? audio.subarray(0, MAX_UTTERANCE_SAMPLES)
+        : audio;
+
+      const isEnglishOnly = currentModel.endsWith('.en');
+      const transcribeOptions: Record<string, any> = {
         return_timestamps: false,
-      });
+        ...(isEnglishOnly ? {} : { language: 'english', task: 'transcribe' }),
+      };
+
+      const result = await transcriber(boundedAudio, transcribeOptions);
 
       const ms = Math.round(performance.now() - start);
       const text = typeof result?.text === 'string' ? result.text.trim() : '';

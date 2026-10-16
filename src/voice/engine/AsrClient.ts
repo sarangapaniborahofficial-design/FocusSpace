@@ -39,12 +39,20 @@ export function calculateRms(audio: Float32Array): number {
 
 /**
  * Checks if a string contains repeated degenerate n-gram loops (Whisper artifact).
+ * Uses robust substring indexing to prevent regex syntax crashes on special characters.
  */
 export function isDegenerateLoop(text: string): boolean {
   const words = text.toLowerCase().trim().split(/\s+/);
   if (words.length >= 6) {
     const chunk3 = words.slice(0, 3).join(' ');
-    const count = (text.toLowerCase().match(new RegExp(chunk3, 'g')) || []).length;
+    if (!chunk3) return false;
+    let count = 0;
+    let pos = 0;
+    const lower = text.toLowerCase();
+    while ((pos = lower.indexOf(chunk3, pos)) !== -1) {
+      count++;
+      pos += chunk3.length;
+    }
     if (count >= 3) return true;
   }
   return false;
@@ -181,9 +189,13 @@ export class AsrClient implements AsrEngine {
       await this.load();
     }
 
+    // Whisper 30s window guard: cap utterance at 25s (400,000 samples @ 16kHz)
+    const MAX_UTTERANCE_SAMPLES = 25 * 16000;
+    const safeAudio = audio.length > MAX_UTTERANCE_SAMPLES ? audio.slice(0, MAX_UTTERANCE_SAMPLES) : audio;
+
     return new Promise<string>((resolve, reject) => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      this.queue.push({ id, audio, resolve, reject });
+      this.queue.push({ id, audio: safeAudio, resolve, reject });
       if (!this.activeItem) {
         this.processNext();
       }

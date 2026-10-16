@@ -14,6 +14,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -77,6 +78,10 @@ async function downloadFile(repo, filename) {
 }
 
 async function main() {
+  console.log('1. Provisioning runtime VAD and ONNX WASM binaries from node_modules...');
+  execSync(`node "${path.join(__dirname, 'provision-voice.mjs')}"`, { stdio: 'inherit' });
+
+  console.log('2. Provisioning Whisper speech recognition model weights...');
   for (const file of ESSENTIAL_FILES) {
     await downloadFile(targetRepo, file);
   }

@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+/* Bundled local offline typography (zero third-party network requests) */
+@import "@fontsource/space-grotesk/500.css";
+@import "@fontsource/space-grotesk/600.css";
+@import "@fontsource/space-grotesk/700.css";
+@import "@fontsource/instrument-serif/400.css";
+@import "@fontsource/instrument-serif/400-italic.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "@fontsource/jetbrains-mono/600.css";
+@import "@fontsource/jetbrains-mono/700.css";
+@import "@fontsource/geist-sans/400.css";
+@import "@fontsource/geist-sans/500.css";
+@import "@fontsource/geist-sans/600.css";
+@import "@fontsource/geist-sans/700.css";
+@import "@fontsource/geist-sans/800.css";
+
 /* ============================================================================
    FOCUSSPACE — REFINED 4-THEME DESIGN SYSTEM & DUAL LAYOUT ARCHITECTURE
    Themes on <html data-theme="solaris|bauhaus|nocturne|onyx">:
@@ -11,7 +27,7 @@
 @custom-variant dark (&:where([data-theme=nocturne], [data-theme=nocturne] *, [data-theme=onyx], [data-theme=onyx] *, [data-theme=dark], [data-theme=dark] *));
 
 @theme {
-  --font-sans: "Space Grotesk", "Geist", system-ui, sans-serif;
+  --font-sans: "Space Grotesk", "Geist Sans", "Geist", system-ui, sans-serif;
   --font-display: "Instrument Serif", Georgia, serif;
   --font-mono: "JetBrains Mono", monospace;
   --radius-sm: 0.375rem;

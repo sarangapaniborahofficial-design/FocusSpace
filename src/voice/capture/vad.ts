@@ -16,6 +16,10 @@ export class VadController {
     this.options = options;
   }
 
+  setOptions(options: Partial<VadControllerOptions>): void {
+    this.options = { ...this.options, ...options };
+  }
+
   async start(): Promise<void> {
     if (this.isListening && this.micVad) return;
 

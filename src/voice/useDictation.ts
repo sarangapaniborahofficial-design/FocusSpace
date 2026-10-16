@@ -24,6 +24,9 @@ export function useDictation(options: UseDictationOptions = {}) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [modelProgress, setModelProgress] = useState<number>(0);
 
+  const optionsRef = useRef<UseDictationOptions>(options);
+  optionsRef.current = options;
+
   const targetRef = useRef<DictationTarget | null>(options.target ?? null);
   targetRef.current = options.target ?? null;
 
@@ -47,9 +50,9 @@ export function useDictation(options: UseDictationOptions = {}) {
       const msg = err instanceof Error ? err.message : String(err);
       setErrorMessage(msg);
       setState('error');
-      options.onError?.(err instanceof Error ? err : new Error(msg));
+      optionsRef.current.onError?.(err instanceof Error ? err : new Error(msg));
     }
-  }, [options]);
+  }, []);
 
   const handleSpeechStart = useCallback(() => {
     if (!activeRef.current) return;
@@ -71,7 +74,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         }
 
         const cleaned = cleanLight(raw);
-        options.onTranscript?.(raw, cleaned.text);
+        optionsRef.current.onTranscript?.(raw, cleaned.text);
 
         if (targetRef.current) {
           if (cleaned.command === 'scratch-that') {
@@ -87,7 +90,7 @@ export function useDictation(options: UseDictationOptions = {}) {
       } catch (err: any) {
         const msg = err instanceof Error ? err.message : String(err);
         setErrorMessage(msg);
-        options.onError?.(err instanceof Error ? err : new Error(msg));
+        optionsRef.current.onError?.(err instanceof Error ? err : new Error(msg));
       } finally {
         if (activeRef.current) {
           setState('listening');
@@ -96,7 +99,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         }
       }
     },
-    [options]
+    []
   );
 
   const start = useCallback(async () => {
@@ -124,6 +127,11 @@ export function useDictation(options: UseDictationOptions = {}) {
             activeRef.current = false;
           },
         });
+      } else {
+        vadRef.current.setOptions({
+          onSpeechStart: handleSpeechStart,
+          onSpeechEnd: handleSpeechEnd,
+        });
       }
 
       await vadRef.current.start();
@@ -133,7 +141,7 @@ export function useDictation(options: UseDictationOptions = {}) {
       const msg = err instanceof Error ? err.message : String(err);
       setErrorMessage(msg);
       setState('error');
-      options.onError?.(err instanceof Error ? err : new Error(msg));
+      optionsRef.current.onError?.(err instanceof Error ? err : new Error(msg));
     }
   }, [handleSpeechStart, handleSpeechEnd, options]);
 

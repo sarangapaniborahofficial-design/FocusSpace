@@ -1,8 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Activity, Bell, BookOpen, Calendar, Check, Download, Flame, Keyboard, Mic, Palette, Pencil, Plus, RefreshCw, ShieldCheck, Smartphone, Sparkles, Target, Trash2, X, Zap } from 'lucide-react';
+import { Activity, Bell, BookOpen, Calendar, Check, Database, Download, Flame, Keyboard, Mic, Palette, Pencil, Plus, RefreshCw, ShieldCheck, Smartphone, Sparkles, Target, Trash2, Upload, X, Zap } from 'lucide-react';
 import { isNotificationSupported, getNotificationPermission, requestNotificationPermission, sendNotification } from '../lib/notifications';
 import { useEffect, useRef, useState } from 'react';
 import { db } from '../db/db';
+import { downloadBackupFile, importFullBackup } from '../lib/backup';
 import { getAsrClient } from '../voice/engine/AsrClient';
 import { loadSchedulePreferences, saveSchedulePreferences } from '../lib/smartScheduler';
 import { HABIT_COLORS, addHabit, deleteHabit, updateHabit } from '../lib/habitActions';
@@ -122,9 +123,9 @@ export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMod
     <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
       <div className="p-5 border-b border-line flex items-center justify-between"><div><div className="font-medium">Categories</div><p className="text-xs text-fg-subtle mt-1">Create, rename and recolor your workspaces.</p></div><button onClick={startCreate} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-semibold flex items-center gap-1.5 hover:bg-accent-hover keycap"><Plus size={15}/> Add category</button></div>
       <div className="p-4 space-y-2">{categories.map(c => <div key={c.id} className="flex items-center gap-3 rounded-2xl border border-line bg-surface-2 p-3"><span className="size-3 rounded-full" style={{background:c.color}}/><div className="flex-1 min-w-0"><div className="text-sm truncate">{c.name}</div><div className="text-[11px] text-fg-subtle">{c.id}</div></div><button onClick={()=>openEdit(c)} className="text-xs text-fg-muted hover:text-fg px-2 py-1.5 rounded-xl hover:bg-hover">Edit</button><button onClick={()=>{setDeleteTarget(c);setMoveTo(categories.find(x=>x.id!==c.id)?.id??'')}} className="text-fg-subtle hover:text-red-300 p-2 rounded-xl hover:bg-hover" title="Delete"><Trash2 size={15}/></button></div>)}</div>
-      {(editing || creating) && <div className="p-4 border-t border-line bg-surface/30"><div className="grid sm:grid-cols-[1fr_110px_auto] gap-2 items-end"><label className="text-xs text-fg-muted">Name<input ref={inputRef} value={newName} onChange={e=>setNewName(e.target.value)} placeholder="e.g. Valorant" className="mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line px-3 text-sm outline-none"/></label><label className="text-xs text-fg-muted">Color<input type="color" value={newColor} onChange={e=>setNewColor(e.target.value)} className="mt-1 w-full h-10 rounded-lg bg-surface-2 border border-line p-1"/></label><div className="flex gap-2"><button onClick={()=>{setEditing(null);setCreating(false);setNewName('')}} className="h-8 px-2 rounded-xl text-sm text-fg-muted hover:bg-hover">Cancel</button><button onClick={saveCategory} className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-sm font-semibold hover:bg-accent-hover keycap">Save</button></div></div></div>}
     </section>
 
+    <DataVaultCard />
     <IcsExportCard />
     <HabitsCard />
     <NotificationsCard />
@@ -162,6 +163,108 @@ export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMod
 }
 
 
+
+/** Data Vault & Portability: Full JSON export and restore for IndexedDB / Tauri desktop migration */
+function DataVaultCard() {
+  const [busy, setBusy] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const taskCount = useLiveQuery(() => db.tasks.count(), []) ?? 0;
+  const categoryCount = useLiveQuery(() => db.categories.count(), []) ?? 0;
+  const habitCount = useLiveQuery(() => db.habits.count(), []) ?? 0;
+  const pageCount = useLiveQuery(() => db.pages.count(), []) ?? 0;
+  const journalCount = useLiveQuery(() => db.journalEntries.count(), []) ?? 0;
+
+  const handleExport = async () => {
+    try {
+      setBusy(true);
+      await downloadBackupFile();
+      toast('Full database backup exported successfully.', 'success');
+    } catch (err: any) {
+      toast(`Export failed: ${err?.message || 'Unknown error'}`, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!confirm('Restoring this backup will replace current local database data. Are you sure you want to proceed?')) {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    try {
+      setBusy(true);
+      const text = await file.text();
+      const res = await importFullBackup(text);
+      if (res.success) {
+        toast(
+          `Restored ${res.imported.tasks} tasks, ${res.imported.categories} categories, and ${res.imported.pages} pages.`,
+          'success'
+        );
+      } else {
+        toast(res.error || 'Failed to restore backup.', 'error');
+      }
+    } catch (err: any) {
+      toast(`Restore error: ${err?.message || 'Could not parse file'}`, 'error');
+    } finally {
+      setBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
+      <div className="p-5 border-b border-line flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 font-medium">
+            <Database size={16} className="text-accent-text" /> Data Vault & Portable Backup
+          </div>
+          <p className="text-xs text-fg-subtle mt-1">
+            Export a full JSON snapshot of your local IndexedDB to migrate to Tauri desktop or preserve your vault offline.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".json,application/json"
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={busy}
+            className="h-8 px-3 rounded-xl border border-line bg-surface-2 text-sm text-fg hover:text-fg hover:bg-hover flex items-center gap-1.5 transition keycap disabled:opacity-40"
+          >
+            <Upload size={14} /> Restore from JSON
+          </button>
+          <button
+            onClick={handleExport}
+            disabled={busy}
+            className="h-8 px-3.5 rounded-xl bg-accent text-accent-fg text-sm font-semibold flex items-center gap-1.5 hover:bg-accent-hover transition keycap disabled:opacity-40"
+          >
+            <Download size={14} /> Export Backup (JSON)
+          </button>
+        </div>
+      </div>
+      <div className="p-4 bg-surface-2/40 text-xs text-fg-muted flex flex-wrap gap-4 font-mono">
+        <span>{taskCount} tasks</span>
+        <span>·</span>
+        <span>{categoryCount} categories</span>
+        <span>·</span>
+        <span>{habitCount} habits</span>
+        <span>·</span>
+        <span>{pageCount} pages</span>
+        <span>·</span>
+        <span>{journalCount} journal entries</span>
+      </div>
+    </section>
+  );
+}
 
 /** Download a .ics file of scheduled tasks for import into an external calendar app. */
 function IcsExportCard() {

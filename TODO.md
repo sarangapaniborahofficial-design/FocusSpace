@@ -77,6 +77,12 @@ This document maintains the persistent, prioritized queue of upcoming sprints, f
 ### 3.3 Native Windows Shell (Tauri v2) (⏳ DEFERRED PER DIRECTIVE)
 - **Status**: Deferred past Sprint 3 per explicit user directive ("no need to get the windows wrapper this sprint. defer it and note it down"). Moved to Sprint 4 / Backlog.
 
+### 3.4 PWA Blockers & Tauri v2 Readiness Remediation (✅ COMPLETED)
+- **Blocker 1 (Data Portability)**: Full JSON export & import round-trip engine (`src/lib/backup.ts`) with schema recovery (`normalize.ts`), keeping IndexedDB as the source of truth across all 10 Dexie tables (`categories`, `tasks`, `habits`, `goals`, `focusLogs`, `pages`, `journalEntries`, `pageLinks`, `files`, `fileBlobs`), file blob base64 serialization, and real-time Data Vault UI in `Settings.tsx` + 5 comprehensive unit tests in `src/lib/__tests__/backup.test.ts`.
+- **Blocker 2 (Voice Verification & Bug Fixes)**: Correct Whisper English-only language options (omitting language/task for `.en` models), configured local ONNX WASM path (`/models/wasm/`), provisioned Silero VAD & ONNX WASM files offline (`scripts/provision-voice.mjs`), added 25s utterance cap (`MAX_UTTERANCE_SAMPLES = 400,000`), fixed React 19 synthetic input value tracking via prototype descriptor setter (`inputTarget.ts`), eliminated regex crashes in `isDegenerateLoop`, fixed stale VAD callback closures (`optionsRef`), and recorded Gate 0 benchmarks (`src/voice/README.md`).
+- **Blocker 3 (Local Fonts)**: Eliminated external Google Fonts CDN links from `index.html`, bundled `@fontsource` packages locally (`@fontsource/space-grotesk`, `@fontsource/instrument-serif`, `@fontsource/jetbrains-mono`, `@fontsource/geist-sans`) in `src/index.css`, verified Vite builds all `.woff`/`.woff2` fonts into `dist/assets/` offline with 0 external requests, and removed obsolete `google-fonts-cache` `runtimeCaching` from `vite.config.ts`.
+- **Blocker 4 (Pinned Dependencies)**: Pinned exact versions for all 18 dependencies previously using `"latest"` in `package.json` (`@tailwindcss/vite: 4.3.3`, `@tiptap/*: 3.31.3`, `react: 19.3.0`, `dexie: 4.4.6`, `vite: 8.3.1`, etc.).
+
 ---
 
 ## ⏳ Sprint 4: Mobile Companion & Windows Native Shell
@@ -112,5 +118,6 @@ This document maintains the persistent, prioritized queue of upcoming sprints, f
 | Flowy 3-Slide Welcome Onboarding | 11 (Sprint 2) | ✅ Done | Dual-mode daily flow, live NLP & theme picker, GPU morph |
 | Universal Floating App Dock & Vector Logos | 12 (Sprint 3) | ✅ Done | Persistent bottom dock across all views + official vector SVGs |
 | 100% Offline Voice Typing Studio | 12 (Sprint 3) | ✅ Done | On-device WASM Whisper, Silero VAD, Light disfluency engine, HUD |
+| PWA Blockers & Tauri v2 Readiness | 12 (Sprint 3) | ✅ Done | JSON Backup Vault, Local Bundled Fonts, 18 Pinned Deps, Voice Engine Hardening |
 | Native Windows Tauri v2 Wrapper | 12 (Sprint 3) | ⏸️ Deferred | Deferred past Sprint 3 per user instruction; queued for Sprint 4 |
 | One-Way Android Capture Feeder | 13 (Sprint 4) | ⏳ Queued | Phone → Laptop capture, local Wi-Fi push, triage tray |

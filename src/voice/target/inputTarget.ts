@@ -51,12 +51,8 @@ export class InputDictationTarget implements DictationTarget {
     const fullVal = this.element.value || '';
     const nextVal = fullVal.slice(0, start) + toInsert + fullVal.slice(end);
 
-    // Apply update to DOM element
-    this.element.value = nextVal;
-
-    // Dispatch native input & change events for React state synchronizer
-    this.element.dispatchEvent(new Event('input', { bubbles: true }));
-    this.element.dispatchEvent(new Event('change', { bubbles: true }));
+    // Apply update to DOM element using native prototype setter to notify React state trackers
+    setNativeValue(this.element, nextVal);
 
     // Position cursor at end of insert
     const newPos = start + toInsert.length;
@@ -79,16 +75,33 @@ export class InputDictationTarget implements DictationTarget {
 
     // Verify the segment still matches or falls within range
     const nextVal = val.slice(0, start) + val.slice(end);
-    this.element.value = nextVal;
-
-    this.element.dispatchEvent(new Event('input', { bubbles: true }));
-    this.element.dispatchEvent(new Event('change', { bubbles: true }));
+    setNativeValue(this.element, nextVal);
 
     this.element.setSelectionRange(start, start);
     this.element.focus();
 
     this.lastInsertRange = null;
   }
+}
+
+/**
+ * React 16+ overrides input.value setter with internal value tracking.
+ * Invoking the native HTMLInputElement/HTMLTextAreaElement prototype setter
+ * ensures React detects the modification and dispatches synthetic onChange events.
+ */
+function setNativeValue(element: HTMLInputElement | HTMLTextAreaElement, value: string): void {
+  const prototype = typeof window !== 'undefined'
+    ? (element instanceof HTMLTextAreaElement ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype)
+    : Object.getPrototypeOf(element);
+  const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
+  const setter = descriptor?.set;
+  if (setter) {
+    setter.call(element, value);
+  } else {
+    element.value = value;
+  }
+  element.dispatchEvent(new Event('input', { bubbles: true }));
+  element.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 /**

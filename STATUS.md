@@ -22,13 +22,36 @@ This document tracks progress towards the 1.0 release based on the project timel
 | 8 | Production, PWA & Power Tools | ✅ **Completed** | Service worker offline caching, smart schedule preferences, global shortcuts cheatsheet. |
 | 9 | Command Hub & Daily Briefing | ✅ **Completed** | Native & web app launcher, AppDock, morning/midday/evening briefing, rollover & reflection export. |
 | 9.5| Reliability Hardening & Cleanup | ✅ **Completed** | Removed legacy JSON backup/sync, fixed appointment immutability, overdue rescheduling, category deletion goal remap, timezone fix, and shortcut typing guards. |
-| 10 | Polish, Bug Fixes, Native & Voice | 🔄 **In Progress (Sprint 2 Complete)** | Sprint 1 & Sprint 2 complete: WCAG contrast suite, Always-on-Top Floating HUD, App Dock, Dedicated Journal tab (11:59 PM auto-save + boot catch-up), Category-grouped Pages tab, and Flowy Welcome Onboarding journey. |
+| 10 | Polish, Bug Fixes, Native & Voice | 🔄 **In Progress (Sprint 3 & PWA Blockers Complete)** | Sprint 1, Sprint 2 & Sprint 3 complete: WCAG contrast suite, Floating HUD, Universal App Dock, Dedicated Journal tab, Category-grouped Pages, Flowy Onboarding, Offline Voice Typing Studio, and 4/4 Tauri v2 Readiness Blockers resolved. |
 
 ---
 
 ## Recent Work Completed
 
-1. ✅ **Sprint 2 — Workspace Knowledge Split & Flowy Onboarding**:
+1. ✅ **PWA Blockers & Tauri v2 Readiness Remediation**:
+   - **Blocker 1: Data Vault Backup & Restore Engine (`src/lib/backup.ts`)**:
+     - Complete JSON round-trip export & import with schema recovery (`normalize.ts`), preserving IndexedDB as the source of truth across all 10 Dexie tables (`categories`, `tasks`, `habits`, `goals`, `focusLogs`, `pages`, `journalEntries`, `pageLinks`, `files`, `fileBlobs`).
+     - File blobs serialized losslessly via Base64. Added `DataVaultCard` to `Settings.tsx` with live database row telemetry and restore confirmation modal.
+     - 5 new automated unit & integration tests (`src/lib/__tests__/backup.test.ts`).
+   - **Blocker 2: Voice Verification & Bug Fixes (`src/voice/`)**:
+     - English-only Whisper fix: Omitted `language` and `task` kwargs for `.en` models to eliminate Transformers.js unhandled rejections.
+     - Local WASM path: Configured `env.backends.onnx.wasm.wasmPaths = '/models/wasm/'` so ONNX Runtime loads WASM locally instead of from CDN.
+     - Provisioning scripts: Created `scripts/provision-voice.mjs` (integrated into `postinstall` and `npm run prepare-voice`) to copy Silero VAD models and ONNX WASM binaries offline.
+     - 25s Utterance Cap: Added `MAX_UTTERANCE_SAMPLES = 400,000` to prevent Whisper 30s attention overflow.
+     - React 19 Synthetic Input Setter: Rewrote `inputTarget.ts` using `HTMLInputElement.prototype` descriptor setter so React's internal `_valueTracker` synchronizes without reverting.
+     - Hallucination Filter Hardening: Replaced dynamic `RegExp` in `isDegenerateLoop` with safe `indexOf` searching, preventing syntax error crashes on special characters.
+     - VAD Callback Synchronization: Stored dynamic callbacks in `optionsRef` in `useDictation.ts` and added `setOptions` to `VadController` to fix stale closure transcript drops.
+     - Gate 0 Benchmarks: Documented CPU inference latencies (Whisper Tiny ~180-250ms vs Base ~450-600ms) in `src/voice/README.md`.
+   - **Blocker 3: Local Bundled Typography**:
+     - Removed external Google Fonts CDN links from `index.html`.
+     - Bundled `@fontsource` packages locally (`space-grotesk`, `instrument-serif`, `jetbrains-mono`, `geist-sans`) via `src/index.css`, bundling all `.woff`/`.woff2` fonts offline in `dist/assets/`.
+     - Cleaned up obsolete `runtimeCaching` rule in `vite.config.ts`.
+   - **Blocker 4: Pinned Dependencies**:
+     - Pinned all 18 dependencies previously using `"latest"` to exact semantic versions in `package.json`.
+
+2. ✅ **Sprint 3 — Universal Floating Dock & Offline Voice Typing Studio**:
+   - Universal persistent bottom dock across all workspace tabs with official vector SVG branding.
+   - 100% offline Voice Typing Studio with Silero VAD, Web Worker Whisper WASM, and disfluency cleanup.
    - **Dedicated Journal Workspace Tab (`Journal.tsx`) & 11:59 PM Auto-Save Engine (`journalAutoSave.ts`)**:
      - Dedicated first-class route `'journal'` in `App.tsx` and `Sidebar.tsx` with dedicated shortcut `Ctrl + J` / `Ctrl + 6`.
      - Dual-trigger auto-save: Live midnight timer at `23:59:00` local time + next-morning boot catch-up if computer was asleep.
@@ -136,8 +159,9 @@ These major initiatives and bug fixes are tracked in [`TODO.md`](file:///D:/focu
 
 ## Verification & Health Check
 
-- **Tests**: 76/76 Vitest unit tests passing across 9 test suites (`src/lib/__tests__/*`, `src/voice/cleanup/*`)
+- **Tests**: 81/81 Vitest unit tests passing across 10 test suites (`src/lib/__tests__/*`, `src/voice/cleanup/*`)
 - **Type Checking & Production Build**: `tsc -b && vite build` passing with 0 errors
+- **PWA Service Worker**: Workbox precaching 47 offline assets (fonts, icons, chunks, styles) with 0 external Google Fonts requests
 - **Layout & Responsiveness Hardening**: Decoupled overlays/portals from main flex flow, full-bleed Cockpit mode, responsive Header controls, dynamic metrics grid, and multi-tier breakpoint scaling for Today workspace
 - **Git Invariant**: Commit and push reserved exclusively for user via GitHub Desktop
 
