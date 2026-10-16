@@ -18,8 +18,13 @@ import {
   Hash,
   Tag,
 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '../db/db';
+import { useDictation } from '../voice/useDictation';
+import { createInputTarget } from '../voice/target/inputTarget';
+import type { DictationTarget } from '../voice/target/DictationTarget';
+import { MicButton } from '../voice/ui/MicButton';
+import { DictationHud } from '../voice/ui/DictationHud';
 import { computeStreaks } from '../lib/analytics';
 import { toggleHabitDay } from '../lib/habitActions';
 import { useToday } from '../lib/hooks';
@@ -464,6 +469,18 @@ function GoalsSection() {
 function TodayQuickCapture({ categories, today }: { categories: Category[]; today: string }) {
   const [input, setInput] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dictationTarget, setDictationTarget] = useState<DictationTarget | null>(null);
+
+  useEffect(() => {
+    if (inputRef.current) {
+      setDictationTarget(createInputTarget(inputRef.current));
+    }
+  }, []);
+
+  const dictation = useDictation({
+    target: dictationTarget,
+  });
 
   const parsed = useMemo(() => parseTaskInput(input, categories, today), [input, categories, today]);
   const hasTokens = Object.keys(parsed.tokens).length > 0;
@@ -509,6 +526,7 @@ function TodayQuickCapture({ categories, today }: { categories: Category[]; toda
           <Plus size={16} />
         </span>
         <input
+          ref={inputRef}
           value={input}
           onChange={e => setInput(e.target.value)}
           onFocus={() => setIsFocused(true)}
@@ -522,6 +540,11 @@ function TodayQuickCapture({ categories, today }: { categories: Category[]; toda
           placeholder="Quick capture task... (@category #tag !urgent ~30m)"
           className="flex-1 min-w-0 bg-transparent text-sm text-fg outline-none placeholder:text-fg-subtle"
         />
+        <MicButton
+          state={dictation.state}
+          onClick={dictation.toggle}
+          title="Voice type task offline"
+        />
         <button
           onClick={() => void handleCreate()}
           disabled={!input.trim()}
@@ -530,6 +553,18 @@ function TodayQuickCapture({ categories, today }: { categories: Category[]; toda
           Capture
         </button>
       </div>
+
+      {dictation.state !== 'idle' && (
+        <div className="mt-3">
+          <DictationHud
+            state={dictation.state}
+            audioLevel={dictation.audioLevel}
+            errorMessage={dictation.errorMessage}
+            modelProgress={dictation.modelProgress}
+            onStop={dictation.stop}
+          />
+        </div>
+      )}
 
       {hasTokens && (
         <div className="mt-3 pt-2.5 border-t border-line/60 flex flex-wrap items-center gap-1.5 text-xs">

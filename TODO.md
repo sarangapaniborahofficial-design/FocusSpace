@@ -56,6 +56,11 @@ This document maintains the persistent, prioritized queue of upcoming sprints, f
 - **Blocker 3 (Local Fonts)**: Eliminated external Google Fonts CDN links from `index.html`, bundled `@fontsource` packages locally (`@fontsource/space-grotesk`, `@fontsource/instrument-serif`, `@fontsource/jetbrains-mono`, `@fontsource/geist-sans`) in `src/index.css`, verified Vite builds all `.woff`/`.woff2` fonts into `dist/assets/` offline with 0 external requests, and removed obsolete `google-fonts-cache` `runtimeCaching` from `vite.config.ts`.
 - **Blocker 4 (Pinned Dependencies)**: Pinned exact versions for all 18 dependencies previously using `"latest"` in `package.json` (`@tailwindcss/vite: 4.3.3`, `@tiptap/*: 3.31.3`, `react: 19.3.0`, `dexie: 4.4.6`, `vite: 8.3.1`, etc.).
 
+### [x] Phase 10H: Omnipresent Voice Typing, Centered Dock & Fluid Performance Polish
+- **Omnipresent Voice Typing**: Universal Voice Dictation via global shortcut `Ctrl + Shift + V` / `Alt + V` or AppDock trigger targeting `document.activeElement` across any input or textarea; inline `MicButton` controls integrated in `TodayQuickCapture`, `TaskEditor` (title & notes), `PageView` (title & notes), `RichTextEditor` (TipTap), `QuickAddModal`, `FloatingHUD` (scratchpad & subtasks), `Review` (Wins, Challenges, Adjustments, Priorities 1-3), and `CommandPalette` (voice search); `DictationHud` with waveform visualizer, disfluency cleaner, model progress, and error dismissal.
+- **Sized-up Centered Dock**: Enlarged icon geometry (`size-12 sm:size-14` / 48px–56px) with 26px brand SVGs; container centered with `fixed bottom-5 left-1/2 -translate-x-1/2 z-40 max-w-[calc(100vw-2rem)] overflow-x-auto scrollbar-none`; segmented `[ 🌐 Web App ]` vs `[ 💻 Native App ]` toggle in Add App modal; automatic URL normalization (`normalizeWebUrl` prepending `https://` if omitted, fixing `youtube.com`); clean `window.open` external tab dispatch.
+- **Interface Stutter Elimination**: Diagnosed and eliminated 3 root causes of browser lag: (1) made Dexie live queries in `App.tsx` conditional on `welcomeOpen`, preventing full-app re-renders on every mutation; (2) added narrow `useTimerTaskId()` hook to stop the 250ms Pomodoro timer interval from re-rendering `AppDock` 4 times/sec; (3) cached bounding rect and throttled mousemove on the dock using `requestAnimationFrame`.
+
 ---
 
 ## ⏳ Phase 11 / Sprint 4: Mobile Companion & Windows Native Shell (Upcoming Backlog)
@@ -92,5 +97,6 @@ This document maintains the persistent, prioritized queue of upcoming sprints, f
 | Universal Floating App Dock & Vector Logos | 12 (Sprint 3) | ✅ Done | Persistent bottom dock across all views + official vector SVGs |
 | 100% Offline Voice Typing Studio | 12 (Sprint 3) | ✅ Done | On-device WASM Whisper, Silero VAD, Light disfluency engine, HUD |
 | PWA Blockers & Tauri v2 Readiness | 12 (Sprint 3) | ✅ Done | JSON Backup Vault, Local Bundled Fonts, 18 Pinned Deps, Voice Engine Hardening |
+| Omnipresent Voice & Centered Dock Polish | 12 (Sprint 3) | ✅ Done | Voice typing everywhere (inputs/textareas), centered larger dock, lag elimination |
 | Native Windows Tauri v2 Wrapper | 12 (Sprint 3) | ⏸️ Deferred | Deferred past Sprint 3 per user instruction; queued for Sprint 4 |
 | One-Way Android Capture Feeder | 13 (Sprint 4) | ⏳ Queued | Phone → Laptop capture, local Wi-Fi push, triage tray |

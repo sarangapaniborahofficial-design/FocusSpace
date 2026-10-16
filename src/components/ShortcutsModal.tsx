@@ -12,6 +12,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     shortcuts: [
       { keys: ['Ctrl', 'K'], description: 'Open search & command palette' },
       { keys: ['Ctrl', 'N'], description: 'Quick add a new task' },
+      { keys: ['Ctrl', 'Shift', 'V'], description: 'Voice typing / Dictate into focused field' },
       { keys: ['Ctrl', '/'], description: 'Open keyboard shortcuts cheatsheet' },
       { keys: ['Esc'], description: 'Close modals, drawers, or command palette' },
     ],

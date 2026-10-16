@@ -378,3 +378,6 @@ const snapshot = () => state;
 export const subscribeTimer = subscribe;
 export const getTimerState = snapshot;
 export const useTimer = () => useSyncExternalStore(subscribe, snapshot, snapshot);
+
+const taskIdSnapshot = () => state.taskId;
+export const useTimerTaskId = () => useSyncExternalStore(subscribe, taskIdSnapshot, taskIdSnapshot);

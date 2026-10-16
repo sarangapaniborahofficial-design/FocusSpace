@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Award, CheckCircle2, ChevronRight, Clock3, Copy, Flame, FolderKanban, Plus, Sparkles, Target, Trophy } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '../db/db';
 import { useToday } from '../lib/hooks';
 import {
@@ -14,6 +14,11 @@ import {
 import { toast } from '../lib/toast';
 import { formatDuration, priorityTone } from '../lib/utils';
 import { EmptyState } from './ui';
+import { useDictation } from '../voice/useDictation';
+import { createInputTarget } from '../voice/target/inputTarget';
+import type { DictationTarget } from '../voice/target/DictationTarget';
+import { MicButton } from '../voice/ui/MicButton';
+import { DictationHud } from '../voice/ui/DictationHud';
 
 const card = 'atelier-card rounded-3xl';
 
@@ -63,6 +68,36 @@ export function Review({ onQuickAdd }: { onNavigate?: (view: string) => void; on
       saveReviewReflection(reviewData.periodInfo.storageKey, next);
       return next;
     });
+  };
+
+  type ReviewField = 'wins' | 'challenges' | 'improvements' | 'priority1' | 'priority2' | 'priority3';
+  const [activeVoiceField, setActiveVoiceField] = useState<ReviewField | null>(null);
+  const [dictationTarget, setDictationTarget] = useState<DictationTarget | null>(null);
+
+  const winsRef = useRef<HTMLTextAreaElement>(null);
+  const challengesRef = useRef<HTMLTextAreaElement>(null);
+  const improvementsRef = useRef<HTMLTextAreaElement>(null);
+  const priority1Ref = useRef<HTMLInputElement>(null);
+  const priority2Ref = useRef<HTMLInputElement>(null);
+  const priority3Ref = useRef<HTMLInputElement>(null);
+
+  const dictation = useDictation({
+    target: dictationTarget,
+  });
+
+  const toggleVoice = (field: ReviewField) => {
+    let el: HTMLInputElement | HTMLTextAreaElement | null = null;
+    if (field === 'wins') el = winsRef.current;
+    else if (field === 'challenges') el = challengesRef.current;
+    else if (field === 'improvements') el = improvementsRef.current;
+    else if (field === 'priority1') el = priority1Ref.current;
+    else if (field === 'priority2') el = priority2Ref.current;
+    else if (field === 'priority3') el = priority3Ref.current;
+
+    if (!el) return;
+    setActiveVoiceField(field);
+    setDictationTarget(createInputTarget(el));
+    dictation.toggle();
   };
 
   const copyMarkdown = async () => {
@@ -356,10 +391,19 @@ export function Review({ onQuickAdd }: { onNavigate?: (view: string) => void; on
 
             {/* Wins prompt */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-fg flex items-center gap-1.5">
-                <span>🌟 Wins & Breakthroughs</span>
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-fg flex items-center gap-1.5">
+                  <span>🌟 Wins & Breakthroughs</span>
+                </label>
+                <MicButton
+                  size="sm"
+                  state={activeVoiceField === 'wins' ? dictation.state : 'idle'}
+                  onClick={() => toggleVoice('wins')}
+                  title="Dictate wins"
+                />
+              </div>
               <textarea
+                ref={winsRef}
                 value={reflection.wins}
                 onChange={e => updateReflection({ wins: e.target.value })}
                 placeholder="What went exceptionally well? What did you ship or finish that felt great?"
@@ -370,10 +414,19 @@ export function Review({ onQuickAdd }: { onNavigate?: (view: string) => void; on
 
             {/* Friction prompt */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-fg flex items-center gap-1.5">
-                <span>🧗 Friction & Bottlenecks</span>
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-fg flex items-center gap-1.5">
+                  <span>🧗 Friction & Bottlenecks</span>
+                </label>
+                <MicButton
+                  size="sm"
+                  state={activeVoiceField === 'challenges' ? dictation.state : 'idle'}
+                  onClick={() => toggleVoice('challenges')}
+                  title="Dictate friction"
+                />
+              </div>
               <textarea
+                ref={challengesRef}
                 value={reflection.challenges}
                 onChange={e => updateReflection({ challenges: e.target.value })}
                 placeholder="Where did momentum slow down? What distracted you or created unexpected hurdles?"
@@ -384,10 +437,19 @@ export function Review({ onQuickAdd }: { onNavigate?: (view: string) => void; on
 
             {/* Next adjustments prompt */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-fg flex items-center gap-1.5">
-                <span>💡 Adjustments & Lessons</span>
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-fg flex items-center gap-1.5">
+                  <span>💡 Adjustments & Lessons</span>
+                </label>
+                <MicButton
+                  size="sm"
+                  state={activeVoiceField === 'improvements' ? dictation.state : 'idle'}
+                  onClick={() => toggleVoice('improvements')}
+                  title="Dictate adjustments"
+                />
+              </div>
               <textarea
+                ref={improvementsRef}
                 value={reflection.improvements}
                 onChange={e => updateReflection({ improvements: e.target.value })}
                 placeholder="What is one small tweak or boundary you will set for the upcoming period?"
@@ -405,31 +467,52 @@ export function Review({ onQuickAdd }: { onNavigate?: (view: string) => void; on
                 <div className="flex items-center gap-2">
                   <span className="size-6 rounded-lg bg-surface-3 text-fg-muted text-xs font-medium grid place-items-center shrink-0">1</span>
                   <input
+                    ref={priority1Ref}
                     type="text"
                     value={reflection.priority1}
                     onChange={e => updateReflection({ priority1: e.target.value })}
                     placeholder="First major milestone or priority..."
                     className="flex-1 h-9 rounded-xl border border-line bg-surface-2 px-3 text-sm text-fg placeholder:text-fg-subtle outline-none focus:border-accent"
                   />
+                  <MicButton
+                    size="sm"
+                    state={activeVoiceField === 'priority1' ? dictation.state : 'idle'}
+                    onClick={() => toggleVoice('priority1')}
+                    title="Dictate priority 1"
+                  />
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="size-6 rounded-lg bg-surface-3 text-fg-muted text-xs font-medium grid place-items-center shrink-0">2</span>
                   <input
+                    ref={priority2Ref}
                     type="text"
                     value={reflection.priority2}
                     onChange={e => updateReflection({ priority2: e.target.value })}
                     placeholder="Second key deliverable..."
                     className="flex-1 h-9 rounded-xl border border-line bg-surface-2 px-3 text-sm text-fg placeholder:text-fg-subtle outline-none focus:border-accent"
                   />
+                  <MicButton
+                    size="sm"
+                    state={activeVoiceField === 'priority2' ? dictation.state : 'idle'}
+                    onClick={() => toggleVoice('priority2')}
+                    title="Dictate priority 2"
+                  />
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="size-6 rounded-lg bg-surface-3 text-fg-muted text-xs font-medium grid place-items-center shrink-0">3</span>
                   <input
+                    ref={priority3Ref}
                     type="text"
                     value={reflection.priority3}
                     onChange={e => updateReflection({ priority3: e.target.value })}
                     placeholder="Third goal or habit focus..."
                     className="flex-1 h-9 rounded-xl border border-line bg-surface-2 px-3 text-sm text-fg placeholder:text-fg-subtle outline-none focus:border-accent"
+                  />
+                  <MicButton
+                    size="sm"
+                    state={activeVoiceField === 'priority3' ? dictation.state : 'idle'}
+                    onClick={() => toggleVoice('priority3')}
+                    title="Dictate priority 3"
                   />
                 </div>
               </div>
@@ -445,6 +528,13 @@ export function Review({ onQuickAdd }: { onNavigate?: (view: string) => void; on
                 <Copy size={13} /> {copied ? 'Copied Summary' : 'Export & Copy'}
               </button>
             </div>
+
+            <DictationHud
+              state={dictation.state}
+              audioLevel={dictation.audioLevel}
+              modelProgress={dictation.modelProgress}
+              onStop={dictation.stop}
+            />
           </section>
         </div>
       </div>

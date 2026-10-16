@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Command } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { db, seedDatabase } from './db/db';
 import { Analytics } from './components/Analytics';
 import { Calendar } from './components/Calendar';
@@ -34,7 +34,11 @@ import { toggleHabitDay } from './lib/habitActions';
 import { computeStreaks } from './lib/analytics';
 import { checkAndNotifyOverdue } from './lib/notifications';
 import { isoToday, storage, uid } from './lib/utils';
-import type { LayoutMode, Page, Task, Theme } from './types';
+import type { FocusLog, Habit, LayoutMode, Page, Task, Theme } from './types';
+import { useDictation } from './voice/useDictation';
+import { createInputTarget } from './voice/target/inputTarget';
+import type { DictationTarget } from './voice/target/DictationTarget';
+import { DictationHud } from './voice/ui/DictationHud';
 
 const STATIC_VIEWS = ['home', 'calendar', 'review', 'analytics', 'journal', 'pages', 'settings'];
 const VIEW_TITLES: Record<string, string> = {
@@ -77,6 +81,38 @@ export default function App() {
   const [shortcuts, setShortcuts] = useState(false);
   const [theme, setTheme] = useState(() => normalizeTheme(storage.get('focusspace-theme')));
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(() => (storage.get('focusspace-layout') === 'cockpit' ? 'cockpit' : 'orbital'));
+
+  const lastFocusedInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const [globalDictationTarget, setGlobalDictationTarget] = useState<DictationTarget | null>(null);
+
+  useEffect(() => {
+    const onFocusIn = (e: FocusEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        lastFocusedInputRef.current = e.target;
+      }
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, []);
+
+  const globalDictation = useDictation({
+    target: globalDictationTarget,
+  });
+
+  const triggerUniversalVoice = useCallback(() => {
+    const active = document.activeElement;
+    if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) {
+      setGlobalDictationTarget(createInputTarget(active));
+      globalDictation.toggle();
+    } else if (lastFocusedInputRef.current && document.body.contains(lastFocusedInputRef.current)) {
+      lastFocusedInputRef.current.focus();
+      setGlobalDictationTarget(createInputTarget(lastFocusedInputRef.current));
+      globalDictation.toggle();
+    } else {
+      setQuick(true);
+    }
+  }, [globalDictation]);
+
   const categoryList = useLiveQuery(() => db.categories.toArray(), []);
   const categories = categoryList ?? [];
 
@@ -84,9 +120,9 @@ export default function App() {
   const { welcomeOpen, welcomeVariant, completeWelcome, triggerWelcome } = useWelcomeFlow(today);
   const currentSoundscape = useSoundscape();
 
-  const allTasks = useLiveQuery(() => db.tasks.toArray(), []) ?? [];
-  const allHabits = useLiveQuery(() => db.habits.toArray(), []) ?? [];
-  const allFocusLogs = useLiveQuery(() => db.focusLogs.toArray(), []) ?? [];
+  const allTasks = useLiveQuery<Task[]>(() => (welcomeOpen ? db.tasks.toArray() : Promise.resolve<Task[]>([])), [welcomeOpen]) ?? [];
+  const allHabits = useLiveQuery<Habit[]>(() => (welcomeOpen ? db.habits.toArray() : Promise.resolve<Habit[]>([])), [welcomeOpen]) ?? [];
+  const allFocusLogs = useLiveQuery<FocusLog[]>(() => (welcomeOpen ? db.focusLogs.toArray() : Promise.resolve<FocusLog[]>([])), [welcomeOpen]) ?? [];
 
   const catMap = useMemo(() => new Map(categories.map(c => [c.id, c.name])), [categories]);
   const welcomeTasks: WelcomeTask[] = useMemo(() => {
@@ -227,6 +263,11 @@ export default function App() {
       const key = e.key.toLowerCase();
       const isEditing = e.target instanceof Element && Boolean(e.target.closest('input,textarea,select,[contenteditable="true"]'));
 
+      if ((mod && e.shiftKey && key === 'v') || (e.altKey && key === 'v')) {
+        e.preventDefault();
+        triggerUniversalVoice();
+        return;
+      }
       if (mod && (e.key === '/' || e.key === '?')) {
         e.preventDefault();
         setSearch(false);
@@ -252,7 +293,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [go]);
+  }, [go, triggerUniversalVoice]);
 
   const closeQuick = useCallback(() => setQuick(false), []);
   const closeSearch = useCallback(() => setSearch(false), []);
@@ -369,7 +410,13 @@ export default function App() {
       <ShortcutsModal open={shortcuts} onClose={() => setShortcuts(false)} />
       {search && <CommandPalette categories={categories} onClose={closeSearch} onNavigate={go} onNewTask={openQuick} onOpenTask={openTask} onOpenPage={openPage} onCycleTheme={cycleTheme} onOpenShortcuts={() => setShortcuts(true)} onReplayWelcome={() => triggerWelcome('full-daily')} />}
       {active !== 'home' && layoutMode !== 'cockpit' && <MiniTimer onOpen={goHome} />}
-      <AppDock floating />
+      <AppDock floating onTriggerVoice={triggerUniversalVoice} />
+      <DictationHud
+        state={globalDictation.state}
+        audioLevel={globalDictation.audioLevel}
+        modelProgress={globalDictation.modelProgress}
+        onStop={globalDictation.stop}
+      />
       <FloatingHUDPortal />
       <OnboardingWelcome
         open={welcomeOpen}

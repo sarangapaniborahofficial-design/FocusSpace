@@ -74,17 +74,21 @@ function Panel({ task, categories }: { task: Task; categories: Category[] }) {
   const [saving, setSaving] = useState(false);
 
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
   const [dictationTarget, setDictationTarget] = useState<DictationTarget | null>(null);
-
-  useEffect(() => {
-    if (titleInputRef.current) {
-      setDictationTarget(createInputTarget(titleInputRef.current));
-    }
-  }, []);
+  const [activeVoiceField, setActiveVoiceField] = useState<'title' | 'notes'>('title');
 
   const dictation = useDictation({
     target: dictationTarget,
   });
+
+  const toggleVoice = (field: 'title' | 'notes') => {
+    const el = field === 'title' ? titleInputRef.current : notesRef.current;
+    if (!el) return;
+    setActiveVoiceField(field);
+    setDictationTarget(createInputTarget(el));
+    dictation.toggle();
+  };
 
   const addLaunchLink = (label = newLinkLabel, url = newLinkUrl) => {
     if (!label.trim() || !url.trim()) return;
@@ -190,8 +194,8 @@ function Panel({ task, categories }: { task: Task; categories: Category[] }) {
                 className={`flex-1 h-12 rounded-xl bg-surface-2 border px-4 text-base outline-none ${valid ? 'border-line' : 'border-line-strong'}`}
               />
               <MicButton
-                state={dictation.state}
-                onClick={dictation.toggle}
+                state={activeVoiceField === 'title' ? dictation.state : 'idle'}
+                onClick={() => toggleVoice('title')}
                 title="Dictate task title offline"
               />
             </div>
@@ -337,8 +341,22 @@ function Panel({ task, categories }: { task: Task; categories: Category[] }) {
           </section>
 
           <label className="block">
-            <span className="text-sm font-medium">Notes</span>
-            <textarea value={draft.notes} onChange={e => set('notes', e.target.value)} rows={6} placeholder="Context, links, what done looks like…" className="mt-2 w-full rounded-lg bg-surface-2 border border-line px-3 py-2.5 text-sm leading-relaxed outline-none resize-y min-h-[120px]" />
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-sm font-medium">Notes</span>
+              <MicButton
+                state={activeVoiceField === 'notes' ? dictation.state : 'idle'}
+                onClick={() => toggleVoice('notes')}
+                title="Dictate task notes offline"
+              />
+            </div>
+            <textarea
+              ref={notesRef}
+              value={draft.notes}
+              onChange={e => set('notes', e.target.value)}
+              rows={6}
+              placeholder="Context, links, what done looks like…"
+              className="w-full rounded-lg bg-surface-2 border border-line px-3 py-2.5 text-sm leading-relaxed outline-none resize-y min-h-[120px]"
+            />
           </label>
 
           <div className="rounded-xl border border-line bg-surface p-4 text-xs text-fg-muted space-y-1.5 shadow-card">

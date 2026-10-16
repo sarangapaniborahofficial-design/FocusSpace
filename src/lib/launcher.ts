@@ -15,26 +15,65 @@ export const APP_PRESETS: { label: string; url: string; icon: string; kind: Laun
   { label: 'Local Dev (5173)', url: 'http://localhost:5173', icon: 'globe', kind: 'web' },
 ];
 
-export function detectLaunchKind(url: string): LaunchKind {
+export function normalizeWebUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(trimmed)) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('localhost') || trimmed.startsWith('127.0.0.1')) {
+    return `http://${trimmed}`;
+  }
+  return `https://${trimmed}`;
+}
+
+export function detectLaunchKind(url: string, explicitKind?: LaunchKind): LaunchKind {
+  if (explicitKind) return explicitKind;
   const trimmed = url.trim().toLowerCase();
   if (trimmed.startsWith('file://')) return 'file';
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return 'web';
+  if (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.includes('.com') ||
+    trimmed.includes('.org') ||
+    trimmed.includes('.net') ||
+    trimmed.includes('.io') ||
+    trimmed.includes('.app') ||
+    trimmed.includes('.dev') ||
+    trimmed.includes('youtube') ||
+    trimmed.includes('github') ||
+    trimmed.includes('localhost')
+  ) {
+    return 'web';
+  }
   return 'app';
 }
 
 /**
  * Triggers launch of a web link or native desktop URI scheme (vscode://, cursor://, obsidian://, etc.)
  */
-export function launchTarget(url: string, label?: string): boolean {
+export function launchTarget(url: string, label?: string, explicitKind?: LaunchKind): boolean {
   const target = url.trim();
   if (!target) return false;
 
+  const kind = detectLaunchKind(target, explicitKind);
+
   try {
     toast(`Launching ${label || target}…`, 'info');
-    if (target.startsWith('http://') || target.startsWith('https://')) {
-      window.open(target, '_blank', 'noopener,noreferrer');
+    if (kind === 'web') {
+      const finalUrl = normalizeWebUrl(target);
+      const newWin = window.open(finalUrl, '_blank', 'noopener,noreferrer');
+      if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
+        const a = document.createElement('a');
+        a.href = finalUrl;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
     } else {
-      // Native desktop URI schemes (vscode://, cursor://, obsidian://, slack://)
+      // Native desktop URI schemes (vscode://, cursor://, obsidian://, slack://, spotify://)
       const a = document.createElement('a');
       a.href = target;
       a.target = '_blank';

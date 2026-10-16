@@ -28,7 +28,19 @@ This document tracks progress towards the 1.0 release based on the project timel
 
 ## Recent Work Completed
 
-1. ✅ **PWA Blockers & Tauri v2 Readiness Remediation**:
+1. ✅ **Omnipresent Voice Typing Everywhere, Enlarged Centered Dock & Fluid Performance Polish**:
+   - **Voice Typing Everywhere**:
+     - **Universal Voice Dictation**: Added global hotkey `Ctrl + Shift + V` / `Alt + V` and dedicated AppDock microphone trigger that binds directly to `document.activeElement` or the last-focused input across the entire DOM.
+     - **Inline Mic Buttons across all editing contexts**: Added explicit `MicButton` inputs to `TodayQuickCapture`, `TaskEditor` (dual-target Title and Notes), `PageView` (Title and Description), `RichTextEditor` (TipTap notes), `QuickAddModal` (natural language title), `FloatingHUD` (in-session scratchpad and subtasks), `Review` (Wins, Challenges, Improvements, and Top 3 Priorities), and `CommandPalette` (voice search).
+     - **Feedback HUD (`DictationHud.tsx`)**: Real-time status, speech level equalizer waveform, disfluency cleaner ('scratch that', 'new line', 'new paragraph'), model loading progress bar, and error state indicator.
+   - **Dock Polish & Web vs Native App Launcher**:
+     - **Enlarged and Centered Geometry**: Dock icons enlarged to `size-12 sm:size-14` (48px–56px) with 26px vector brand icons; container centered with `fixed bottom-5 left-1/2 -translate-x-1/2 z-40 max-w-[calc(100vw-2rem)] overflow-x-auto scrollbar-none`.
+     - **App vs Web App Selector**: Added segmented `[ 🌐 Web App ]` vs `[ 💻 Native App ]` toggle in the Add App modal.
+     - **URL Auto-Sanitization**: Added `normalizeWebUrl` prepending `https://` if omitted (e.g. `youtube.com` -> `https://youtube.com`), and `window.open` external tab dispatch, fixing the YouTube redirection glitch.
+   - **Interface Stutter Root-Cause Elimination**:
+     - Eliminated 3 distinct lag bottlenecks: (1) wrapped unconditional Dexie live queries in `App.tsx` so they only execute when `welcomeOpen` is true; (2) added narrow `useTimerTaskId()` hook in `timer.ts` to stop the 250ms Pomodoro timer interval from re-rendering `AppDock` 4 times/sec; (3) cached bounding rect and throttled mousemove on the dock using `requestAnimationFrame`.
+
+2. ✅ **PWA Blockers & Tauri v2 Readiness Remediation**:
    - **Blocker 1: Data Vault Backup & Restore Engine (`src/lib/backup.ts`)**:
      - Complete JSON round-trip export & import with schema recovery (`normalize.ts`), preserving IndexedDB as the source of truth across all 10 Dexie tables (`categories`, `tasks`, `habits`, `goals`, `focusLogs`, `pages`, `journalEntries`, `pageLinks`, `files`, `fileBlobs`).
      - File blobs serialized losslessly via Base64. Added `DataVaultCard` to `Settings.tsx` with live database row telemetry and restore confirmation modal.

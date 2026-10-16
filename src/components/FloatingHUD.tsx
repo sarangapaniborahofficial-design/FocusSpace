@@ -14,7 +14,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { db, withStatus } from '../db/db';
 import { pipHUD, usePipHUD } from '../lib/pipHud';
@@ -22,6 +22,11 @@ import { formatClock, formatOvertimeClock, timer, useTimer } from '../lib/timer'
 import { toast } from '../lib/toast';
 import { uid } from '../lib/utils';
 import type { Subtask, Task } from '../types';
+import { useDictation } from '../voice/useDictation';
+import { createInputTarget } from '../voice/target/inputTarget';
+import type { DictationTarget } from '../voice/target/DictationTarget';
+import { MicButton } from '../voice/ui/MicButton';
+import { DictationHud } from '../voice/ui/DictationHud';
 
 export function FloatingHUDTrigger({ className = '' }: { className?: string }) {
   const { isOpen, isSupported } = usePipHUD();
@@ -80,6 +85,23 @@ function FloatingHUDContent() {
   const [scratchText, setScratchText] = useState('');
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [isAddingSubtask, setIsAddingSubtask] = useState(false);
+
+  const scratchInputRef = useRef<HTMLInputElement>(null);
+  const subtaskInputRef = useRef<HTMLInputElement>(null);
+  const [dictationTarget, setDictationTarget] = useState<DictationTarget | null>(null);
+  const [activeVoiceField, setActiveVoiceField] = useState<'scratch' | 'subtask'>('scratch');
+
+  const dictation = useDictation({
+    target: dictationTarget,
+  });
+
+  const toggleVoice = (field: 'scratch' | 'subtask') => {
+    const el = field === 'scratch' ? scratchInputRef.current : subtaskInputRef.current;
+    if (!el) return;
+    setActiveVoiceField(field);
+    setDictationTarget(createInputTarget(el));
+    dictation.toggle();
+  };
 
   const toggleSubtask = async (subtaskId: string) => {
     if (!task) return;
@@ -323,12 +345,19 @@ function FloatingHUDContent() {
             {isAddingSubtask && (
               <form onSubmit={addSubtask} className="flex items-center gap-1">
                 <input
+                  ref={subtaskInputRef}
                   type="text"
                   value={newSubtaskTitle}
                   onChange={e => setNewSubtaskTitle(e.target.value)}
                   placeholder="New subtask..."
                   autoFocus
                   className="flex-1 h-7 px-2 text-xs rounded bg-surface-2 border border-line text-fg placeholder:text-fg-subtle outline-none"
+                />
+                <MicButton
+                  size="sm"
+                  state={activeVoiceField === 'subtask' ? dictation.state : 'idle'}
+                  onClick={() => toggleVoice('subtask')}
+                  title="Dictate subtask"
                 />
                 <button
                   type="submit"
@@ -374,23 +403,39 @@ function FloatingHUDContent() {
           <form onSubmit={saveScratchpad} className="pt-1">
             <div className="relative">
               <input
+                ref={scratchInputRef}
                 type="text"
                 value={scratchText}
                 onChange={e => setScratchText(e.target.value)}
                 placeholder="Capture a quick thought (Enter to save)..."
-                className="w-full h-8 pl-2.5 pr-8 text-xs rounded-xl bg-surface-2 border border-line text-fg placeholder:text-fg-subtle focus:border-accent outline-none"
+                className="w-full h-8 pl-2.5 pr-14 text-xs rounded-xl bg-surface-2 border border-line text-fg placeholder:text-fg-subtle focus:border-accent outline-none"
               />
-              <button
-                type="submit"
-                disabled={!scratchText.trim()}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 rounded text-fg-muted hover:text-accent-text disabled:opacity-30 flex items-center justify-center transition"
-                title="Save thought to task notes"
-              >
-                <Send size={11} />
-              </button>
+              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                <MicButton
+                  size="sm"
+                  state={activeVoiceField === 'scratch' ? dictation.state : 'idle'}
+                  onClick={() => toggleVoice('scratch')}
+                  title="Dictate thought"
+                />
+                <button
+                  type="submit"
+                  disabled={!scratchText.trim()}
+                  className="size-5 rounded text-fg-muted hover:text-accent-text disabled:opacity-30 flex items-center justify-center transition"
+                  title="Save thought to task notes"
+                >
+                  <Send size={11} />
+                </button>
+              </div>
             </div>
           </form>
         )}
+
+        <DictationHud
+          state={dictation.state}
+          audioLevel={dictation.audioLevel}
+          modelProgress={dictation.modelProgress}
+          onStop={dictation.stop}
+        />
       </div>
     </div>
   );

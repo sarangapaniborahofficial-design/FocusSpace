@@ -8,6 +8,11 @@ import { storage } from '../lib/utils';
 import { richTextSnippet } from '../lib/richtext';
 import { DAILY_JOURNAL_PAGE_ID } from '../lib/journalAutoSave';
 import type { Category, JournalEntry, LaunchLink, Page, Task } from '../types';
+import { useDictation } from '../voice/useDictation';
+import { createInputTarget } from '../voice/target/inputTarget';
+import type { DictationTarget } from '../voice/target/DictationTarget';
+import { MicButton } from '../voice/ui/MicButton';
+import { DictationHud } from '../voice/ui/DictationHud';
 
 interface Item {
   id: string;
@@ -38,6 +43,18 @@ export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onO
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dictationTarget, setDictationTarget] = useState<DictationTarget | null>(null);
+
+  useEffect(() => {
+    if (inputRef.current) {
+      setDictationTarget(createInputTarget(inputRef.current));
+    }
+  }, []);
+
+  const dictation = useDictation({
+    target: dictationTarget,
+  });
 
   const items = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -127,6 +144,7 @@ export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onO
         <div className="p-4 flex items-center gap-3 border-b border-line">
           <Search size={17} className="text-fg-subtle" />
           <input
+            ref={inputRef}
             autoFocus
             value={query}
             onChange={e => setQuery(e.target.value)}
@@ -137,6 +155,12 @@ export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onO
             aria-expanded="true"
             aria-controls="palette-list"
             className="flex-1 bg-transparent outline-none text-sm"
+          />
+          <MicButton
+            size="sm"
+            state={dictation.state}
+            onClick={dictation.toggle}
+            title="Voice search (speak query)"
           />
           <button onClick={onClose} aria-label="Close"><X size={17} className="text-fg-subtle" /></button>
         </div>
@@ -167,6 +191,12 @@ export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onO
         <div className="px-4 py-2.5 border-t border-line text-[11px] text-fg-subtle flex gap-4">
           <span>↑↓ to move</span><span>Enter to select</span><span>Esc to close</span>
         </div>
+        <DictationHud
+          state={dictation.state}
+          audioLevel={dictation.audioLevel}
+          modelProgress={dictation.modelProgress}
+          onStop={dictation.stop}
+        />
       </div>
     </div>
   );

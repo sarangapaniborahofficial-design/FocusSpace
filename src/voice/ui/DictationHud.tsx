@@ -6,6 +6,7 @@ export interface DictationHudProps {
   state: DictationState;
   audioLevel: number;
   modelProgress?: number;
+  errorMessage?: string | null;
   onStop: () => void;
   className?: string;
 }
@@ -14,6 +15,7 @@ export function DictationHud({
   state,
   audioLevel,
   modelProgress = 0,
+  errorMessage,
   onStop,
   className = '',
 }: DictationHudProps) {
@@ -22,6 +24,7 @@ export function DictationHud({
   const isListening = state === 'listening';
   const isTranscribing = state === 'transcribing';
   const isLoading = state === 'loading-model';
+  const isError = state === 'error';
 
   return (
     <div
@@ -32,6 +35,8 @@ export function DictationHud({
           <Loader2 size={15} className="animate-spin text-accent" />
         ) : isTranscribing ? (
           <Loader2 size={15} className="animate-spin text-amber-500" />
+        ) : isError ? (
+          <X size={15} className="text-rose-500" />
         ) : (
           <div className="relative flex items-center justify-center">
             <Mic size={15} className="text-accent" />
@@ -45,10 +50,12 @@ export function DictationHud({
               ? `Loading Voice Model (${modelProgress}%)...`
               : isTranscribing
               ? 'Transcribing on-device...'
+              : isError
+              ? (errorMessage || 'Microphone error')
               : 'Listening offline...'}
           </span>
           <span className="text-[10px] text-fg-muted">
-            {isListening ? "Say 'scratch that' to undo · 'new line' for break" : '100% on-device private'}
+            {isListening ? "Say 'scratch that' to undo · 'new line' for break" : isError ? 'Click stop to dismiss' : '100% on-device private'}
           </span>
         </div>
       </div>

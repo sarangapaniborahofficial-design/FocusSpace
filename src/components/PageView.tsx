@@ -16,6 +16,11 @@ import { Attachments } from './PageAttachments';
 import { RichTextEditor } from './RichTextEditor';
 import { RichTextView, toggleTaskAtPath } from './RichTextView';
 import { ConfirmDialog, EmptyState } from './ui';
+import { useDictation } from '../voice/useDictation';
+import { createInputTarget } from '../voice/target/inputTarget';
+import type { DictationTarget } from '../voice/target/DictationTarget';
+import { MicButton } from '../voice/ui/MicButton';
+import { DictationHud } from '../voice/ui/DictationHud';
 
 /** Loads the page, then hands over to the editor. */
 export function PageView({ pageId, onBack }: { pageId: string; onBack: () => void }) {
@@ -41,7 +46,23 @@ function PageEditor({ page, onBack }: { page: Page; onBack: () => void }) {
   const [description, setDescription] = useState(page.description);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const [dictationTarget, setDictationTarget] = useState<DictationTarget | null>(null);
+  const [activeVoiceField, setActiveVoiceField] = useState<'title' | 'description'>('title');
+
+  const dictation = useDictation({
+    target: dictationTarget,
+  });
+
+  const toggleVoice = (field: 'title' | 'description') => {
+    const el = field === 'title' ? titleInputRef.current : descriptionRef.current;
+    if (!el) return;
+    setActiveVoiceField(field);
+    setDictationTarget(createInputTarget(el));
+    dictation.toggle();
+  };
+
   useEffect(() => { const el = descriptionRef.current; if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; } }, [page.id]);
 
   // Autosave title/description, debounced; always flushed on the way out.
@@ -80,18 +101,46 @@ function PageEditor({ page, onBack }: { page: Page; onBack: () => void }) {
         <button onClick={() => setConfirmingDelete(true)} aria-label="Delete page" title="Delete page" className="size-9 grid place-items-center rounded-lg text-fg-subtle hover:text-fg-soft hover:bg-hover"><Trash2 size={16} /></button>
       </div>
 
-      <input
-        value={title} onChange={e => setTitle(e.target.value)} placeholder="Untitled" aria-label="Page title"
-        autoFocus={page.title === 'Untitled' && !page.description} onFocus={e => { if (e.currentTarget.value === 'Untitled') e.currentTarget.select(); }}
-        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); descriptionRef.current?.focus(); } }}
-        className="w-full bg-transparent text-3xl font-semibold tracking-tight outline-none placeholder:text-fg-subtle mb-2"
-      />
-      <textarea
-        ref={descriptionRef}
-        value={description} onChange={e => setDescription(e.target.value)} placeholder="What is this page about?" aria-label="Page description" rows={1}
-        onInput={(e: FormEvent<HTMLTextAreaElement>) => { const el = e.currentTarget; el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; }}
-        className="w-full bg-transparent text-sm text-fg-muted outline-none placeholder:text-fg-subtle resize-none mb-6"
-      />
+      <div className="flex items-center gap-3 mb-2">
+        <input
+          ref={titleInputRef}
+          value={title} onChange={e => setTitle(e.target.value)} placeholder="Untitled" aria-label="Page title"
+          autoFocus={page.title === 'Untitled' && !page.description} onFocus={e => { if (e.currentTarget.value === 'Untitled') e.currentTarget.select(); }}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); descriptionRef.current?.focus(); } }}
+          className="flex-1 min-w-0 bg-transparent text-3xl font-semibold tracking-tight outline-none placeholder:text-fg-subtle"
+        />
+        <MicButton
+          state={activeVoiceField === 'title' ? dictation.state : 'idle'}
+          onClick={() => toggleVoice('title')}
+          title="Dictate page title offline"
+        />
+      </div>
+
+      <div className="flex items-start gap-3 mb-4">
+        <textarea
+          ref={descriptionRef}
+          value={description} onChange={e => setDescription(e.target.value)} placeholder="What is this page about?" aria-label="Page description" rows={1}
+          onInput={(e: FormEvent<HTMLTextAreaElement>) => { const el = e.currentTarget; el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; }}
+          className="flex-1 min-w-0 bg-transparent text-sm text-fg-muted outline-none placeholder:text-fg-subtle resize-none"
+        />
+        <MicButton
+          state={activeVoiceField === 'description' ? dictation.state : 'idle'}
+          onClick={() => toggleVoice('description')}
+          title="Dictate page description offline"
+        />
+      </div>
+
+      {dictation.state !== 'idle' && (
+        <div className="mb-5">
+          <DictationHud
+            state={dictation.state}
+            audioLevel={dictation.audioLevel}
+            errorMessage={dictation.errorMessage}
+            modelProgress={dictation.modelProgress}
+            onStop={dictation.stop}
+          />
+        </div>
+      )}
 
       {page.legacyMarkdown && <LegacyBanner pageId={page.id} />}
 
