@@ -68,6 +68,42 @@ export function Sidebar({
   const [isHovered, setIsHovered] = useState(false);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Resizable Sidebar Width (200px - 440px) with LocalStorage persistence
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const v = parseInt(storage.get('focusspace-sidebar-width') || '264', 10);
+    return isNaN(v) ? 264 : Math.max(200, Math.min(440, v));
+  });
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleResizePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+
+    const onPointerMove = (ev: PointerEvent) => {
+      const delta = ev.clientX - startX;
+      const newWidth = Math.max(200, Math.min(440, startWidth + delta));
+      setSidebarWidth(newWidth);
+    };
+
+    const onPointerUp = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      setIsDragging(false);
+      const delta = ev.clientX - startX;
+      const finalWidth = Math.max(200, Math.min(440, startWidth + delta));
+      storage.set('focusspace-sidebar-width', String(finalWidth));
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  };
+
   const handleHoverEnter = () => {
     if (hoverTimerRef.current) {
       clearTimeout(hoverTimerRef.current);
@@ -138,22 +174,43 @@ export function Sidebar({
         aria-label="Sidebar"
         onMouseEnter={collapsed ? handleHoverEnter : undefined}
         onMouseLeave={collapsed ? handleHoverLeave : undefined}
-        className={`fixed inset-y-0 left-0 z-50 w-[264px] shrink-0 bg-surface text-fg-soft transition-[transform,opacity] duration-200 flex flex-col ${
+        style={{
+          width: isHiddenDesktop ? 0 : isMobile ? undefined : `${sidebarWidth}px`,
+        }}
+        className={`fixed inset-y-0 left-0 z-50 shrink-0 bg-surface text-fg-soft flex flex-col relative ${
+          isDragging
+            ? 'transition-none select-none'
+            : 'transition-[width,transform,opacity] duration-300 ease-out'
+        } ${
           layoutMode === 'orbital'
             ? 'border border-line md:rounded-2xl shadow-card'
             : 'border-r border-line'
         } ${
           isMobile
             ? mobileOpen
-              ? 'translate-x-0'
-              : '-translate-x-full'
+              ? 'translate-x-0 w-[264px]'
+              : '-translate-x-full w-[264px]'
             : isOverlayMode
             ? 'translate-x-0 shadow-2xl fixed inset-y-0 left-0 z-50 m-2 sm:m-3'
             : isHiddenDesktop
             ? '-translate-x-full opacity-0 pointer-events-none md:static md:w-0 md:p-0 md:m-0 md:border-none'
-            : 'md:static md:z-auto md:w-[260px] md:translate-x-0 opacity-100'
+            : 'md:static md:z-auto md:translate-x-0 opacity-100'
         }`}
       >
+        {/* Right edge drag-resize handle for desktop */}
+        {!isMobile && !isHiddenDesktop && (
+          <div
+            onPointerDown={handleResizePointerDown}
+            onDoubleClick={() => {
+              setSidebarWidth(264);
+              storage.set('focusspace-sidebar-width', '264');
+            }}
+            className="absolute top-0 bottom-0 -right-1 w-2.5 cursor-col-resize group z-30 flex items-center justify-center hover:bg-accent/20 active:bg-accent/30 transition select-none"
+            title="Drag to resize menu width (Double-click to reset)"
+          >
+            <div className="w-[2px] h-12 rounded-full bg-line-strong/60 group-hover:bg-accent group-hover:h-20 transition-all" />
+          </div>
+        )}
         <div className="h-20 flex items-center px-5 border-b border-line/70">
           <button
             onClick={() => setActive('home')}

@@ -23,7 +23,7 @@ import { getOrCreateEntry, saveEntry, deleteEntry } from '../lib/journal';
 import { generateDailySummaryDoc } from '../lib/journalSummary';
 import { richTextSnippet } from '../lib/richtext';
 import { toast } from '../lib/toast';
-import { dateLabel, formatDuration, isoToday, relativeDay } from '../lib/utils';
+import { dateLabel, formatDuration, isoToday, relativeDay, storage } from '../lib/utils';
 import type { JournalEntry, RichTextDoc } from '../types';
 import { RichTextEditor } from './RichTextEditor';
 import { RichTextView, toggleTaskAtPath } from './RichTextView';
@@ -35,6 +35,42 @@ export function Journal() {
   const [isEditing, setIsEditing] = useState<boolean>(true);
   const [capturing, setCapturing] = useState<boolean>(false);
   const [confirmingDelete, setConfirmingDelete] = useState<boolean>(false);
+
+  // Resizable Archive Timeline Column Width (220px - 460px)
+  const [timelineWidth, setTimelineWidth] = useState(() => {
+    const v = parseInt(storage.get('focusspace-journal-timeline-width') || '300', 10);
+    return isNaN(v) ? 300 : Math.max(220, Math.min(460, v));
+  });
+  const [isTimelineDragging, setIsTimelineDragging] = useState(false);
+
+  const handleTimelineResizeDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    setIsTimelineDragging(true);
+    const startX = e.clientX;
+    const startWidth = timelineWidth;
+
+    const onPointerMove = (ev: PointerEvent) => {
+      const delta = ev.clientX - startX;
+      const newWidth = Math.max(220, Math.min(460, startWidth + delta));
+      setTimelineWidth(newWidth);
+    };
+
+    const onPointerUp = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      setIsTimelineDragging(false);
+      const delta = ev.clientX - startX;
+      const finalWidth = Math.max(220, Math.min(460, startWidth + delta));
+      storage.set('focusspace-journal-timeline-width', String(finalWidth));
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  };
 
   // Live queries
   const entries = useLiveQuery(
@@ -176,12 +212,17 @@ export function Journal() {
         </div>
       </header>
 
-      {/* Main Two-Column Layout */}
-      <div className="grid lg:grid-cols-[300px_1fr] gap-6 items-start">
+      {/* Main Two-Column Layout with Drag-Resizable Split */}
+      <div
+        className={`flex flex-col lg:flex-row gap-6 lg:gap-0 items-start w-full relative ${
+          isTimelineDragging ? 'select-none transition-none' : 'transition-all duration-300 ease-out'
+        }`}
+      >
         {/* Left Column: Chronological Date Archive Navigator */}
         <aside
           aria-label="Journal Date Navigator"
-          className="atelier-card rounded-2xl p-3 flex flex-col gap-2 max-h-[75vh] overflow-y-auto"
+          style={{ width: `${timelineWidth}px` }}
+          className="w-full lg:w-auto shrink-0 atelier-card rounded-2xl p-3 flex flex-col gap-2 max-h-[75vh] overflow-y-auto"
         >
           <div className="px-3 py-2 flex items-center justify-between border-b border-line">
             <span className="index-chip text-fg-subtle">Archive Timeline</span>
@@ -245,8 +286,21 @@ export function Journal() {
           </div>
         </aside>
 
+        {/* Drag Rail Divider */}
+        <div
+          onPointerDown={handleTimelineResizeDown}
+          onDoubleClick={() => {
+            setTimelineWidth(300);
+            storage.set('focusspace-journal-timeline-width', '300');
+          }}
+          className="hidden lg:flex self-stretch w-3.5 cursor-col-resize group relative z-20 items-center justify-center hover:bg-accent/20 active:bg-accent/30 transition select-none shrink-0"
+          title="Drag to resize timeline (Double-click to reset to 300px)"
+        >
+          <div className="w-[2px] h-36 rounded-full bg-line-strong/60 group-hover:bg-accent group-hover:h-52 transition-all" />
+        </div>
+
         {/* Right Column: Entry Reader / Editor & Live Telemetry */}
-        <main className="space-y-4 min-w-0">
+        <main className="flex-1 min-w-0 space-y-4 lg:pl-5 w-full">
           {/* Day Telemetry Header Card */}
           <div className="atelier-card rounded-2xl p-5 border border-line flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>

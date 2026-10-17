@@ -23,11 +23,17 @@ export const AMBIENT_TRACKS: AmbientTrackInfo[] = [
   { id: 'whitenoise', name: 'White Noise', icon: '⚡', description: 'Smooth full-frequency sound mask for open offices' },
 ];
 
+import { useSyncExternalStore } from 'react';
+import { getTimerState, subscribeTimer } from './timer';
+
 export interface AmbientSoundState {
   track: AmbientTrack;
   playing: boolean;
   volume: number; // 0..1
+  isDucked?: boolean;
 }
+
+const AMBIENT_BUS_CHANNEL = 'focusspace-ambient-bus';
 
 class AmbientSynthesizer {
   private ctx: AudioContext | null = null;
@@ -35,6 +41,10 @@ class AmbientSynthesizer {
   private currentTrack: AmbientTrack = 'off';
   private currentVolume = 0.5;
   private isRunning = false;
+  private isDucked = false;
+  private isAudioOwner = false;
+  private windowId = Math.random().toString(36).slice(2);
+  private channel: BroadcastChannel | null = null;
   private activeNodes: Array<{ stop?: () => void; disconnect: () => void }> = [];
   private listeners: Set<(state: AmbientSoundState) => void> = new Set();
   private timerId: any = null;
@@ -47,7 +57,69 @@ class AmbientSynthesizer {
         this.currentTrack = savedTrack;
         this.currentVolume = isNaN(savedVol) ? 0.5 : Math.max(0, Math.min(1, savedVol));
       } catch {}
+
+      // Cross-Window BroadcastChannel Synchronization (Main <-> Floating HUD)
+      if ('BroadcastChannel' in window) {
+        try {
+          this.channel = new BroadcastChannel(AMBIENT_BUS_CHANNEL);
+          this.channel.onmessage = (event: MessageEvent) => {
+            const data = event.data;
+            if (!data || data.senderId === this.windowId) return;
+
+            if (data.type === 'SYNC_STATE') {
+              this.currentTrack = data.track;
+              this.currentVolume = data.volume;
+              this.isRunning = data.playing;
+              // If another window is playing audio, stop our local audio nodes to prevent double playback
+              if (data.playing && !this.isAudioOwner) {
+                this.stopNodes();
+              }
+              this.emit();
+            } else if (data.type === 'STOP_ALL') {
+              this.isRunning = false;
+              this.isAudioOwner = false;
+              this.stopNodes();
+              this.emit();
+            }
+          };
+        } catch (err) {
+          console.warn('Failed to initialize ambient sound BroadcastChannel:', err);
+        }
+      }
+
+      // Auto-ducking when focus timer is paused
+      subscribeTimer(() => {
+        const t = getTimerState();
+        if (this.isRunning) {
+          const shouldDuck = t.mode === 'focus' && !t.running && Boolean(t.taskId || t.startedAt);
+          if (this.isDucked !== shouldDuck) {
+            this.isDucked = shouldDuck;
+            this.applyEffectiveGain();
+            this.emit();
+          }
+        }
+      });
     }
+  }
+
+  private broadcastState() {
+    if (this.channel) {
+      try {
+        this.channel.postMessage({
+          type: 'SYNC_STATE',
+          senderId: this.windowId,
+          track: this.currentTrack,
+          volume: this.currentVolume,
+          playing: this.isRunning,
+        });
+      } catch {}
+    }
+  }
+
+  private applyEffectiveGain() {
+    if (!this.masterGain || !this.ctx) return;
+    const effective = this.isDucked ? this.currentVolume * 0.25 : this.currentVolume;
+    this.masterGain.gain.setTargetAtTime(effective, this.ctx.currentTime, 0.08);
   }
 
   private initContext() {
@@ -60,7 +132,8 @@ class AmbientSynthesizer {
     }
     if (!this.masterGain && this.ctx) {
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(this.currentVolume, this.ctx.currentTime);
+      const initial = this.isDucked ? this.currentVolume * 0.25 : this.currentVolume;
+      this.masterGain.gain.setValueAtTime(initial, this.ctx.currentTime);
       this.masterGain.connect(this.ctx.destination);
     }
   }
@@ -70,6 +143,7 @@ class AmbientSynthesizer {
       track: this.currentTrack,
       playing: this.isRunning,
       volume: this.currentVolume,
+      isDucked: this.isDucked,
     };
     this.listeners.forEach((fn) => fn(s));
   }
@@ -79,6 +153,7 @@ class AmbientSynthesizer {
       track: this.currentTrack,
       playing: this.isRunning,
       volume: this.currentVolume,
+      isDucked: this.isDucked,
     };
   }
 
@@ -93,10 +168,9 @@ class AmbientSynthesizer {
     try {
       localStorage.setItem('focusspace-ambient-vol', String(this.currentVolume));
     } catch {}
-    if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setTargetAtTime(this.currentVolume, this.ctx.currentTime, 0.05);
-    }
+    this.applyEffectiveGain();
     this.emit();
+    this.broadcastState();
   }
 
   setTrack(track: AmbientTrack) {
@@ -111,6 +185,7 @@ class AmbientSynthesizer {
       }
     } else {
       this.emit();
+      this.broadcastState();
     }
   }
 
@@ -135,6 +210,7 @@ class AmbientSynthesizer {
     this.stopNodes();
     this.currentTrack = track;
     this.isRunning = true;
+    this.isAudioOwner = true;
 
     try {
       if (track === 'rain') {
@@ -153,15 +229,15 @@ class AmbientSynthesizer {
     }
 
     this.emit();
+    this.broadcastState();
   }
 
   stop() {
     this.isRunning = false;
+    this.isAudioOwner = false;
     this.stopNodes();
-    if (this.ctx && this.ctx.state === 'running') {
-      // Keep context alive but stop sound
-    }
     this.emit();
+    this.broadcastState();
   }
 
   private stopNodes() {
@@ -401,3 +477,10 @@ class AmbientSynthesizer {
 }
 
 export const ambientSound = new AmbientSynthesizer();
+
+export function useAmbientSound(): AmbientSoundState {
+  return useSyncExternalStore(
+    onStoreChange => ambientSound.subscribe(onStoreChange),
+    () => ambientSound.getState()
+  );
+}

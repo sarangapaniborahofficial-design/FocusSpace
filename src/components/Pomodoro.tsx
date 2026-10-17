@@ -1,8 +1,22 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Coffee, Headphones, Pause, Play, RotateCcw, Settings2, TimerReset, Volume2, X } from 'lucide-react';
-import { useState } from 'react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Coffee,
+  Headphones,
+  Pause,
+  Play,
+  RotateCcw,
+  Settings2,
+  Sparkles,
+  TimerReset,
+  Volume2,
+  VolumeX,
+  X,
+} from 'lucide-react';
+import { useRef, useState } from 'react';
 import { db } from '../db/db';
-import { SOUNDSCAPES, soundscape, useSoundscape } from '../lib/soundscape';
+import { ambientSound, AMBIENT_TRACKS, useAmbientSound } from '../lib/ambientSound';
 import { useToday } from '../lib/hooks';
 import {
   DEFAULT_DURATIONS,
@@ -17,7 +31,7 @@ import {
   useTimer,
   type Durations,
 } from '../lib/timer';
-import { addDays, formatDuration, toISODate } from '../lib/utils';
+import { addDays, formatDuration, storage, toISODate } from '../lib/utils';
 import { FloatingHUDTrigger } from './FloatingHUD';
 
 const DIAL_SIZE = 212;
@@ -40,13 +54,41 @@ const PRECOMPUTED_TICKS = Array.from({ length: 36 }, (_, i) => {
 
 export function Pomodoro() {
   const s = useTimer();
-  const sc = useSoundscape();
+  const ambientState = useAmbientSound();
   const today = useToday();
   const taskId = s.taskId;
 
   const task = useLiveQuery(async () => (taskId ? db.tasks.get(taskId) : undefined), [taskId]);
   const taskLogs = useLiveQuery(async () => (taskId ? db.focusLogs.where('taskId').equals(taskId).toArray() : []), [taskId]) ?? [];
   const recentLogs = useLiveQuery(() => db.focusLogs.where('startedAt').aboveOrEqual(addDays(today, -1)).toArray(), [today]) ?? [];
+
+  // Collapsible / Expandable State with Hover Peek Logic
+  const [collapsed, setCollapsed] = useState(() => storage.get('focusspace-pomodoro-collapsed') === 'true');
+  const [isHoverOpen, setIsHoverOpen] = useState(false);
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    storage.set('focusspace-pomodoro-collapsed', next ? 'true' : 'false');
+    setIsHoverOpen(false);
+  };
+
+  const handleMouseEnter = () => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    if (collapsed) setIsHoverOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    if (collapsed) {
+      hoverTimerRef.current = setTimeout(() => {
+        setIsHoverOpen(false);
+      }, 220);
+    }
+  };
+
+  const isVisible = !collapsed || isHoverOpen;
 
   const [customizing, setCustomizing] = useState(false);
   const [draft, setDraft] = useState<Durations>(s.durations);
@@ -73,11 +115,22 @@ export function Pomodoro() {
   };
 
   return (
-    <div className="atelier-card rounded-3xl p-5 overflow-hidden relative">
+    <div
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      className="atelier-card rounded-3xl p-5 overflow-hidden relative transition-all duration-300 ease-out"
+    >
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="min-w-0">
-          <div className="text-xs uppercase tracking-[.18em] text-fg-muted font-mono">Pomodoro</div>
-          <div className="text-sm text-fg-muted mt-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs uppercase tracking-[.18em] text-fg-muted font-mono">Pomodoro</span>
+            {collapsed && !isHoverOpen && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-2 border border-line text-accent-text font-mono">
+                Peek Mode (Hover to Expand)
+              </span>
+            )}
+          </div>
+          <div className="text-sm text-fg-muted mt-1 truncate">
             {taskId ? (
               <>
                 Working on <span className="text-fg font-medium">{task?.title ?? s.taskTitle}</span>
@@ -98,6 +151,14 @@ export function Pomodoro() {
           >
             <Settings2 size={15} />
           </button>
+          <button
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? 'Pin Pomodoro (Keep Expanded)' : 'Collapse Pomodoro Timer'}
+            title={collapsed ? 'Pin Pomodoro (Keep Expanded)' : 'Collapse Pomodoro Timer'}
+            className="size-8 rounded-xl border border-line bg-surface-2 grid place-items-center text-fg-muted hover:text-fg hover:bg-hover keycap"
+          >
+            {collapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
+          </button>
           {taskId && (
             <button
               onClick={() => timer.setTask(undefined)}
@@ -108,6 +169,58 @@ export function Pomodoro() {
           )}
         </div>
       </div>
+
+      {!isVisible ? (
+        /* Collapsed Compact View: High-contrast, minimal horizontal tactile bar */
+        <div className="py-1 flex items-center justify-between gap-3 animate-in fade-in duration-200">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className={`size-2 rounded-full ${s.running ? 'bg-accent animate-pulse' : 'bg-fg-muted/40'}`} />
+                <span className="text-[11px] font-mono uppercase tracking-wider text-fg-muted">
+                  {s.isOvertime ? 'Flow Overtime' : s.running ? MODE_LABELS[s.mode] : 'Paused'}
+                </span>
+                {ambientState.playing && ambientState.track !== 'off' && (
+                  <span className="text-[10px] text-accent-text flex items-center gap-1">
+                    <Headphones size={11} className="animate-pulse" />
+                    <span>{AMBIENT_TRACKS.find(t => t.id === ambientState.track)?.name}</span>
+                  </span>
+                )}
+              </div>
+              <div className="text-xl font-bold font-mono tracking-tight text-fg truncate">
+                {s.isOvertime ? formatOvertimeClock(s.overtimeMs ?? 0) : formatClock(s.remainingMs)}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {s.isOvertime ? (
+              <button
+                onClick={() => timer.bankOvertime()}
+                className="h-9 px-3 rounded-xl bg-accent text-accent-fg font-semibold text-xs flex items-center gap-1.5 keycap shadow-sm"
+              >
+                <Coffee size={14} />
+                <span>Bank</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => timer.toggle()}
+                className="size-9 rounded-xl bg-accent text-accent-fg grid place-items-center keycap hover:bg-accent-hover"
+              >
+                {s.running ? <Pause size={15} /> : <Play size={15} fill="currentColor" />}
+              </button>
+            )}
+            <button
+              onClick={() => timer.nextMode()}
+              title="Next timer"
+              className="size-9 rounded-xl border border-line bg-surface-2 grid place-items-center text-fg-muted hover:text-fg keycap"
+            >
+              <TimerReset size={14} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4 animate-in fade-in duration-200">
 
       {taskId && estimate > 0 && (
         <div className="mb-4 p-3 rounded-2xl bg-surface-2 border border-line">
@@ -296,63 +409,89 @@ export function Pomodoro() {
         </button>
       </div>
 
-      {/* Procedural Soundscape Bar */}
-      <div className="mt-4 p-3 rounded-2xl bg-surface-2 border border-line">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-fg">
-            <Headphones size={13} className={sc.isPlaying ? 'text-accent-text animate-pulse' : 'text-fg-subtle'} />
-            <span>Soundscape</span>
-          </div>
-          {sc.type !== 'off' && (
-            <div className="flex items-center gap-1.5 text-xs text-fg-muted">
-              <Volume2 size={12} className="text-fg-subtle" />
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={sc.volume}
-                onChange={e => soundscape.setVolume(parseFloat(e.target.value))}
-                className="w-16 h-1 accent-accent rounded-lg cursor-pointer"
-                title={`Volume: ${Math.round(sc.volume * 100)}%`}
-              />
-              <span className="text-[10px] font-mono w-6 text-right tabular-nums">{Math.round(sc.volume * 100)}%</span>
+          {/* Procedural Ambient Soundscape Bar — Synced with Floating HUD */}
+          <div className="mt-4 p-3 rounded-2xl bg-surface-2 border border-line">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-fg">
+                <Headphones size={13} className={ambientState.playing ? 'text-accent-text animate-pulse' : 'text-fg-subtle'} />
+                <span>Ambient Soundscape</span>
+                {ambientState.isDucked && ambientState.playing && (
+                  <span className="text-[10px] text-amber-500 font-mono font-medium">(Ducked)</span>
+                )}
+              </div>
+              {ambientState.track !== 'off' && (
+                <div className="flex items-center gap-1.5 text-xs text-fg-muted">
+                  <Volume2 size={12} className="text-fg-subtle" />
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={ambientState.volume}
+                    onChange={e => ambientSound.setVolume(parseFloat(e.target.value))}
+                    className="w-16 h-1 accent-accent rounded-lg cursor-pointer"
+                    title={`Volume: ${Math.round(ambientState.volume * 100)}%`}
+                  />
+                  <span className="text-[10px] font-mono w-6 text-right tabular-nums">{Math.round(ambientState.volume * 100)}%</span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        <div className="grid grid-cols-4 gap-1.5">
-          {SOUNDSCAPES.map(s => {
-            const active = sc.type === s.id;
-            return (
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+              {AMBIENT_TRACKS.map(t => {
+                const active = ambientState.track === t.id && ambientState.playing;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      if (active) {
+                        ambientSound.stop();
+                      } else {
+                        ambientSound.start(t.id);
+                      }
+                    }}
+                    title={t.description}
+                    className={`py-1.5 px-1 rounded-xl text-[11px] font-medium text-center transition flex flex-col items-center gap-0.5 cursor-pointer ${
+                      active
+                        ? 'bg-accent text-accent-fg font-semibold keycap shadow-sm'
+                        : 'bg-surface text-fg-muted hover:text-fg hover:bg-hover'
+                    }`}
+                  >
+                    <span className="text-xs">{t.icon}</span>
+                    <span className="truncate max-w-full text-[10px] font-medium">{t.name}</span>
+                  </button>
+                );
+              })}
               <button
-                key={s.id}
-                onClick={() => soundscape.setType(s.id)}
-                title={s.desc}
-                className={`py-1.5 px-1 rounded-xl text-[11px] font-medium text-center transition ${
-                  active
-                    ? 'bg-accent text-accent-fg font-semibold keycap shadow-sm'
+                type="button"
+                onClick={() => ambientSound.stop()}
+                title="Turn off ambient sound"
+                className={`py-1.5 px-1 rounded-xl text-[11px] font-medium text-center transition flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
+                  !ambientState.playing || ambientState.track === 'off'
+                    ? 'bg-surface-3 text-fg font-semibold border border-line shadow-xs'
                     : 'bg-surface text-fg-muted hover:text-fg hover:bg-hover'
                 }`}
               >
-                {s.label}
+                <VolumeX size={13} />
+                <span className="text-[10px]">Mute</span>
               </button>
-            );
-          })}
-        </div>
-      </div>
+            </div>
+          </div>
 
-      <div className="mt-4 pt-3.5 border-t border-line flex items-center justify-between text-xs text-fg-muted">
-        <div
-          className="flex items-center gap-1.5"
-          title={`${Math.min(s.cycle, SESSIONS_PER_CYCLE)} of ${SESSIONS_PER_CYCLE} sessions before a long break`}
-        >
-          {Array.from({ length: SESSIONS_PER_CYCLE }, (_, i) => (
-            <span key={i} className={`w-2.5 h-1.5 rounded-full ${i < s.cycle ? 'dot-on' : 'dot-off'}`} />
-          ))}
+          <div className="mt-4 pt-3.5 border-t border-line flex items-center justify-between text-xs text-fg-muted">
+            <div
+              className="flex items-center gap-1.5"
+              title={`${Math.min(s.cycle, SESSIONS_PER_CYCLE)} of ${SESSIONS_PER_CYCLE} sessions before a long break`}
+            >
+              {Array.from({ length: SESSIONS_PER_CYCLE }, (_, i) => (
+                <span key={i} className={`w-2.5 h-1.5 rounded-full ${i < s.cycle ? 'dot-on' : 'dot-off'}`} />
+              ))}
+            </div>
+            <span>{focusToday > 0 ? `${formatDuration(focusToday)} focused today` : 'No focus time logged today'}</span>
+          </div>
         </div>
-        <span>{focusToday > 0 ? `${formatDuration(focusToday)} focused today` : 'No focus time logged today'}</span>
-      </div>
+      )}
     </div>
   );
 }

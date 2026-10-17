@@ -60,11 +60,15 @@ export function AppDock({
   categoryId,
   title,
   floating = false,
+  collapsed: propCollapsed,
+  onToggleCollapsed,
   onTriggerVoice,
 }: {
   categoryId?: string;
   title?: string;
   floating?: boolean;
+  collapsed?: boolean;
+  onToggleCollapsed?: (next: boolean) => void;
   onTriggerVoice?: () => void;
 }) {
   const activeTaskId = useTimerTaskId();
@@ -111,9 +115,10 @@ export function AppDock({
     return localStorage.getItem('focusspace-default-browser') || '';
   });
   const [browserModalOpen, setBrowserModalOpen] = useState(false);
-  const [dockCollapsed, setDockCollapsed] = useState(() => {
+  const [internalDockCollapsed, setInternalDockCollapsed] = useState(() => {
     return storage.get('focusspace-appdock-collapsed') === 'true';
   });
+  const dockCollapsed = propCollapsed !== undefined ? propCollapsed : internalDockCollapsed;
   const [isHoverOpen, setIsHoverOpen] = useState(false);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -122,8 +127,12 @@ export function AppDock({
   const toggleDockCollapsed = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     const next = !dockCollapsed;
-    setDockCollapsed(next);
-    storage.set('focusspace-appdock-collapsed', next ? 'true' : 'false');
+    if (onToggleCollapsed) {
+      onToggleCollapsed(next);
+    } else {
+      setInternalDockCollapsed(next);
+      storage.set('focusspace-appdock-collapsed', next ? 'true' : 'false');
+    }
     setIsHoverOpen(false);
   };
 
@@ -312,7 +321,7 @@ export function AppDock({
               }, 250);
             }
           }}
-          className={`fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2.5 sm:px-6 sm:py-3 rounded-3xl bg-surface/90 backdrop-blur-xl border border-line-strong shadow-pop keycap transition-all duration-200 max-w-[calc(100vw-2rem)] overflow-x-auto scrollbar-none ${
+          className={`fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2.5 sm:px-6 sm:py-3 rounded-3xl bg-surface/90 backdrop-blur-xl border border-line-strong shadow-pop keycap transition-all duration-300 ease-out max-w-[calc(100vw-2rem)] overflow-x-auto scrollbar-none ${
             isVisible
               ? 'bottom-5 opacity-100 translate-y-0'
               : 'bottom-0 translate-y-[130%] opacity-0 pointer-events-none'

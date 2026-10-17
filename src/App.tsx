@@ -87,6 +87,7 @@ export default function App() {
   const [theme, setTheme] = useState(() => normalizeTheme(storage.get('focusspace-theme')));
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(() => (storage.get('focusspace-layout') === 'cockpit' ? 'cockpit' : 'orbital'));
   const [quitModalOpen, setQuitModalOpen] = useState(false);
+  const [dockCollapsed, setDockCollapsed] = useState(() => storage.get('focusspace-appdock-collapsed') === 'true');
 
   const lastFocusedInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [globalDictationTarget, setGlobalDictationTarget] = useState<DictationTarget | null>(null);
@@ -603,7 +604,11 @@ export default function App() {
           />
 
           <div className="flex-1 min-h-0 flex overflow-hidden gap-3">
-            <main className="flex-1 min-w-0 overflow-y-auto pb-28 sm:pb-24">
+            <main
+              className={`flex-1 min-w-0 overflow-y-auto transition-[padding] duration-300 ease-out ${
+                dockCollapsed ? 'pb-6 sm:pb-8' : 'pb-28 sm:pb-24'
+              }`}
+            >
               <div key={nav.n} className="view-in">
                 <ErrorBoundary onReset={goHome}>
                   {active === 'home' ? <Today onQuickAdd={openQuick} onNavigate={go} />
@@ -645,7 +650,15 @@ export default function App() {
       <ShortcutsModal open={shortcuts} onClose={() => setShortcuts(false)} />
       {search && <CommandPalette categories={categories} onClose={closeSearch} onNavigate={go} onNewTask={openQuick} onOpenTask={openTask} onOpenPage={openPage} onCycleTheme={cycleTheme} onOpenShortcuts={() => setShortcuts(true)} onReplayWelcome={() => triggerWelcome('full-daily')} />}
       {active !== 'home' && layoutMode !== 'cockpit' && <MiniTimer onOpen={goHome} />}
-      <AppDock floating onTriggerVoice={triggerUniversalVoice} />
+      <AppDock
+        floating
+        collapsed={dockCollapsed}
+        onToggleCollapsed={(next) => {
+          setDockCollapsed(next);
+          storage.set('focusspace-appdock-collapsed', next ? 'true' : 'false');
+        }}
+        onTriggerVoice={triggerUniversalVoice}
+      />
       {isVoiceEnabled() && (
         <>
           <DictationHud

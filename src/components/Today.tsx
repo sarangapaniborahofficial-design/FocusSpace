@@ -34,7 +34,7 @@ import { deleteTask, reorderTasks } from '../lib/tasks';
 import { toast } from '../lib/toast';
 import { buildTodayPlan } from '../lib/todayPlan';
 import { focusOnTask } from '../lib/timer';
-import { addDays, formatDuration, uid } from '../lib/utils';
+import { addDays, formatDuration, storage, uid } from '../lib/utils';
 import type { Category, Task } from '../types';
 import { DailyBriefing } from './DailyBriefing';
 import { Pomodoro } from './Pomodoro';
@@ -67,6 +67,42 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
   const [overId, setOverId] = useState<string | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [queueTab, setQueueTab] = useState<QueueTab>('all');
+
+  // Resizable Right Column Width (Pomodoro & Habits)
+  const [rightColWidth, setRightColWidth] = useState(() => {
+    const v = parseInt(storage.get('focusspace-today-right-width') || '360', 10);
+    return isNaN(v) ? 360 : Math.max(280, Math.min(560, v));
+  });
+  const [isWorkspaceDragging, setIsWorkspaceDragging] = useState(false);
+
+  const handleWorkspaceResizeDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    setIsWorkspaceDragging(true);
+    const startX = e.clientX;
+    const startWidth = rightColWidth;
+
+    const onPointerMove = (ev: PointerEvent) => {
+      const delta = startX - ev.clientX;
+      const newWidth = Math.max(280, Math.min(560, startWidth + delta));
+      setRightColWidth(newWidth);
+    };
+
+    const onPointerUp = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      setIsWorkspaceDragging(false);
+      const delta = startX - ev.clientX;
+      const finalWidth = Math.max(280, Math.min(560, startWidth + delta));
+      storage.set('focusspace-today-right-width', String(finalWidth));
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  };
 
   const handleTodayDrop = async (targetId: string) => {
     if (!dragId || dragId === targetId) return;
@@ -144,7 +180,7 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
   const last7Days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(today, -(6 - i))), [today]);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-[1560px] mx-auto space-y-6 pb-28">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1560px] mx-auto space-y-6">
       {/* Dynamic Time-Aware Daily Briefing Card */}
       <DailyBriefing
         today={today}
@@ -159,9 +195,13 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
         onOpenSchedule={() => setScheduleOpen(true)}
       />
 
-      {/* Main 2-Column Workspace */}
-      <div className="grid 2xl:grid-cols-[1fr_380px] xl:grid-cols-[1fr_340px] grid-cols-1 gap-6 items-start">
-        <div className="space-y-6 min-w-0">
+      {/* Main 2-Column Workspace with Drag-Resizable Split */}
+      <div
+        className={`flex flex-col xl:flex-row gap-6 xl:gap-0 items-start w-full relative ${
+          isWorkspaceDragging ? 'select-none transition-none' : 'transition-all duration-300 ease-out'
+        }`}
+      >
+        <div className="flex-1 min-w-0 space-y-6 w-full xl:pr-5">
           {/* Quick Capture Bar */}
           <TodayQuickCapture categories={cats} today={today} />
 
@@ -313,8 +353,24 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
           <GoalsSection />
         </div>
 
+        {/* Workspace Drag-Resize Handle (xl+) */}
+        <div
+          onPointerDown={handleWorkspaceResizeDown}
+          onDoubleClick={() => {
+            setRightColWidth(360);
+            storage.set('focusspace-today-right-width', '360');
+          }}
+          className="hidden xl:flex self-stretch w-3.5 cursor-col-resize group relative z-20 items-center justify-center hover:bg-accent/20 active:bg-accent/30 transition select-none shrink-0"
+          title="Drag to resize workspace columns (Double-click to reset to 360px)"
+        >
+          <div className="w-[2px] h-36 rounded-full bg-line-strong/60 group-hover:bg-accent group-hover:h-52 transition-all" />
+        </div>
+
         {/* Right Column: Pomodoro + Daily habits */}
-        <div className="space-y-6">
+        <div
+          style={{ width: `${rightColWidth}px` }}
+          className="w-full xl:w-auto shrink-0 space-y-6 xl:pl-5"
+        >
           <Pomodoro />
 
           <section className="atelier-card rounded-3xl p-5">
