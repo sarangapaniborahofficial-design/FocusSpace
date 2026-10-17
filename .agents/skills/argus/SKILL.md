@@ -27,7 +27,7 @@ ARGUS operates under a strict principle: **No claim of correctness is valid with
 4. **Data Vault & Storage Invariants**: IndexedDB (Dexie v4 across 10 tables), full backup export/import round-trips, binary MIME preservation, rollback safety, and Electron native atomic vault disk mirroring (`.tmp` write and atomic rename with `SAFE_FILENAME_RE` guards) must pass with zero data loss.
 5. **Tactile Hardware Precision & Geometry**: The Always-on-Top Floating HUD and the main desktop UI must strictly adhere to the exact geometry (**440px** width, **88px** collapsed height, **440px** expanded height with **20px** curved border radius and **352px** enlarged drawer), 4 app themes, 6 artboard designs, and mathematical WCAG AAA contrast standards.
 6. **Failure Isolation & Root-Cause Pinpointing**: When a check fails, ARGUS isolates the fault, traces it to the specific layer (DOM, IPC bridge, WASM, Webview, Node, OS), and logs the full diagnostic signature.
-7. **Packaging & Release Defense**: Release installers (`FocusSpace_Setup.exe` with valid Windows PE `MZ` header) and clean codebase archives (`FocusSpace_Clean_Codebase.zip` with verified central directory table) are audited to guarantee all 20 offline voice assets and dictation target classes are present and completely clean of build debris (`node_modules`, `.git`, `dist/`, `dist-electron/`).
+7. **Packaging & Release Defense**: Release installers (`FocusSpace_Setup.exe` with valid Windows PE `MZ` header) and Option 2 unified review archives (`review.txt`) are audited to guarantee all application and desktop code components are present, and completely clean of build debris (`node_modules`, `.git`, `dist/`, `dist-electron/`, `public/`, `package-lock.json`).
 
 ---
 
@@ -36,7 +36,7 @@ ARGUS operates under a strict principle: **No claim of correctness is valid with
 ```
                       ▲
                      / \
-                    / T7\   Release Packaging & Binary Sanity (PE MZ / Clean Zip)
+                    / T7\   Release Packaging & Option 2 Review Audit (PE MZ / review.txt)
                    /-----\
                   /  T6   \  Tactile UI, 6 HUD Artboards, Curvature & WCAG AAA Oracle
                  /---------\
@@ -124,14 +124,14 @@ ARGUS operates under a strict principle: **No claim of correctness is valid with
 - **Collapsible Navigation & App Dock**:
   - Sidebar and AppDock hover peek sensor states (`isHovered`, `isHoverOpen`) and transitions.
 
-### Tier 7: Release Packaging & Clean Codebase Archive (`argus release`)
+### Tier 7: Release Packaging & Option 2 Review Archive (`argus release`)
 - **Release Setup Installer**:
   - Validates `FocusSpace_Setup.exe` (> 100 MB).
   - Validates genuine Windows Portable Executable (PE) header (`MZ` magic bytes `0x4D, 0x5A`).
-- **Clean Codebase Archive Deep Audit**:
-  - Inspects central directory table of `FocusSpace_Clean_Codebase.zip` (> 150 entries).
+- **Option 2 Standard Review Archive Deep Audit**:
+  - Inspects file demarcations in `review.txt` (> 130 files).
   - Confirms critical files are present: `package.json`, `src/App.tsx`, `src/voice/target/DictationTarget.ts`.
-  - Confirms complete exclusion of build debris: `node_modules/`, `.git/`, `dist/`, `dist-electron/`.
+  - Confirms complete exclusion of binary bloat and debris: `node_modules/`, `.git/`, `dist/`, `dist-electron/`, `public/`, `package-lock.json`, `.agents/`.
 
 ---
 

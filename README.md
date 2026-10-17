@@ -197,7 +197,7 @@ node scripts/argus.mjs --full -v
   [T4] PASS  Offline Voice Studio, Silero VAD v5 & Zero-Cloud Guard
   [T5] PASS  Electron Desktop Hardening, CSP, Navigation & High-DPI HUD
   [T6] PASS  Tactile UI, 6 HUD Artboards & WCAG AAA Contrast (>=16:1)
-  [T7] PASS  Release Packaging, PE Executable & Clean Zip Integrity
+  [T7] PASS  Release Packaging & Option 2 Review Audit
 ========================================================================
   ARGUS AUDIT SCORECARD: ALL 7/7 TIERS PASSED [HEALTHY]
 ========================================================================
@@ -264,8 +264,8 @@ npm test
 # Run the full Argus 7-Tier Verification Oracle
 npm run argus
 
-# Package clean codebase archive
-npm run package:zip
+# Generate Option 2 lightweight review export (review.txt)
+npm run review
 ```
 
 ---
@@ -282,7 +282,7 @@ FocusSpace/
 │   └── icons/                 # PWA & desktop application icons
 ├── scripts/
 │   ├── argus.mjs              # Argus 7-Tier Autonomous Verification Oracle
-│   ├── package-clean-zip.py   # Clean release zip archive packager
+│   ├── generate-review.mjs    # Option 2 review export generator (review.txt)
 │   └── provision-voice.mjs    # Voice models offline setup script
 ├── src/
 │   ├── components/

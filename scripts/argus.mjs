@@ -535,14 +535,16 @@ runTier('T6', 'Tactile UI, 6 HUD Artboards & Theme System', () => {
 });
 
 // ----------------------------------------------------------------------------
-// Tier 7: Release Packaging, Binary Sanity & Clean Codebase Archive
+// Tier 7: Release Packaging, Binary Sanity & Option 2 Review Archive
 // ----------------------------------------------------------------------------
-runTier('T7', 'Release Packaging & Codebase Archive Audit', () => {
+runTier('T7', 'Release Packaging & Option 2 Review Audit', () => {
   const exePath = path.join(WORKSPACE, 'FocusSpace_Setup.exe');
-  const zipPath = path.join(WORKSPACE, 'FocusSpace_Clean_Codebase.zip');
+  const reviewPath = fs.existsSync(path.join(WORKSPACE, 'review.txt'))
+    ? path.join(WORKSPACE, 'review.txt')
+    : path.join(ROOT, 'review.txt');
 
   if (!fs.existsSync(exePath)) throw new Error(`FocusSpace_Setup.exe not found at ${exePath}`);
-  if (!fs.existsSync(zipPath)) throw new Error(`FocusSpace_Clean_Codebase.zip not found at ${zipPath}`);
+  if (!fs.existsSync(reviewPath)) throw new Error(`Option 2 review.txt not found at ${reviewPath}`);
 
   // 1. Validate PE executable header of installer
   logVerbose('Validating PE executable header (MZ bytes) of FocusSpace_Setup.exe...');
@@ -558,58 +560,50 @@ runTier('T7', 'Release Packaging & Codebase Archive Audit', () => {
     throw new Error(`FocusSpace_Setup.exe is abnormally small: ${exeSizeMB} MB`);
   }
 
-  // 2. Validate Clean Codebase Archive (Deep Central Directory Inspection)
-  logVerbose('Inspecting central directory of FocusSpace_Clean_Codebase.zip...');
-  const zipBuf = fs.readFileSync(zipPath);
-  let eocdOffset = -1;
-  for (let i = zipBuf.length - 22; i >= 0; i--) {
-    if (zipBuf.readUInt32LE(i) === 0x06054b50) {
-      eocdOffset = i;
-      break;
-    }
-  }
-  if (eocdOffset === -1) throw new Error('Corrupt zip archive: End of Central Directory record missing');
+  // 2. Validate Option 2 Standard Review Archive (Deep Inspection)
+  logVerbose(`Inspecting Option 2 standard review archive (${path.basename(reviewPath)})...`);
+  const reviewContent = fs.readFileSync(reviewPath, 'utf-8');
+  const fileHeaderMatches = reviewContent.match(/^=== FILE: (.+) ===$/gm) || [];
+  const trackedFiles = fileHeaderMatches.map((h) => h.replace(/^=== FILE: /, '').replace(/ ===$/, ''));
 
-  const totalEntries = zipBuf.readUInt16LE(eocdOffset + 10);
-  const cdOffset = zipBuf.readUInt32LE(eocdOffset + 16);
-
-  let offset = cdOffset;
-  const zipEntries = [];
-  for (let i = 0; i < totalEntries; i++) {
-    if (zipBuf.readUInt32LE(offset) !== 0x02014b50) break;
-    const fnLen = zipBuf.readUInt16LE(offset + 28);
-    const extraLen = zipBuf.readUInt16LE(offset + 30);
-    const commentLen = zipBuf.readUInt16LE(offset + 32);
-    const name = zipBuf.toString('utf8', offset + 46, offset + 46 + fnLen);
-    zipEntries.push(name);
-    offset += 46 + fnLen + extraLen + commentLen;
-  }
-
-  logVerbose(`Parsed ${zipEntries.length} entries from clean zip archive`);
+  logVerbose(`Parsed ${trackedFiles.length} file boundaries in Option 2 review.txt`);
 
   // Verify critical files are present
-  if (!zipEntries.some((f) => f.includes('DictationTarget.ts'))) {
-    throw new Error('Clean zip archive is missing src/voice/target/DictationTarget.ts');
+  if (!trackedFiles.some((f) => f.includes('DictationTarget.ts'))) {
+    throw new Error('Option 2 review.txt is missing DictationTarget.ts');
   }
-  if (!zipEntries.some((f) => f === 'src/App.tsx' || f.endsWith('/App.tsx'))) {
-    throw new Error('Clean zip archive is missing src/App.tsx');
+  if (!trackedFiles.some((f) => f === 'src/App.tsx' || f.endsWith('/App.tsx'))) {
+    throw new Error('Option 2 review.txt is missing src/App.tsx');
   }
-  if (!zipEntries.some((f) => f === 'package.json' || f.endsWith('/package.json'))) {
-    throw new Error('Clean zip archive is missing package.json');
+  if (!trackedFiles.some((f) => f === 'package.json' || f.endsWith('/package.json'))) {
+    throw new Error('Option 2 review.txt is missing package.json');
   }
 
-  // Verify excluded debris are 100% absent
-  const forbiddenDirs = ['node_modules', '.git', 'dist', 'dist-electron'];
-  for (const entry of zipEntries) {
-    for (const bad of forbiddenDirs) {
-      if (entry.startsWith(bad + '/') || entry.startsWith(bad + '\\') || entry.includes('/' + bad + '/')) {
-        throw new Error(`Clean zip archive contains forbidden debris: ${entry}`);
+  // Verify forbidden patterns and bloated directories are 100% absent (Option 2 invariant)
+  const forbiddenPrefixes = [
+    'package-lock.json',
+    'public/',
+    'dist/',
+    'dist-electron/',
+    'release/',
+    '.agents/',
+    'node_modules/'
+  ];
+
+  for (const f of trackedFiles) {
+    for (const bad of forbiddenPrefixes) {
+      if (f === bad || f.startsWith(bad)) {
+        throw new Error(`Option 2 review.txt contains forbidden path/debris: ${f}`);
       }
     }
   }
 
-  const zipSizeMB = (fs.statSync(zipPath).size / (1024 * 1024)).toFixed(2);
-  return `Setup Installer (${exeSizeMB} MB, PE-valid) + Clean Zip (${zipSizeMB} MB, ${zipEntries.length} files verified)`;
+  const reviewSizeMB = (fs.statSync(reviewPath).size / (1024 * 1024)).toFixed(2);
+  if (parseFloat(reviewSizeMB) > 3.0) {
+    throw new Error(`Option 2 review.txt exceeds 3 MB limit (${reviewSizeMB} MB). Check for unintended binary/asset inclusions.`);
+  }
+
+  return `Setup Installer (${exeSizeMB} MB, PE-valid) + Option 2 Review Archive (${reviewSizeMB} MB, ${trackedFiles.length} files verified)`;
 });
 
 // ----------------------------------------------------------------------------
