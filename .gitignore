@@ -33,3 +33,8 @@ dist-electron/
 # Offline Voice Models & VAD WASM binaries (downloaded via scripts/fetch-models.mjs)
 public/models/
 public/vad/
+
+# Lightweight export bundles & review dumps
+review.txt
+*.zip
+
