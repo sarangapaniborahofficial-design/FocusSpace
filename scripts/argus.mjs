@@ -480,13 +480,13 @@ runTier('T6', 'Tactile UI, 6 HUD Artboards & Theme System', () => {
   if (!css.includes('border-radius: 20px')) throw new Error('HUD curved border-radius (20px) missing in CSS');
   if (!css.includes('352px')) throw new Error('Enlarged HUD drawer height (352px) missing in CSS');
 
-  logVerbose('Verifying collapsible sidebar and native top-left window controls with unsaved work protection...');
+  logVerbose('Verifying collapsible sidebar and Windows top-right window controls with unsaved work protection...');
   const sidebarSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'Sidebar.tsx'), 'utf-8');
   const headerSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'Header.tsx'), 'utf-8');
   const quitModalSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'QuitConfirmModal.tsx'), 'utf-8');
   if (!sidebarSrc.includes('isHovered')) throw new Error('Sidebar hover peek state missing');
   if (!headerSrc.includes('onMinimize') || !headerSrc.includes('onToggleMaximize') || !headerSrc.includes('onClose')) {
-    throw new Error('Top-left window controls (minimize, multi-window, close) missing in Header');
+    throw new Error('Windows top-right window controls (minimize, multi-window, close) missing in Header');
   }
   if (!quitModalSrc.includes('unsavedReason')) throw new Error('Unsaved work prompt missing in QuitConfirmModal');
 

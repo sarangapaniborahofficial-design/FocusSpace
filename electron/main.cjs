@@ -14,6 +14,25 @@ const path = require('path');
 const fs = require('fs/promises');
 const nodeFs = require('fs');
 
+// Global exception guard: prevent native Windows error dialogs on destroyed window references during teardown
+process.on('uncaughtException', (err) => {
+  if (err && (err.message?.includes('Object has been destroyed') || err.message?.includes('render-process-gone'))) {
+    console.warn('[Process Guard] Safely caught destroyed object reference:', err.message);
+    return;
+  }
+  console.error('[Process Guard] Uncaught exception in main process:', err);
+});
+
+function showMainWindowSafely() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  } else {
+    createMainWindow();
+  }
+}
+
 function getSavedHudBounds() {
   try {
     const file = path.join(app.getPath('userData'), 'hud-bounds.json');
@@ -106,17 +125,19 @@ if (!gotTheLock) {
   app.quit();
 } else {
   app.on('second-instance', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show();
-      mainWindow.focus();
-    }
+    showMainWindowSafely();
   });
 }
 
 // Clean shutdown handler: guarantees Windows restart, logoff, or shutdown never hangs
 app.on('before-quit', () => {
   app.isQuitting = true;
+  if (tray) {
+    try {
+      tray.destroy();
+      tray = null;
+    } catch {}
+  }
   if (systemTrackerProc) {
     try {
       systemTrackerProc.kill();
@@ -206,6 +227,10 @@ function createMainWindow() {
       }
     }
   });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
 }
 
 function createHudWindow() {
@@ -269,6 +294,10 @@ function createHudWindow() {
       e.preventDefault();
       hudWindow.hide();
     }
+  });
+
+  hudWindow.on('closed', () => {
+    hudWindow = null;
   });
 }
 
@@ -452,22 +481,18 @@ app.whenReady().then(() => {
   });
 
   ipcMain.on('window:show-main', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show();
-      mainWindow.focus();
-    }
+    showMainWindowSafely();
   });
 
   ipcMain.handle('window:toggle-fullscreen', () => {
-    if (!mainWindow) return false;
+    if (!mainWindow || mainWindow.isDestroyed()) return false;
     const next = !mainWindow.isFullScreen();
     mainWindow.setFullScreen(next);
     return next;
   });
 
   ipcMain.handle('window:is-fullscreen', () => {
-    return Boolean(mainWindow && mainWindow.isFullScreen());
+    return Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isFullScreen());
   });
 
   ipcMain.handle('window:minimize', () => {
@@ -817,18 +842,14 @@ app.whenReady().then(() => {
 
   // --- 5. Conflict-Free Global Hotkeys ---
   const regSpace = globalShortcut.register('CommandOrControl+Alt+Space', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show();
-      mainWindow.focus();
-    }
+    showMainWindowSafely();
   });
   if (!regSpace) {
     console.warn('[Hotkeys] Failed to register CommandOrControl+Alt+Space');
   }
 
   const regHud = globalShortcut.register('CommandOrControl+Alt+H', () => {
-    if (!hudWindow) return;
+    if (!hudWindow || hudWindow.isDestroyed()) return;
     if (hudWindow.isVisible()) {
       hudWindow.hide();
     } else {
@@ -841,11 +862,7 @@ app.whenReady().then(() => {
   }
 
   const regDash = globalShortcut.register('CommandOrControl+Alt+D', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show();
-      mainWindow.focus();
-    }
+    showMainWindowSafely();
   });
   if (!regDash) {
     console.warn('[Hotkeys] Failed to register CommandOrControl+Alt+D');
@@ -858,13 +875,13 @@ app.whenReady().then(() => {
       {
         label: 'Open FocusSpace',
         click: () => {
-          mainWindow.show();
-          mainWindow.focus();
+          showMainWindowSafely();
         },
       },
       {
         label: 'Toggle Floating HUD (Ctrl+Alt+H)',
         click: () => {
+          if (!hudWindow || hudWindow.isDestroyed()) return;
           if (hudWindow.isVisible()) hudWindow.hide();
           else hudWindow.show();
         },
@@ -881,8 +898,7 @@ app.whenReady().then(() => {
     tray.setToolTip('FocusSpace');
     tray.setContextMenu(contextMenu);
     tray.on('double-click', () => {
-      mainWindow.show();
-      mainWindow.focus();
+      showMainWindowSafely();
     });
   } catch (err) {
     console.error('System tray error:', err);
