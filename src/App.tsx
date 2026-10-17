@@ -327,100 +327,104 @@ export default function App() {
     });
 
     const unsubBridge = subscribeHudBridge(async (msg) => {
-      if (msg.type === 'REQUEST_SYNC') {
-        void syncState();
-      } else if (msg.type === 'TOGGLE_TIMER') {
-        timer.toggle();
-        void syncState();
-      } else if (msg.type === 'BANK_OVERTIME') {
-        timer.bankOvertime();
-        void syncState();
-      } else if (msg.type === 'COMPLETE_TASK') {
-        const task = await db.tasks.get(msg.taskId);
-        if (task) {
-          await db.tasks.put(withStatus(task, 'Submitted/Done'));
+      try {
+        if (msg.type === 'REQUEST_SYNC') {
           void syncState();
-        }
-      } else if (msg.type === 'TOGGLE_TASK') {
-        const task = await db.tasks.get(msg.taskId);
-        if (task) {
-          const isDone = task.status === 'Submitted/Done';
-          await db.tasks.put(withStatus(task, isDone ? 'To Do' : 'Submitted/Done'));
+        } else if (msg.type === 'TOGGLE_TIMER') {
+          timer.toggle();
           void syncState();
-        }
-      } else if (msg.type === 'ADD_TASK') {
-        const title = msg.title.trim();
-        if (title) {
-          const categories = await db.categories.toArray();
-          const defaultCatId = categories[0]?.id || 'inbox';
-          const nowIso = new Date().toISOString();
-          const newTask: Task = {
-            id: uid(),
-            title,
-            status: 'To Do',
-            priority: (msg.priority as any) || 'Medium',
-            categoryId: defaultCatId,
-            projectTag: '',
-            estimatedDuration: 25,
-            dueDate: isoToday(),
-            dueTime: '',
-            subtasks: [],
-            notes: '',
-            colorCode: '#60a5fa',
-            createdAt: nowIso,
-            updatedAt: nowIso,
-          };
-          await db.tasks.add(newTask);
+        } else if (msg.type === 'BANK_OVERTIME') {
+          timer.bankOvertime();
           void syncState();
+        } else if (msg.type === 'COMPLETE_TASK') {
+          const task = await db.tasks.get(msg.taskId);
+          if (task) {
+            await db.tasks.put(withStatus(task, 'Submitted/Done'));
+            void syncState();
+          }
+        } else if (msg.type === 'TOGGLE_TASK') {
+          const task = await db.tasks.get(msg.taskId);
+          if (task) {
+            const isDone = task.status === 'Submitted/Done';
+            await db.tasks.put(withStatus(task, isDone ? 'To Do' : 'Submitted/Done'));
+            void syncState();
+          }
+        } else if (msg.type === 'ADD_TASK') {
+          const title = msg.title.trim();
+          if (title) {
+            const categories = await db.categories.toArray();
+            const defaultCatId = categories[0]?.id || 'inbox';
+            const nowIso = new Date().toISOString();
+            const newTask: Task = {
+              id: uid(),
+              title,
+              status: 'To Do',
+              priority: (msg.priority as any) || 'Medium',
+              categoryId: defaultCatId,
+              projectTag: '',
+              estimatedDuration: 25,
+              dueDate: isoToday(),
+              dueTime: '',
+              subtasks: [],
+              notes: '',
+              colorCode: '#60a5fa',
+              createdAt: nowIso,
+              updatedAt: nowIso,
+            };
+            await db.tasks.add(newTask);
+            void syncState();
+          }
+        } else if (msg.type === 'SET_ACTIVE_TASK') {
+          const task = await db.tasks.get(msg.taskId);
+          if (task) {
+            timer.setTask({ id: task.id, title: task.title });
+            void syncState();
+          }
+        } else if (msg.type === 'SHOW_DASHBOARD') {
+          go('home');
+          if (window.electronAPI?.showMainWindow) {
+            window.electronAPI.showMainWindow();
+          }
+        } else if (msg.type === 'COMPLETE_SUBTASK') {
+          const task = await db.tasks.get(msg.taskId);
+          if (task) {
+            const updated = (task.subtasks || []).map(s =>
+              s.id === msg.subtaskId ? { ...s, completed: !s.completed } : s
+            );
+            await db.tasks.update(task.id, { subtasks: updated, updatedAt: new Date().toISOString() });
+            void syncState();
+          }
+        } else if (msg.type === 'ADD_SUBTASK') {
+          const task = await db.tasks.get(msg.taskId);
+          if (task && msg.title.trim()) {
+            const newSub: Subtask = { id: uid(), title: msg.title.trim(), completed: false };
+            const updated = [...(task.subtasks || []), newSub];
+            await db.tasks.update(task.id, { subtasks: updated, updatedAt: new Date().toISOString() });
+            void syncState();
+          }
+        } else if (msg.type === 'SAVE_SCRATCHPAD') {
+          const task = await db.tasks.get(msg.taskId);
+          if (task && msg.text.trim()) {
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const entry = `• [${timeStr}] ${msg.text.trim()}`;
+            const newNotes = task.notes ? `${task.notes}\n${entry}` : entry;
+            await db.tasks.update(task.id, { notes: newNotes, updatedAt: now.toISOString() });
+            void syncState();
+          }
+        } else if (msg.type === 'RESIZE_HUD') {
+          const api = getElectronAPI();
+          if (api) {
+            void api.resizeHud(msg.expanded);
+          }
+        } else if (msg.type === 'CLOSE_HUD') {
+          const api = getElectronAPI();
+          if (api) {
+            void api.hideHud();
+          }
         }
-      } else if (msg.type === 'SET_ACTIVE_TASK') {
-        const task = await db.tasks.get(msg.taskId);
-        if (task) {
-          timer.setTask({ id: task.id, title: task.title });
-          void syncState();
-        }
-      } else if (msg.type === 'SHOW_DASHBOARD') {
-        go('home');
-        if (window.electronAPI?.showMainWindow) {
-          window.electronAPI.showMainWindow();
-        }
-      } else if (msg.type === 'COMPLETE_SUBTASK') {
-        const task = await db.tasks.get(msg.taskId);
-        if (task) {
-          const updated = (task.subtasks || []).map(s =>
-            s.id === msg.subtaskId ? { ...s, completed: !s.completed } : s
-          );
-          await db.tasks.update(task.id, { subtasks: updated, updatedAt: new Date().toISOString() });
-          void syncState();
-        }
-      } else if (msg.type === 'ADD_SUBTASK') {
-        const task = await db.tasks.get(msg.taskId);
-        if (task && msg.title.trim()) {
-          const newSub: Subtask = { id: uid(), title: msg.title.trim(), completed: false };
-          const updated = [...(task.subtasks || []), newSub];
-          await db.tasks.update(task.id, { subtasks: updated, updatedAt: new Date().toISOString() });
-          void syncState();
-        }
-      } else if (msg.type === 'SAVE_SCRATCHPAD') {
-        const task = await db.tasks.get(msg.taskId);
-        if (task && msg.text.trim()) {
-          const now = new Date();
-          const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-          const entry = `• [${timeStr}] ${msg.text.trim()}`;
-          const newNotes = task.notes ? `${task.notes}\n${entry}` : entry;
-          await db.tasks.update(task.id, { notes: newNotes, updatedAt: now.toISOString() });
-          void syncState();
-        }
-      } else if (msg.type === 'RESIZE_HUD') {
-        const api = getElectronAPI();
-        if (api) {
-          void api.resizeHud(msg.expanded);
-        }
-      } else if (msg.type === 'CLOSE_HUD') {
-        const api = getElectronAPI();
-        if (api) {
-          void api.hideHud();
-        }
+      } catch (bridgeErr) {
+        console.error('[HUD Bridge] Error executing command from HUD:', bridgeErr);
       }
     });
 

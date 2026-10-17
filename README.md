@@ -239,12 +239,18 @@ node scripts/argus.mjs --full -v
 git clone https://github.com/your-username/focusspace.git
 cd focusspace/FocusSpace
 
-# Install dependencies and provision offline voice models
+# 1. Install dependencies (automatically provisions WASM runtimes via postinstall)
 npm install
 
-# Start Vite local development server
+# 2. Provision local Whisper ASR voice models (~59 MB, gitignored)
+npm run setup:voice
+
+# 3. Start Vite local development server
 npm run dev
 ```
+
+> [!TIP]
+> **Fresh Clones & Offline Voice Models**: The local Whisper ASR weights in `public/models/` are gitignored to keep the repository lightweight (~1.1 MB pure code). Running `npm run setup:voice` downloads and provisions the quantized ONNX models onto your local disk. Once downloaded, voice recognition runs 100% offline with zero cloud telemetry.
 
 ### Desktop Application (Electron)
 ```bash

@@ -83,14 +83,24 @@ for (const relPath of REQUIRED_FILES) {
 
 if (missingCount > 0) {
   if (isPostInstall && !isStrict) {
-    console.warn(`\n⚠️ Notice: ${missingCount} offline model asset(s) not found in public/models/.`);
-    console.warn('  This is expected in clean checkouts and CI/Vercel environments where public/models/ is gitignored.');
-    console.warn('  Run "npm run setup:voice" locally to populate offline Whisper models.\n');
+    console.log('\n┌────────────────────────────────────────────────────────────────────────┐');
+    console.log('│  🎙️  FocusSpace Voice Studio — Offline Model Provisioning Needed      │');
+    console.log('├────────────────────────────────────────────────────────────────────────┤');
+    console.log(`│  Notice: ${String(missingCount).padStart(2)} offline model asset(s) not yet present in public/models/. │`);
+    console.log('│  This is expected on fresh git clones (models are gitignored).         │');
+    console.log('│                                                                        │');
+    console.log('│  To provision the local Whisper ASR models (~59 MB), run:              │');
+    console.log('│    npm run setup:voice                                                 │');
+    console.log('└────────────────────────────────────────────────────────────────────────┘\n');
     process.exit(0);
   }
 
-  console.error(`\n❌ Asset verification FAILED: ${missingCount} required file(s) missing or empty.`);
-  console.error('Run "npm run setup:voice" or "npm run prepare-voice" to provision assets.\n');
+  console.error('\n┌────────────────────────────────────────────────────────────────────────┐');
+  console.error('│  ❌  FocusSpace Voice Studio — Asset Verification Failed              │');
+  console.error('├────────────────────────────────────────────────────────────────────────┤');
+  console.error(`│  ${String(missingCount).padStart(2)} required file(s) are missing or empty in public/models/ or public/ort/ │`);
+  console.error('│  Run "npm run setup:voice" to download and provision offline models.   │');
+  console.error('└────────────────────────────────────────────────────────────────────────┘\n');
   process.exit(1);
 }
 

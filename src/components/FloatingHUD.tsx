@@ -93,6 +93,8 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
   const [scratchpad, setScratchpad] = useState('');
   const ambientState = useAmbientSound();
   const noteRef = useRef<HTMLTextAreaElement | null>(null);
+  const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isMainClosed, setIsMainClosed] = useState(false);
   const { isListening, toggle: toggleDictation } = useDictation();
 
   const handleMicClick = async (e: React.MouseEvent) => {
@@ -107,7 +109,8 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
       }
     }
     setActiveTab('notes');
-    setTimeout(() => {
+    if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+    focusTimerRef.current = setTimeout(() => {
       noteRef.current?.focus();
     }, 50);
     toggleDictation();
@@ -119,6 +122,7 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
     }
     const unsub = subscribeHudBridge((msg) => {
       if (msg.type === 'STATE_SYNC') {
+        setIsMainClosed(false);
         setHudState(msg);
         if (msg.theme) {
           document.documentElement.dataset.theme = msg.theme;
@@ -126,11 +130,30 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
         if (msg.activeTask?.scratchpadNotes !== undefined) {
           setScratchpad(msg.activeTask.scratchpadNotes || '');
         }
+      } else if (msg.type === 'MAIN_WINDOW_STATUS') {
+        if (msg.status === 'closing' || msg.status === 'closed') {
+          setIsMainClosed(true);
+        } else if (msg.status === 'active') {
+          setIsMainClosed(false);
+        }
       }
     });
+
+    const api = getElectronAPI();
+    const unsubLifecycle = api?.onMainWindowLifecycle?.((data) => {
+      if (data.state === 'closed') {
+        setIsMainClosed(true);
+      } else if (data.state === 'restored') {
+        setIsMainClosed(false);
+        requestHudSync();
+      }
+    });
+
     requestHudSync();
     return () => {
       unsub();
+      unsubLifecycle?.();
+      if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
       if (isNativeWindow) {
         document.documentElement.classList.remove('hud-window-mode');
       }
@@ -167,6 +190,13 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
 
   const handleToggleTimer = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isMainClosed) {
+      const api = getElectronAPI();
+      if (api) {
+        api.showMainWindow();
+      }
+      setIsMainClosed(false);
+    }
     sendHudCommand({ type: 'TOGGLE_TIMER', v: 1 });
   };
 
@@ -176,6 +206,7 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
     if (api) {
       api.showMainWindow();
     }
+    setIsMainClosed(false);
     sendHudCommand({ type: 'SHOW_DASHBOARD', v: 1 });
   };
 
@@ -291,6 +322,8 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
           >
             {isListening
               ? '🎙 Listening for note…'
+              : isMainClosed
+              ? 'FocusSpace Closed • Click to Open'
               : hudState?.activeTask?.title || 'Free Focus Session'}
           </div>
 

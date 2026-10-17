@@ -25,6 +25,7 @@ export interface ElectronAPI {
   closeWindow: () => Promise<boolean>;
   onWindowCloseRequested?: (callback: () => void) => () => void;
   onMaximizeChange?: (callback: (isMaximized: boolean) => void) => () => void;
+  onMainWindowLifecycle?: (callback: (data: { state: 'minimized' | 'restored' | 'closed' }) => void) => () => void;
   quitApp: () => Promise<void>;
   minimizeToTray: () => Promise<boolean>;
   openExternal: (url: string) => Promise<{ opened: boolean }>;

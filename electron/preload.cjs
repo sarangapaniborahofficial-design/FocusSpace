@@ -54,6 +54,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('window:maximize-changed', handler);
     return () => ipcRenderer.removeListener('window:maximize-changed', handler);
   },
+  onMainWindowLifecycle: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('main-window:lifecycle', handler);
+    return () => ipcRenderer.removeListener('main-window:lifecycle', handler);
+  },
 
   // External App Launching & File Selection
   openExternal: (url) =>

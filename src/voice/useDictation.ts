@@ -49,10 +49,18 @@ export function useDictation(options: UseDictationOptions = {}) {
       });
       setState('ready');
     } catch (err: any) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const raw = err instanceof Error ? err.message : String(err);
+      const isMissingModel =
+        raw.includes('404') ||
+        raw.includes('Failed to fetch') ||
+        raw.includes('not found') ||
+        raw.includes('NetworkError');
+      const msg = isMissingModel
+        ? "Offline voice model files not provisioned. Run 'npm run setup:voice' in your terminal to enable voice dictation."
+        : raw;
       setErrorMessage(msg);
       setState('error');
-      optionsRef.current.onError?.(err instanceof Error ? err : new Error(msg));
+      optionsRef.current.onError?.(new Error(msg));
     }
   }, []);
 

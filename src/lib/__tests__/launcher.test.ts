@@ -107,5 +107,27 @@ describe('launcher module', () => {
       expect(res).toBe(true);
       expect(openInBrowserMock).toHaveBeenCalledWith('https://github.com', 'chrome');
     });
+
+    it('does not fall back to openExternal when launchNativeApp fails', async () => {
+      const launchNativeAppMock = vi.fn().mockRejectedValue(new Error('Permission Denied'));
+      const openExternalMock = vi.fn();
+      const mockAPI: Partial<ElectronAPI> = {
+        isElectron: true,
+        launchNativeApp: launchNativeAppMock,
+        openExternal: openExternalMock,
+      };
+
+      (globalThis as any).window = {
+        ...originalWindow,
+        setTimeout: globalThis.setTimeout.bind(globalThis),
+        clearTimeout: globalThis.clearTimeout.bind(globalThis),
+        electronAPI: mockAPI,
+      };
+
+      const res = await launchTarget('C:\\Windows\\notepad.exe', 'Notepad');
+      expect(res).toBe(false);
+      expect(launchNativeAppMock).toHaveBeenCalledWith('C:\\Windows\\notepad.exe');
+      expect(openExternalMock).not.toHaveBeenCalled();
+    });
   });
 });

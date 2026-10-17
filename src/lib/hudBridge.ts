@@ -61,22 +61,43 @@ export type HudMessage =
   | { type: 'SAVE_SCRATCHPAD'; v: 1; taskId: string; text: string }
   | { type: 'SHOW_DASHBOARD'; v: 1 }
   | { type: 'CLOSE_HUD'; v: 1 }
-  | { type: 'RESIZE_HUD'; v: 1; expanded: boolean };
+  | { type: 'RESIZE_HUD'; v: 1; expanded: boolean }
+  | { type: 'MAIN_WINDOW_STATUS'; v: 1; status: 'active' | 'minimized' | 'closing' | 'closed' };
 
 const CHANNEL_NAME = 'focusspace-hud-bus';
 
 class HudBridge {
   private channel: BroadcastChannel | null = null;
   private listeners: Set<(msg: HudMessage) => void> = new Set();
+  private isDestroyed = false;
 
   constructor() {
+    this.init();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('beforeunload', () => {
+        this.send({ type: 'MAIN_WINDOW_STATUS', v: 1, status: 'closing' });
+        this.destroy();
+      });
+      window.addEventListener('pagehide', () => {
+        this.destroy();
+      });
+    }
+  }
+
+  private init(): void {
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       try {
         this.channel = new BroadcastChannel(CHANNEL_NAME);
         this.channel.onmessage = (event: MessageEvent) => {
           const msg = event.data;
           if (msg && typeof msg === 'object' && msg.v === 1 && typeof msg.type === 'string') {
-            this.listeners.forEach(l => l(msg as HudMessage));
+            this.listeners.forEach((l) => {
+              try {
+                l(msg as HudMessage);
+              } catch (listenerErr) {
+                console.error('[HUD Bridge] Error in broadcast listener:', listenerErr);
+              }
+            });
           }
         };
       } catch (err) {
@@ -85,10 +106,19 @@ class HudBridge {
     }
   }
 
+  private ensureChannel(): BroadcastChannel | null {
+    if (this.channel) return this.channel;
+    if (!this.isDestroyed) {
+      this.init();
+    }
+    return this.channel;
+  }
+
   send(msg: HudMessage): void {
-    if (this.channel) {
+    const ch = this.ensureChannel();
+    if (ch) {
       try {
-        this.channel.postMessage(msg);
+        ch.postMessage(msg);
       } catch (err) {
         console.warn('Failed to postMessage on hud bridge:', err);
       }
@@ -96,8 +126,22 @@ class HudBridge {
   }
 
   subscribe(listener: (msg: HudMessage) => void): () => void {
+    this.isDestroyed = false;
+    this.ensureChannel();
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  destroy(): void {
+    this.isDestroyed = true;
+    if (this.channel) {
+      try {
+        this.channel.onmessage = null;
+        this.channel.close();
+      } catch {}
+      this.channel = null;
+    }
+    this.listeners.clear();
   }
 }
 
@@ -122,4 +166,3 @@ export function broadcastHudState(payload: Omit<HudStatePayload, 'type' | 'v'>):
 export function requestHudSync(): void {
   hudBridge.send({ type: 'REQUEST_SYNC', v: 1 });
 }
-

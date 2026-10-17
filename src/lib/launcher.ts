@@ -91,9 +91,9 @@ export async function launchTarget(
           await api.launchNativeApp(filePath);
           return true;
         } catch (err) {
-          console.warn('launchNativeApp failed, falling back to openExternal:', err);
-          await api.openExternal(target);
-          return true;
+          console.error('launchNativeApp failed:', err);
+          toast(`Could not launch native application: ${label || filePath}`, 'error');
+          return false;
         }
       }
 

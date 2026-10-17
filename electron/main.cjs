@@ -228,8 +228,23 @@ function createMainWindow() {
     }
   });
 
+  mainWindow.on('minimize', () => {
+    if (hudWindow && !hudWindow.isDestroyed()) {
+      hudWindow.webContents.send('main-window:lifecycle', { state: 'minimized' });
+    }
+  });
+
+  mainWindow.on('restore', () => {
+    if (hudWindow && !hudWindow.isDestroyed()) {
+      hudWindow.webContents.send('main-window:lifecycle', { state: 'restored' });
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
+    if (hudWindow && !hudWindow.isDestroyed()) {
+      hudWindow.webContents.send('main-window:lifecycle', { state: 'closed' });
+    }
   });
 }
 
@@ -600,11 +615,56 @@ app.whenReady().then(() => {
 
   // --- 3. Secure External URI & App Launcher (Zero cmd.exe, Zero Shell Injection) ---
   ipcMain.handle('shell:open-external', async (_, { url }) => {
-    const parsed = new URL(url);
-    if (!ALLOWED_PROTOCOLS.has(parsed.protocol)) {
-      throw new Error(`Disallowed URI protocol: ${parsed.protocol}`);
+    if (!url || typeof url !== 'string') {
+      throw new Error('Invalid URL provided to shell:open-external');
     }
-    await shell.openExternal(url);
+    const cleanUrl = url.trim();
+    if (!cleanUrl) {
+      throw new Error('Empty URL provided to shell:open-external');
+    }
+
+    // Disallow control characters to prevent argument/header/newline injections
+    if (/[\x00-\x1f\x7f]/.test(cleanUrl)) {
+      throw new Error('URL contains forbidden control characters');
+    }
+
+    let parsed;
+    try {
+      parsed = new URL(cleanUrl);
+    } catch {
+      throw new Error(`Malformed URL provided: ${cleanUrl}`);
+    }
+
+    const protocol = parsed.protocol.toLowerCase();
+
+    // Absolute prohibition of local file execution and dangerous custom URI schemes
+    const FORBIDDEN_SCHEMES = new Set([
+      'file:',
+      'javascript:',
+      'data:',
+      'vbscript:',
+      'ms-msdt:',
+      'search:',
+      'search-ms:',
+      'shell:',
+      'cmd:',
+      'powershell:',
+      'calculator:',
+      'ws:',
+      'wss:',
+    ]);
+
+    if (FORBIDDEN_SCHEMES.has(protocol)) {
+      console.warn('[Security Guard] Blocked prohibited URI scheme execution:', protocol, cleanUrl);
+      throw new Error(`Blocked prohibited URI scheme: ${protocol}`);
+    }
+
+    if (!ALLOWED_PROTOCOLS.has(protocol)) {
+      console.warn('[Security Guard] Disallowed URI protocol attempt:', protocol, cleanUrl);
+      throw new Error(`Disallowed URI protocol: ${protocol}. Only HTTP/HTTPS and approved workspace apps allowed.`);
+    }
+
+    await shell.openExternal(cleanUrl);
     return { opened: true };
   });
 
