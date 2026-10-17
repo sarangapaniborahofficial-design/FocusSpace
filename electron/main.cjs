@@ -345,7 +345,7 @@ app.whenReady().then(() => {
     try {
       let data;
       let targetPath = distPath;
-      const ext = path.extname(distPath).toLowerCase();
+      let ext = path.extname(distPath).toLowerCase();
 
       // For .onnx and .wasm files, resolve from app.asar.unpacked if present
       if (ext === '.onnx' || ext === '.wasm') {
@@ -372,7 +372,7 @@ app.whenReady().then(() => {
         }
       }
 
-      const ext = path.extname(distPath).toLowerCase();
+      ext = path.extname(distPath).toLowerCase();
       const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
       const headers = new Headers();
