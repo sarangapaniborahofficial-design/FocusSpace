@@ -435,6 +435,7 @@ runTier('T5', 'Electron Desktop Architecture & Native Window Hardening', () => {
     'openInBrowser',
     'launchNativeApp',
     'pickAppFile',
+    'getSystemApps',
   ];
   for (const method of requiredBridgeMethods) {
     if (!preloadCjs.includes(method)) throw new Error(`preload.cjs missing ${method}`);

@@ -18,7 +18,7 @@ This document maintains the persistent, prioritized queue of upcoming sprints, f
   - **In-Session Scratchpad**: 1-line quick-capture input saving timestamped thoughts directly into task notes.
   - **Flow Overtime Mode**: Soft chime at `00:00`, logs focus session, transitions to upward overtime counter (`+00:01`…), and banks extra overtime upon taking break.
   - **Sonic Anchor Auto-Ducking**: Soundscape volume ducks by 80% on pause, resuming full volume when timer starts.
-  - **HUD Popout Triggers**: Integrated in `Header.tsx`, `MiniTimer.tsx`, and `Pomodoro.tsx`.
+  - **HUD Popout Triggers**: Integrated in `Header.tsx`, `AppDock.tsx`, and `Pomodoro.tsx`.
 
 ### [x] Phase 10C: Universal Persistent Floating Bottom Dock & Vector Logos (`AppDock.tsx`)
 - **Resolved**: App Dock is mounted globally at root `App.tsx` level (`fixed bottom-4 left-1/2 -translate-x-1/2 z-40`) with `pb-28 sm:pb-24` clearance across all tab views.

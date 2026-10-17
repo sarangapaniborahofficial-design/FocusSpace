@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from 'react';
 import { isoToday, storage } from './utils';
 import { toast } from './toast';
+import { getElectronAPI } from './runtime';
+import { isActivityWatchRunning, fetchActivityWatchSummary } from './activityWatch';
 
 export interface ScreenTimeSettings {
   dailyLimitMinutes: number; // 0 = disabled, default 240 (4 hours)
@@ -16,6 +18,15 @@ export interface DayUsage {
   sessionsCount: number;
 }
 
+export interface SystemAppRecord {
+  name: string;
+  displayName: string;
+  title?: string;
+  seconds: number;
+  category: string;
+  isCurrent?: boolean;
+}
+
 export interface ScreenTimeState {
   todaySeconds: number;
   currentSessionSeconds: number;
@@ -28,6 +39,9 @@ export interface ScreenTimeState {
   breakReminderDue: boolean;
   sections: Record<string, number>;
   weeklyHistory: Array<{ date: string; seconds: number }>;
+  systemApps: SystemAppRecord[];
+  hasSystemTracking: boolean;
+  activeAppName: string;
 }
 
 const STORAGE_SETTINGS_KEY = 'focusspace-screentime-settings-v1';
@@ -56,6 +70,10 @@ class ScreenTimerEngine {
   private warned80Percent = false;
   private warned100Percent = false;
   private warnedBreak = false;
+  private systemApps: SystemAppRecord[] = [];
+  private hasSystemTracking = false;
+  private activeAppName = 'FocusSpace';
+  private systemPollInterval: any = null;
   private snapshot: ScreenTimeState;
 
   constructor() {
@@ -157,6 +175,56 @@ class ScreenTimerEngine {
     this.saveInterval = setInterval(() => {
       this.saveHistory();
     }, 15000);
+
+    // Poll system-wide applications every 2.5 seconds
+    void this.pollSystemApps();
+    this.systemPollInterval = setInterval(() => {
+      void this.pollSystemApps();
+    }, 2500);
+  }
+
+  private async pollSystemApps() {
+    try {
+      const electron = getElectronAPI();
+      if (electron?.getSystemApps) {
+        const res = await electron.getSystemApps();
+        if (res && res.supported) {
+          const apps = res.apps || [];
+          const activeApp = res.activeApp || 'FocusSpace';
+          const changed =
+            this.activeAppName !== activeApp ||
+            !this.hasSystemTracking ||
+            this.systemApps.length !== apps.length ||
+            (apps[0]?.seconds !== this.systemApps[0]?.seconds);
+
+          this.hasSystemTracking = true;
+          this.activeAppName = activeApp;
+          this.systemApps = apps;
+          if (changed) {
+            this.updateSnapshot();
+          }
+          return;
+        }
+      }
+
+      // Check local ActivityWatch daemon as fallback/enhancement
+      const awRunning = await isActivityWatchRunning();
+      if (awRunning) {
+        const awSummary = await fetchActivityWatchSummary(this.today);
+        if (awSummary.length > 0) {
+          const changed =
+            !this.hasSystemTracking ||
+            this.systemApps.length !== awSummary.length ||
+            (awSummary[0]?.seconds !== this.systemApps[0]?.seconds);
+
+          this.hasSystemTracking = true;
+          this.systemApps = awSummary;
+          if (changed) {
+            this.updateSnapshot();
+          }
+        }
+      }
+    } catch {}
   }
 
   private tick() {
@@ -256,6 +324,9 @@ class ScreenTimerEngine {
       breakReminderDue: breakSec > 0 && this.currentSessionSeconds >= breakSec,
       sections: { ...this.sections },
       weeklyHistory: this.computeWeeklyHistory(),
+      systemApps: this.systemApps,
+      hasSystemTracking: this.hasSystemTracking,
+      activeAppName: this.activeAppName,
     };
   }
 

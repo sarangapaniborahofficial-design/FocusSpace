@@ -87,7 +87,7 @@ This document tracks progress towards the 1.0 release based on the project timel
      - In-Session Scratchpad for rapid thought capture timestamped to task notes.
      - Flow Overtime mode: soft chime at 00:00, upward overtime counter (`+00:01`…), and overtime banking.
      - Sonic Anchor auto-ducking: procedural soundscapes duck by 80% on pause.
-     - Popout triggers integrated in `MiniTimer.tsx`, `Pomodoro.tsx`, and `Header.tsx`.
+     - Popout triggers integrated in `AppDock.tsx`, `Pomodoro.tsx`, and `Header.tsx`.
    - **Bottom-Anchored Homepage App Dock (`AppDock.tsx`)**:
      - Anchored at `fixed bottom-4 left-1/2 -translate-x-1/2 z-40` with `pb-28` canvas spacing.
      - 60fps spring-physics Gaussian hover magnification wave ($\text{scale}(d) = 1 + 0.35 \times \exp(-d^2 / (2 \cdot 55^2))$).

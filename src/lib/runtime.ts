@@ -25,6 +25,23 @@ export interface ElectronAPI {
   openInBrowser: (url: string, browser?: string) => Promise<{ opened: boolean; fallback?: boolean }>;
   launchNativeApp: (path: string) => Promise<{ launched: boolean }>;
   pickAppFile: () => Promise<string | null>;
+  getSystemApps: () => Promise<SystemAppsResponse>;
+}
+
+export interface SystemAppUsage {
+  name: string;
+  displayName: string;
+  title?: string;
+  seconds: number;
+  category: string;
+  isCurrent?: boolean;
+}
+
+export interface SystemAppsResponse {
+  supported: boolean;
+  activeApp?: string;
+  activeTitle?: string;
+  apps: SystemAppUsage[];
 }
 
 declare global {

@@ -1,6 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
-import { AppDock } from './AppDock';
 import { PageView } from './PageView';
 import { PagesList } from './PagesList';
 import { TaskManager } from './TaskManager';
@@ -34,8 +33,7 @@ export function CategoryView({ categoryId, tab, pageId, query, onTab, onOpenPage
 }) {
   if (pageId) return <PageView key={pageId} pageId={pageId} onBack={onBackToPages} />;
   const tabs = (
-    <div className="space-y-4 mb-5">
-      <AppDock categoryId={categoryId} />
+    <div className="mb-5">
       <Tabs categoryId={categoryId} tab={tab} onTab={onTab} />
     </div>
   );

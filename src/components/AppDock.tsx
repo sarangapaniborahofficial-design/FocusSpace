@@ -75,18 +75,12 @@ function isAppAttached(link: LaunchLink, task?: Task): boolean {
 }
 
 export function AppDock({
-  categoryId,
-  title,
-  floating = false,
   onSearch,
   onStart,
   onNavigate,
   onTriggerVoice,
   onOpenScreenTime,
 }: {
-  categoryId?: string;
-  title?: string;
-  floating?: boolean;
   onSearch?: () => void;
   onStart?: () => void;
   onNavigate?: (view: string) => void;
@@ -94,14 +88,6 @@ export function AppDock({
   onOpenScreenTime?: () => void;
 }) {
   const activeTaskId = useTimerTaskId();
-
-  const category = useLiveQuery(
-    async () => {
-      if (!categoryId) return undefined;
-      return await db.categories.get(categoryId);
-    },
-    [categoryId]
-  );
 
   const activeTask = useLiveQuery(
     async () => {
@@ -162,18 +148,12 @@ export function AppDock({
     return () => window.removeEventListener('click', handleOutsideClick);
   }, []);
 
-  const links: LaunchLink[] = categoryId
-    ? (category?.launchLinks ?? []).map(sanitizeLaunchLink)
-    : globalApps;
+  const links: LaunchLink[] = globalApps;
 
   const saveLinks = async (updated: LaunchLink[]) => {
     const sanitized = updated.map(sanitizeLaunchLink);
-    if (categoryId && category) {
-      await db.categories.update(categoryId, { launchLinks: sanitized });
-    } else {
-      setGlobalApps(sanitized);
-      storage.set(GLOBAL_DOCK_STORAGE_KEY, JSON.stringify(sanitized));
-    }
+    setGlobalApps(sanitized);
+    storage.set(GLOBAL_DOCK_STORAGE_KEY, JSON.stringify(sanitized));
   };
 
   const startEditing = (link: LaunchLink) => {
@@ -267,15 +247,14 @@ export function AppDock({
     BROWSER_OPTIONS.find(b => b.id === (preferredBrowser || 'system'))?.name || 'System Default';
 
   // PERMANENT INTEGRATED WINDOWS-STYLE TASKBAR
-  if (floating) {
-    return (
-      <>
-        <footer
-          aria-label="FocusSpace Taskbar"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          className="fixed bottom-0 left-0 right-0 z-40 h-13 sm:h-14 bg-[var(--app-bg)]/95 backdrop-blur-2xl border-t border-line text-fg flex items-center justify-between px-3 sm:px-4 select-none shadow-pop shrink-0"
-        >
+  return (
+    <>
+      <footer
+        aria-label="FocusSpace Taskbar"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className="w-full h-13 sm:h-14 shrink-0 bg-[var(--app-bg)]/95 backdrop-blur-2xl border-t border-line text-fg flex items-center justify-between px-3 sm:px-4 select-none shadow-pop z-40"
+      >
           {/* Left: Start Hub & Windows-Style Search Input */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
             <button
@@ -713,164 +692,4 @@ export function AppDock({
         />
       </>
     );
-  }
-
-  // INLINE CARD MODE (Category View)
-  return (
-    <section className="atelier-card rounded-3xl p-4 sm:p-5 overflow-hidden">
-      <div className="flex items-center justify-between gap-3 mb-3">
-        <div className="flex items-center gap-2">
-          <Rocket size={16} className="text-accent-text shrink-0" />
-          <h2 className="text-sm font-semibold text-fg tracking-tight">
-            {title || (categoryId ? `${category?.name ?? 'Category'} Launchpad` : 'Command Hub & Taskbar')}
-          </h2>
-          <span className="text-[10px] font-mono text-fg-subtle px-1.5 py-0.5 rounded bg-surface-2 border border-line">
-            {links.length} apps
-          </span>
-        </div>
-
-        <button
-          onClick={() => {
-            if (addOpen) {
-              cancelEditing();
-              setAddOpen(false);
-            } else {
-              setAddOpen(true);
-            }
-          }}
-          className="h-7 px-2.5 rounded-lg border border-line bg-surface hover:bg-hover text-xs font-medium text-fg flex items-center gap-1 transition keycap cursor-pointer"
-        >
-          {addOpen ? <X size={13} /> : <Plus size={13} />}
-          <span>{addOpen ? 'Cancel' : 'Add App'}</span>
-        </button>
-      </div>
-
-      {addOpen && (
-        <div className="pop-in mb-4 p-4 rounded-2xl bg-surface-2 border border-line space-y-3">
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-surface border border-line text-xs w-fit">
-            <button
-              type="button"
-              onClick={() => setNewKind('app')}
-              className={`py-1 px-3 rounded-lg font-medium flex items-center gap-1.5 transition cursor-pointer ${
-                newKind !== 'web' ? 'bg-accent text-accent-fg shadow-xs' : 'text-fg-muted hover:text-fg'
-              }`}
-            >
-              <Laptop size={13} />
-              <span>Native App</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setNewKind('web')}
-              className={`py-1 px-3 rounded-lg font-medium flex items-center gap-1.5 transition cursor-pointer ${
-                newKind === 'web' ? 'bg-accent text-accent-fg shadow-xs' : 'text-fg-muted hover:text-fg'
-              }`}
-            >
-              <Globe size={13} />
-              <span>Web App</span>
-            </button>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-2">
-            <input
-              value={newLabel}
-              onChange={e => setNewLabel(e.target.value)}
-              placeholder="App Name (e.g. Discord, YouTube)"
-              className="flex-1 h-9 rounded-xl bg-surface border border-line px-3 text-xs outline-none"
-            />
-            <div className="flex-1 flex gap-1">
-              <input
-                value={newUrl}
-                onChange={e => setNewUrl(e.target.value)}
-                placeholder={newKind === 'web' ? 'https://chatgpt.com' : 'C:\\...\\app.exe or discord://'}
-                className="flex-1 h-9 rounded-xl bg-surface border border-line px-3 text-xs font-mono outline-none"
-              />
-              {newKind !== 'web' && getElectronAPI() && (
-                <button
-                  type="button"
-                  onClick={handlePickFile}
-                  title="Browse for executable"
-                  className="h-9 px-2 rounded-xl border border-line bg-surface hover:bg-hover text-xs font-semibold text-fg flex items-center gap-1 cursor-pointer"
-                >
-                  <FolderOpen size={13} />
-                </button>
-              )}
-            </div>
-            <button
-              onClick={() => void saveOrUpdateLink()}
-              disabled={!newLabel.trim() || !newUrl.trim()}
-              className="h-9 px-4 rounded-xl bg-accent text-accent-fg text-xs font-semibold hover:bg-accent-hover disabled:opacity-40 transition keycap shrink-0 shadow-xs cursor-pointer"
-            >
-              {editingLink ? 'Save' : 'Pin to Taskbar'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {links.length === 0 ? (
-        <div className="p-4 rounded-2xl border border-dashed border-line text-center">
-          <p className="text-xs text-fg-muted">No external applications or workspaces pinned yet.</p>
-          <button
-            onClick={() => setAddOpen(true)}
-            className="mt-2 text-xs font-semibold text-accent-text hover:underline cursor-pointer"
-          >
-            + Add your first native or web application
-          </button>
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          {links.map(link => {
-            const isAttached = isAppAttached(link, activeTask);
-            return (
-              <div
-                key={link.id}
-                className={`group relative flex items-center rounded-xl border transition shadow-sm keycap overflow-hidden ${
-                  isAttached
-                    ? 'border-accent bg-accent/10'
-                    : 'border-line bg-surface hover:border-line-strong hover:bg-hover'
-                }`}
-              >
-                <button
-                  onClick={() => launchTarget(link.url, link.label, link.kind)}
-                  title={`Launch ${link.label} (${link.url})`}
-                  className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-fg cursor-pointer"
-                >
-                  {resolveBrandLogo(link, 18)}
-                  <span className="font-semibold tracking-tight">{link.label}</span>
-                  <span className="text-[9px] text-fg-subtle uppercase opacity-75">
-                    ({link.kind === 'web' ? 'Web' : 'App'})
-                  </span>
-                </button>
-
-                <div className="flex items-center gap-0.5 pr-2">
-                  <button
-                    onClick={() => startEditing(link)}
-                    title={`Edit ${link.label}`}
-                    aria-label={`Edit ${link.label}`}
-                    className="size-6 rounded-lg grid place-items-center text-fg-subtle hover:text-fg hover:bg-surface-2 transition cursor-pointer"
-                  >
-                    <Pencil size={11} />
-                  </button>
-                  <button
-                    onClick={() => void removeLink(link.id)}
-                    title={`Remove ${link.label}`}
-                    aria-label={`Remove ${link.label}`}
-                    className="size-6 rounded-lg grid place-items-center text-fg-subtle hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
-                  >
-                    <Trash2 size={11} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <BrowserSetupModal
-        open={browserModalOpen}
-        currentBrowser={preferredBrowser}
-        onSelect={handleSelectBrowser}
-        onClose={() => setBrowserModalOpen(false)}
-      />
-    </section>
-  );
 }

@@ -30,6 +30,7 @@ protocol.registerSchemesAsPrivileged([
 let mainWindow = null;
 let hudWindow = null;
 let tray = null;
+let systemTrackerProc = null;
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 const SAFE_FILENAME_RE = /^focusspace-\d{4}-\d{2}-\d{2}(-\d{6})?\.json$/;
@@ -95,6 +96,12 @@ if (!gotTheLock) {
 // Clean shutdown handler: guarantees Windows restart, logoff, or shutdown never hangs
 app.on('before-quit', () => {
   app.isQuitting = true;
+  if (systemTrackerProc) {
+    try {
+      systemTrackerProc.kill();
+      systemTrackerProc = null;
+    } catch {}
+  }
 });
 
 function getBackupDir() {
@@ -578,7 +585,135 @@ app.whenReady().then(() => {
     return res.filePaths[0];
   });
 
-  // --- 4. Conflict-Free Global Hotkeys ---
+  // --- 4. Windows System-Wide Application Screen Time Tracker ---
+  let currentForegroundApp = 'FocusSpace';
+  let currentForegroundTitle = 'FocusSpace';
+  let lastForegroundChangeTime = Date.now();
+  const appUsageToday = {};
+
+  function categorizeApp(name) {
+    const n = (name || '').toLowerCase();
+    if (['code', 'cursor', 'devenv', 'idea64', 'pycharm64', 'sublime_text', 'windowsterminal', 'cmd', 'powershell', 'git-bash', 'wt'].includes(n)) {
+      return 'Coding & Development';
+    }
+    if (['focusspace', 'obsidian', 'notion', 'winword', 'excel', 'powerpnt', 'acrord32', 'figma', 'linear', 'todoist'].includes(n)) {
+      return 'Productivity & Planning';
+    }
+    if (['chrome', 'msedge', 'firefox', 'brave', 'opera', 'vivaldi', 'arc', 'floorp', 'zen'].includes(n)) {
+      return 'Web & Research';
+    }
+    if (['discord', 'slack', 'teams', 'telegram', 'whatsapp', 'skype', 'outlook'].includes(n)) {
+      return 'Communication';
+    }
+    if (['spotify', 'vlc', 'netflix', 'steam', 'epicgameslauncher', 'discordcanary'].includes(n)) {
+      return 'Media & Audio';
+    }
+    return 'General Application';
+  }
+
+  function startSystemAppTracker() {
+    if (process.platform !== 'win32') return;
+
+    const scriptPath = path.join(__dirname, '../scripts/active-window-tracker.ps1');
+    const { spawn } = require('child_process');
+
+    try {
+      systemTrackerProc = spawn('powershell.exe', [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        scriptPath,
+      ], {
+        stdio: ['ignore', 'pipe', 'ignore'],
+        shell: false,
+        windowsHide: true,
+      });
+
+      let stdoutBuffer = '';
+      systemTrackerProc.stdout.on('data', (chunk) => {
+        stdoutBuffer += chunk.toString();
+        const lines = stdoutBuffer.split(/\r?\n/);
+        stdoutBuffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          const [procName, windowTitle] = trimmed.split('|');
+          if (!procName) continue;
+
+          const now = Date.now();
+          const elapsedSec = Math.round((now - lastForegroundChangeTime) / 1000);
+          lastForegroundChangeTime = now;
+
+          if (currentForegroundApp && currentForegroundApp !== 'Idle' && elapsedSec > 0 && elapsedSec < 600) {
+            if (!appUsageToday[currentForegroundApp]) {
+              appUsageToday[currentForegroundApp] = {
+                name: currentForegroundApp,
+                seconds: 0,
+                title: currentForegroundTitle,
+                category: categorizeApp(currentForegroundApp),
+              };
+            }
+            appUsageToday[currentForegroundApp].seconds += elapsedSec;
+            if (windowTitle && windowTitle !== currentForegroundApp) {
+              appUsageToday[currentForegroundApp].title = windowTitle;
+            }
+          }
+
+          currentForegroundApp = procName;
+          currentForegroundTitle = windowTitle || procName;
+        }
+      });
+
+      systemTrackerProc.on('error', (err) => {
+        console.warn('[SystemAppTracker] Process error:', err.message);
+      });
+    } catch (err) {
+      console.warn('[SystemAppTracker] Failed to start:', err.message);
+    }
+  }
+
+  startSystemAppTracker();
+
+  ipcMain.handle('screentime:get-system-apps', async () => {
+    const now = Date.now();
+    const elapsedSec = Math.round((now - lastForegroundChangeTime) / 1000);
+    if (currentForegroundApp && currentForegroundApp !== 'Idle' && elapsedSec > 0 && elapsedSec < 600) {
+      if (!appUsageToday[currentForegroundApp]) {
+        appUsageToday[currentForegroundApp] = {
+          name: currentForegroundApp,
+          seconds: 0,
+          title: currentForegroundTitle,
+          category: categorizeApp(currentForegroundApp),
+        };
+      }
+      appUsageToday[currentForegroundApp].seconds += elapsedSec;
+      lastForegroundChangeTime = now;
+    }
+
+    const list = Object.values(appUsageToday).map(item => ({
+      name: item.name,
+      displayName: item.name === 'Code' ? 'Visual Studio Code'
+        : item.name === 'chrome' ? 'Google Chrome'
+        : item.name === 'msedge' ? 'Microsoft Edge'
+        : item.name === 'FocusSpace' ? 'FocusSpace'
+        : item.name,
+      title: item.title,
+      seconds: item.seconds,
+      category: item.category,
+      isCurrent: (currentForegroundApp || '').toLowerCase() === item.name.toLowerCase(),
+    })).sort((a, b) => b.seconds - a.seconds);
+
+    return {
+      supported: process.platform === 'win32',
+      activeApp: currentForegroundApp,
+      activeTitle: currentForegroundTitle,
+      apps: list,
+    };
+  });
+
+  // --- 5. Conflict-Free Global Hotkeys ---
   const regSpace = globalShortcut.register('CommandOrControl+Alt+Space', () => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();

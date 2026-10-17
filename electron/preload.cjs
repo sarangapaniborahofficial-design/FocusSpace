@@ -46,4 +46,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('shell:launch-native-app', { path }),
   pickAppFile: () =>
     ipcRenderer.invoke('dialog:pick-app'),
+
+  // System-wide Active Application Usage
+  getSystemApps: () =>
+    ipcRenderer.invoke('screentime:get-system-apps'),
 });

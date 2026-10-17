@@ -10,7 +10,6 @@ import { Header } from './components/Header';
 import { Journal } from './components/Journal';
 import { PageView } from './components/PageView';
 import { PagesList } from './components/PagesList';
-import { MiniTimer } from './components/MiniTimer';
 import { Pomodoro } from './components/Pomodoro';
 import { QuickAddModal } from './components/QuickAddModal';
 import { Settings } from './components/Settings';
@@ -568,100 +567,103 @@ export default function App() {
   const title = VIEW_TITLES[active] ?? categories.find(c => c.id === active)?.name ?? 'Home';
 
   return (
-    <div className={`h-screen overflow-hidden flex flex-col ${layoutMode === 'orbital' ? 'p-2 sm:p-4 gap-3' : 'p-0'}`}>
-      <div
-        className={`w-full h-full bg-[var(--app-bg)] backdrop-blur-md text-fg flex overflow-hidden relative transition-[border-radius,box-shadow,gap,padding] duration-200 ease-out ${
-          layoutMode === 'orbital'
-            ? 'max-w-[1680px] mx-auto rounded-[28px] shadow-pop border border-line sm:gap-3 sm:p-3'
-            : 'w-full max-w-none rounded-none border-none'
-        }`}
-      >
-        <Sidebar
-          collapsed={collapsed}
-          setCollapsed={setCollapsed}
-          active={active}
-          setActive={go}
-          categories={categories}
-          mobileOpen={drawer}
-          onCloseMobile={() => setDrawer(false)}
-          activePageId={nav.pageId}
-          onOpenPage={openPageIn}
-          layoutMode={layoutMode}
-        />
-
-        <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-transparent">
-          <Header
-            title={title}
-            onMenu={() => setDrawer(true)}
-            onQuickAdd={openQuick}
-            onSearch={openSearch}
-            onShortcuts={() => setShortcuts(true)}
-            theme={theme}
-            setTheme={setTheme}
+    <div className="h-screen w-screen overflow-hidden flex flex-col bg-canvas text-fg select-none">
+      {/* Top Workspace & Views Area */}
+      <div className={`flex-1 min-h-0 flex flex-col ${layoutMode === 'orbital' ? 'p-2 sm:p-3 sm:pb-1.5' : 'p-0'}`}>
+        <div
+          className={`w-full h-full bg-[var(--app-bg)] backdrop-blur-md text-fg flex overflow-hidden relative transition-[border-radius,box-shadow,gap,padding] duration-200 ease-out ${
+            layoutMode === 'orbital'
+              ? 'max-w-[1680px] mx-auto rounded-[28px] shadow-pop border border-line sm:gap-3 sm:p-3'
+              : 'w-full max-w-none rounded-none border-none'
+          }`}
+        >
+          <Sidebar
+            collapsed={collapsed}
+            setCollapsed={setCollapsed}
+            active={active}
+            setActive={go}
+            categories={categories}
+            mobileOpen={drawer}
+            onCloseMobile={() => setDrawer(false)}
+            activePageId={nav.pageId}
+            onOpenPage={openPageIn}
             layoutMode={layoutMode}
-            setLayoutMode={setLayoutMode}
-            onQuit={() => setQuitModalOpen(true)}
-            onToggleSidebar={() => {
-              const next = !collapsed;
-              setCollapsed(next);
-              storage.set('focusspace-sidebar', next ? 'collapsed' : 'expanded');
-            }}
-            isSidebarCollapsed={collapsed}
           />
 
-          <div className="flex-1 min-h-0 flex overflow-hidden gap-3">
-            <main className="flex-1 min-w-0 overflow-y-auto pb-16 sm:pb-18">
-              <div key={nav.n} className="view-in">
-                <ErrorBoundary onReset={goHome}>
-                  {active === 'home' ? <Today onQuickAdd={openQuick} onNavigate={go} />
-                    : isCategory ? (
-                      <CategoryView
-                        categoryId={active} tab={nav.tab} pageId={nav.pageId} query={nav.query} onQuickAdd={openQuick}
-                        onTab={tab => go(active, { tab })} onOpenPage={pageId => go(active, { pageId })} onBackToPages={() => go(active, { tab: 'pages' })}
-                      />
-                    )
-                    : active === 'calendar' ? <Calendar />
-                    : active === 'review' ? <Review onNavigate={go} onQuickAdd={openQuick} />
-                    : active === 'analytics' ? <Analytics onNavigate={go} />
-                    : active === 'journal' ? <Journal />
-                    : active === 'pages' ? (
-                      nav.pageId ? <PageView pageId={nav.pageId} onBack={() => go('pages')} /> : <PagesList onOpenPage={pageId => go('pages', { pageId })} />
-                    )
-                    : <Settings theme={theme} setTheme={setTheme} layoutMode={layoutMode} setLayoutMode={setLayoutMode} onReplayWelcome={() => triggerWelcome('full-daily')} />}
-                </ErrorBoundary>
-              </div>
-            </main>
+          <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-transparent">
+            <Header
+              title={title}
+              onMenu={() => setDrawer(true)}
+              onQuickAdd={openQuick}
+              onSearch={openSearch}
+              onShortcuts={() => setShortcuts(true)}
+              theme={theme}
+              setTheme={setTheme}
+              layoutMode={layoutMode}
+              setLayoutMode={setLayoutMode}
+              onQuit={() => setQuitModalOpen(true)}
+              onToggleSidebar={() => {
+                const next = !collapsed;
+                setCollapsed(next);
+                storage.set('focusspace-sidebar', next ? 'collapsed' : 'expanded');
+              }}
+              isSidebarCollapsed={collapsed}
+            />
 
-            {/* In Split/Cockpit mode, keep the Pomodoro Timer persistently docked on the right across secondary views */}
-            {layoutMode === 'cockpit' && active !== 'home' && (
-              <aside className="hidden 2xl:flex w-[350px] shrink-0 border-l border-line bg-surface/60 p-4 flex-col gap-4 overflow-y-auto">
-                <div className="flex items-center justify-between">
-                  <span className="index-chip text-fg-muted">Docked Pomodoro Timer</span>
-                  <span className="size-2 rounded-full bg-accent animate-pulse" />
+            <div className="flex-1 min-h-0 flex overflow-hidden gap-3">
+              <main className="flex-1 min-w-0 overflow-y-auto">
+                <div key={nav.n} className="view-in">
+                  <ErrorBoundary onReset={goHome}>
+                    {active === 'home' ? <Today onQuickAdd={openQuick} onNavigate={go} />
+                      : isCategory ? (
+                        <CategoryView
+                          categoryId={active} tab={nav.tab} pageId={nav.pageId} query={nav.query} onQuickAdd={openQuick}
+                          onTab={tab => go(active, { tab })} onOpenPage={pageId => go(active, { pageId })} onBackToPages={() => go(active, { tab: 'pages' })}
+                        />
+                      )
+                      : active === 'calendar' ? <Calendar />
+                      : active === 'review' ? <Review onNavigate={go} onQuickAdd={openQuick} />
+                      : active === 'analytics' ? <Analytics onNavigate={go} />
+                      : active === 'journal' ? <Journal />
+                      : active === 'pages' ? (
+                        nav.pageId ? <PageView pageId={nav.pageId} onBack={() => go('pages')} /> : <PagesList onOpenPage={pageId => go('pages', { pageId })} />
+                      )
+                      : <Settings theme={theme} setTheme={setTheme} layoutMode={layoutMode} setLayoutMode={setLayoutMode} onReplayWelcome={() => triggerWelcome('full-daily')} />}
+                  </ErrorBoundary>
                 </div>
-                <ErrorBoundary fallbackTitle="Docked Pomodoro Timer">
-                  <Pomodoro />
-                </ErrorBoundary>
-              </aside>
-            )}
+              </main>
+
+              {/* In Split/Cockpit mode, keep the Pomodoro Timer persistently docked on the right across secondary views */}
+              {layoutMode === 'cockpit' && active !== 'home' && (
+                <aside className="hidden 2xl:flex w-[350px] shrink-0 border-l border-line bg-surface/60 p-4 flex-col gap-4 overflow-y-auto">
+                  <div className="flex items-center justify-between">
+                    <span className="index-chip text-fg-muted">Docked Pomodoro Timer</span>
+                    <span className="size-2 rounded-full bg-accent animate-pulse" />
+                  </div>
+                  <ErrorBoundary fallbackTitle="Docked Pomodoro Timer">
+                    <Pomodoro />
+                  </ErrorBoundary>
+                </aside>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Global Overlays, Modals, Portals, and Docks decoupled from horizontal flex flow */}
-      <TaskEditor />
-      <QuickAddModal open={quick} onClose={closeQuick} defaultCategory={isCategory ? active : undefined} />
-      <ShortcutsModal open={shortcuts} onClose={() => setShortcuts(false)} />
-      {search && <CommandPalette categories={categories} onClose={closeSearch} onNavigate={go} onNewTask={openQuick} onOpenTask={openTask} onOpenPage={openPage} onCycleTheme={cycleTheme} onOpenShortcuts={() => setShortcuts(true)} onReplayWelcome={() => triggerWelcome('full-daily')} />}
-      {active !== 'home' && layoutMode !== 'cockpit' && <MiniTimer onOpen={goHome} />}
+      {/* Permanent Integrated Windows-Style Taskbar docked structurally at the bottom */}
       <AppDock
-        floating
         onSearch={openSearch}
         onStart={goHome}
         onNavigate={go}
         onTriggerVoice={triggerUniversalVoice}
         onOpenScreenTime={() => setScreenTimeOpen(true)}
       />
+
+      {/* Global Overlays, Modals, and Portals */}
+      <TaskEditor />
+      <QuickAddModal open={quick} onClose={closeQuick} defaultCategory={isCategory ? active : undefined} />
+      <ShortcutsModal open={shortcuts} onClose={() => setShortcuts(false)} />
+      {search && <CommandPalette categories={categories} onClose={closeSearch} onNavigate={go} onNewTask={openQuick} onOpenTask={openTask} onOpenPage={openPage} onCycleTheme={cycleTheme} onOpenShortcuts={() => setShortcuts(true)} onReplayWelcome={() => triggerWelcome('full-daily')} />}
       {isVoiceEnabled() && (
         <>
           <DictationHud

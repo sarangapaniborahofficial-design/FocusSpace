@@ -11,6 +11,7 @@ import {
   BarChart2,
   ShieldCheck,
   Calendar,
+  Laptop,
 } from 'lucide-react';
 import { screenTimer, useScreenTimer, formatScreenTimeClock } from '../lib/screenTimer';
 import { Ring } from './ui';
@@ -52,6 +53,7 @@ export function ScreenTimeModal({
 }) {
   const state = useScreenTimer();
   const [activeTab, setActiveTab] = useState<'overview' | 'settings'>('overview');
+  const [breakdownMode, setBreakdownMode] = useState<'apps' | 'workspaces'>('apps');
 
   if (!open) return null;
 
@@ -248,36 +250,146 @@ export function ScreenTimeModal({
               </div>
             </div>
 
-            {/* Workspaces & Sections Breakdown */}
-            <div className="p-4 sm:p-5 rounded-3xl bg-surface-2 border border-line space-y-3">
-              <div className="text-xs font-bold text-fg">Active Workspaces Breakdown</div>
-              {sectionEntries.length === 0 ? (
-                <div className="text-xs text-fg-subtle py-2">
-                  No workspace usage recorded yet today. Time will appear as you navigate.
+            {/* Applications & Workspaces Breakdown Section */}
+            <div className="p-4 sm:p-5 rounded-3xl bg-surface-2 border border-line space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-line pb-3">
+                <div className="flex items-center gap-2">
+                  <Laptop size={14} className="text-accent" />
+                  <span className="text-xs font-bold text-fg">Application & Workspace Breakdown</span>
+                </div>
+
+                <div className="flex items-center gap-1 p-0.5 rounded-xl bg-surface border border-line text-[11px]">
+                  <button
+                    onClick={() => setBreakdownMode('apps')}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition cursor-pointer ${
+                      breakdownMode === 'apps'
+                        ? 'bg-accent text-accent-fg shadow-xs font-semibold'
+                        : 'text-fg-muted hover:text-fg'
+                    }`}
+                  >
+                    System Apps ({state.systemApps?.length || 0})
+                  </button>
+                  <button
+                    onClick={() => setBreakdownMode('workspaces')}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition cursor-pointer ${
+                      breakdownMode === 'workspaces'
+                        ? 'bg-accent text-accent-fg shadow-xs font-semibold'
+                        : 'text-fg-muted hover:text-fg'
+                    }`}
+                  >
+                    FocusSpace ({sectionEntries.length})
+                  </button>
+                </div>
+              </div>
+
+              {breakdownMode === 'apps' ? (
+                /* All System Applications Tracker */
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-[11px] text-fg-muted px-1">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                      {state.hasSystemTracking
+                        ? `Live Windows Monitor Active (${state.activeAppName ? `Active: ${state.activeAppName}` : 'Tracking OS foreground'})`
+                        : 'OS Background Monitor Active'}
+                    </span>
+                    <span className="text-[10px] font-mono text-fg-subtle">
+                      Updates every 2s
+                    </span>
+                  </div>
+
+                  {!state.systemApps || state.systemApps.length === 0 ? (
+                    <div className="p-4 rounded-2xl border border-dashed border-line bg-surface/40 text-center space-y-2">
+                      <p className="text-xs text-fg-muted">
+                        No external application usage recorded yet this session.
+                      </p>
+                      <p className="text-[11px] text-fg-subtle max-w-md mx-auto">
+                        FocusSpace monitors foreground windows (VS Code, Chrome, Discord, Spotify, etc.) natively in the desktop app, or syncs automatically with local ActivityWatch daemon.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                      {state.systemApps.map(app => {
+                        const topAppSeconds = Math.max(1, state.systemApps[0]?.seconds || 1);
+                        const ratio = Math.min(100, Math.round((app.seconds / topAppSeconds) * 100));
+
+                        return (
+                          <div
+                            key={app.name}
+                            className={`p-2.5 rounded-2xl border transition ${
+                              app.isCurrent
+                                ? 'bg-surface border-accent shadow-xs'
+                                : 'bg-surface/60 border-line hover:border-line-strong'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="font-semibold text-fg truncate">
+                                  {app.displayName}
+                                </span>
+                                {app.isCurrent && (
+                                  <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-accent/20 text-accent-text font-bold">
+                                    Active Now
+                                  </span>
+                                )}
+                                <span className="text-[10px] px-1.5 py-0.2 rounded bg-surface-2 text-fg-subtle font-mono">
+                                  {app.category}
+                                </span>
+                              </div>
+                              <span className="font-mono text-fg-muted text-[11px] shrink-0 font-semibold">
+                                {formatScreenTimeClock(app.seconds)}
+                              </span>
+                            </div>
+
+                            {app.title && app.title !== app.displayName && (
+                              <div className="text-[10px] text-fg-subtle truncate mb-1.5 font-mono">
+                                {app.title}
+                              </div>
+                            )}
+
+                            <div className="h-1.5 bg-surface-2 rounded-full overflow-hidden">
+                              <div
+                                style={{ width: `${ratio}%` }}
+                                className={`h-full rounded-full transition-all duration-300 ${
+                                  app.isCurrent ? 'bg-accent' : 'bg-line-strong'
+                                }`}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {sectionEntries.map(([secId, secSeconds]) => {
-                    const info = SECTION_LABELS[secId] || { label: secId, color: 'bg-accent' };
-                    const secRatio = (secSeconds / totalSectionSeconds) * 100;
-                    return (
-                      <div key={secId} className="space-y-1">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-medium text-fg">{info.label}</span>
-                          <span className="font-mono text-fg-muted text-[11px]">
-                            {formatScreenTimeClock(secSeconds)} ({Math.round(secRatio)}%)
-                          </span>
+                /* FocusSpace Internal Workspaces Breakdown */
+                sectionEntries.length === 0 ? (
+                  <div className="text-xs text-fg-subtle py-2">
+                    No workspace usage recorded yet today. Time will appear as you navigate.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {sectionEntries.map(([secId, secSeconds]) => {
+                      const info = SECTION_LABELS[secId] || { label: secId, color: 'bg-accent' };
+                      const secRatio = (secSeconds / totalSectionSeconds) * 100;
+                      return (
+                        <div key={secId} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-medium text-fg">{info.label}</span>
+                            <span className="font-mono text-fg-muted text-[11px]">
+                              {formatScreenTimeClock(secSeconds)} ({Math.round(secRatio)}%)
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-surface rounded-full overflow-hidden">
+                            <div
+                              style={{ width: `${secRatio}%` }}
+                              className={`h-full rounded-full transition-all duration-300 ${info.color}`}
+                            />
+                          </div>
                         </div>
-                        <div className="h-1.5 bg-surface rounded-full overflow-hidden">
-                          <div
-                            style={{ width: `${secRatio}%` }}
-                            className={`h-full rounded-full transition-all duration-300 ${info.color}`}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )
               )}
             </div>
           </div>

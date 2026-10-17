@@ -162,7 +162,7 @@ export function Sidebar({
         <div
           onMouseEnter={handleHoverEnter}
           onClick={handleHoverEnter}
-          className="fixed top-0 bottom-0 left-0 w-3.5 z-40 group cursor-pointer flex items-center"
+          className="fixed top-0 bottom-14 left-0 w-3.5 z-40 group cursor-pointer flex items-center"
           title="Hover or click to view sidebar"
         >
           <div className="w-1 h-14 rounded-r-full bg-line-strong/60 group-hover:bg-accent group-hover:w-1.5 transition-all shadow-xs" />
@@ -191,7 +191,7 @@ export function Sidebar({
               ? 'translate-x-0 w-[264px]'
               : '-translate-x-full w-[264px]'
             : isOverlayMode
-            ? 'translate-x-0 shadow-2xl fixed inset-y-0 left-0 z-50 m-2 sm:m-3'
+            ? 'translate-x-0 shadow-2xl fixed top-2 bottom-16 left-2 z-50 rounded-2xl border border-line'
             : isHiddenDesktop
             ? '-translate-x-full opacity-0 pointer-events-none md:static md:w-0 md:p-0 md:m-0 md:border-none'
             : 'md:static md:z-auto md:translate-x-0 opacity-100'
