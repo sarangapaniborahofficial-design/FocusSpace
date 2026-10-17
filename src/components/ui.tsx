@@ -29,28 +29,194 @@ export function Ring({ value, size = 36, stroke = 4, children }: { value: number
   );
 }
 
+function explainReactError(msg: string): { title: string; detail: string; isLoop: boolean } {
+  if (msg.includes('185') || msg.toLowerCase().includes('maximum update depth')) {
+    return {
+      title: 'Render Loop Guard Triggered',
+      detail: 'A component repeatedly triggered state updates during render (React Error #185). The view was automatically halted to protect system resources and prevent UI freeze.',
+      isLoop: true,
+    };
+  }
+  if (msg.includes('31') || msg.toLowerCase().includes('objects are not valid as a react child')) {
+    return {
+      title: 'Render Formatting Mismatch',
+      detail: 'An object or unsupported data structure was passed to the view template (React Error #31).',
+      isLoop: false,
+    };
+  }
+  if (msg.includes('310') || msg.toLowerCase().includes('usesyncexternalstore')) {
+    return {
+      title: 'External Store Desync Protected',
+      detail: 'An external store snapshot mutated asynchronously during the render phase.',
+      isLoop: true,
+    };
+  }
+  return {
+    title: 'This view ran into a problem',
+    detail: msg || 'An unexpected runtime error occurred.',
+    isLoop: false,
+  };
+}
+
 /** Keeps one broken view from blanking the whole app. Local data is untouched. */
-export class ErrorBoundary extends Component<{ children: ReactNode; onReset?: () => void }, { error: Error | null }> {
-  state: { error: Error | null } = { error: null };
+export class ErrorBoundary extends Component<
+  { children: ReactNode; onReset?: () => void; fallbackTitle?: string },
+  { error: Error | null; retryCount: number; lastRetry: number }
+> {
+  state: { error: Error | null; retryCount: number; lastRetry: number } = {
+    error: null,
+    retryCount: 0,
+    lastRetry: 0,
+  };
 
   static getDerivedStateFromError(error: Error) {
     return { error };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('FocusSpace view crashed:', error, info.componentStack);
+    console.error('[FocusSpace View Guard]', error, info.componentStack);
   }
+
+  handleRetry = () => {
+    const now = Date.now();
+    const count = now - this.state.lastRetry < 3000 ? this.state.retryCount + 1 : 1;
+    this.setState({ error: null, retryCount: count, lastRetry: now });
+  };
+
+  handleReset = () => {
+    this.setState({ error: null, retryCount: 0, lastRetry: 0 });
+    this.props.onReset?.();
+  };
 
   render() {
     if (!this.state.error) return this.props.children;
+    const { title, detail } = explainReactError(this.state.error.message || '');
+    const isRepeated = this.state.retryCount >= 3;
+
     return (
-      <div className="p-8 max-w-md mx-auto text-center pt-24" role="alert">
-        <h1 className="text-lg font-semibold">This view ran into a problem</h1>
-        <p className="text-sm text-fg-muted mt-2">Your tasks and settings are safe in local storage. Try again, or head back to Home.</p>
-        <p className="text-xs text-fg-subtle mt-3 break-words">{this.state.error.message}</p>
-        <div className="mt-5 flex justify-center gap-2">
-          <button onClick={() => this.setState({ error: null })} className="h-8 px-3 rounded-md border border-line bg-surface-2 text-sm hover:bg-hover">Try again</button>
-          <button onClick={() => { this.setState({ error: null }); this.props.onReset?.(); }} className="h-8 px-3 rounded-md bg-accent text-accent-fg text-sm font-medium">Go to Home</button>
+      <div className="p-8 max-w-lg mx-auto text-center pt-20 animate-in fade-in duration-300" role="alert">
+        <div className="size-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-500 grid place-items-center mx-auto mb-4">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </div>
+        <h1 className="text-lg font-bold text-fg tracking-tight">{this.props.fallbackTitle || title}</h1>
+        <p className="text-sm text-fg-muted mt-2">{detail}</p>
+        <p className="text-[11px] text-fg-subtle mt-3 font-mono break-all px-3 py-2 rounded-xl bg-surface-2 border border-line select-all">
+          {this.state.error.message}
+        </p>
+        <div className="mt-5 flex flex-wrap justify-center gap-2.5">
+          {!isRepeated && (
+            <button
+              onClick={this.handleRetry}
+              className="h-9 px-4 rounded-xl border border-line bg-surface-2 hover:bg-hover text-fg text-xs font-semibold keycap transition cursor-pointer"
+            >
+              Try Again
+            </button>
+          )}
+          <button
+            onClick={this.handleReset}
+            className="h-9 px-4 rounded-xl bg-accent text-accent-fg hover:bg-accent-hover text-xs font-semibold keycap shadow-xs transition cursor-pointer"
+          >
+            Go to Safe Home
+          </button>
+          {isRepeated && (
+            <button
+              onClick={() => window.location.reload()}
+              className="h-9 px-4 rounded-xl border border-line bg-surface text-fg-muted hover:text-fg text-xs font-medium transition cursor-pointer"
+            >
+              Reload Workspace
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+}
+
+/** Top-level guardrail protecting the whole DOM tree from unmounting into a blank void */
+export class RootErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null; copied: boolean }
+> {
+  state: { error: Error | null; copied: boolean } = { error: null, copied: false };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[FocusSpace Root Safe Guard]', error, info.componentStack);
+  }
+
+  handleCopy = () => {
+    if (!this.state.error) return;
+    const text = `FocusSpace Crash Report\nError: ${this.state.error.name}: ${this.state.error.message}\nStack: ${this.state.error.stack || 'No stack'}`;
+    void navigator.clipboard?.writeText(text);
+    this.setState({ copied: true });
+    setTimeout(() => this.setState({ copied: false }), 2000);
+  };
+
+  handleReload = () => {
+    window.location.reload();
+  };
+
+  handleHardReset = () => {
+    try {
+      sessionStorage.clear();
+      localStorage.removeItem('focusspace-ambient-track');
+    } catch {}
+    window.location.reload();
+  };
+
+  render() {
+    if (!this.state.error) return this.props.children;
+    const { title, detail } = explainReactError(this.state.error.message || '');
+
+    return (
+      <div className="fixed inset-0 z-[9999] bg-canvas text-fg grid place-items-center p-6 select-none">
+        <div className="max-w-md w-full atelier-card rounded-3xl p-6 sm:p-8 text-center space-y-4 shadow-pop border border-line-strong pop-in">
+          <div className="size-14 rounded-2xl bg-accent text-accent-fg grid place-items-center mx-auto shadow-md keycap">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-fg">FocusSpace Emergency Recovery</h1>
+            <p className="text-xs text-accent-text font-mono uppercase mt-0.5">{title}</p>
+          </div>
+          <p className="text-xs text-fg-muted leading-relaxed">
+            {detail} Your Dexie database, tasks, journal archives, and habits are safe and untouched on disk.
+          </p>
+          <div className="p-3 rounded-2xl bg-surface-2 border border-line text-left">
+            <div className="text-[10px] font-mono uppercase text-fg-subtle mb-1">Diagnostic Signature</div>
+            <div className="text-xs font-mono text-fg-muted break-all max-h-24 overflow-y-auto select-all">
+              {this.state.error.message}
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
+            <button
+              onClick={this.handleReload}
+              className="flex-1 h-10 rounded-xl bg-accent text-accent-fg text-xs font-semibold hover:bg-accent-hover keycap shadow-sm transition cursor-pointer"
+            >
+              Restart Workspace
+            </button>
+            <button
+              onClick={this.handleCopy}
+              className="flex-1 h-10 rounded-xl border border-line bg-surface hover:bg-hover text-fg text-xs font-medium transition cursor-pointer"
+            >
+              {this.state.copied ? 'Copied to Clipboard!' : 'Copy Diagnostic'}
+            </button>
+          </div>
+          <button
+            onClick={this.handleHardReset}
+            className="text-[11px] text-fg-subtle hover:text-fg underline pt-1 cursor-pointer block mx-auto"
+          >
+            Clear Session Cache & Restart
+          </button>
         </div>
       </div>
     );

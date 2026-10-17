@@ -637,7 +637,9 @@ export default function App() {
                   <span className="index-chip text-fg-muted">Docked Pomodoro Timer</span>
                   <span className="size-2 rounded-full bg-accent animate-pulse" />
                 </div>
-                <Pomodoro />
+                <ErrorBoundary fallbackTitle="Docked Pomodoro Timer">
+                  <Pomodoro />
+                </ErrorBoundary>
               </aside>
             )}
           </div>

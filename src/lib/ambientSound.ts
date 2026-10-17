@@ -48,16 +48,33 @@ class AmbientSynthesizer {
   private activeNodes: Array<{ stop?: () => void; disconnect: () => void }> = [];
   private listeners: Set<(state: AmbientSoundState) => void> = new Set();
   private timerId: any = null;
+  private snapshot: AmbientSoundState;
 
   constructor() {
+    let savedTrack: AmbientTrack = 'rain';
+    let savedVol = 0.5;
     if (typeof window !== 'undefined') {
       try {
-        const savedTrack = (localStorage.getItem('focusspace-ambient-track') as AmbientTrack) || 'rain';
-        const savedVol = parseFloat(localStorage.getItem('focusspace-ambient-vol') || '0.5');
-        this.currentTrack = savedTrack;
-        this.currentVolume = isNaN(savedVol) ? 0.5 : Math.max(0, Math.min(1, savedVol));
+        const st = localStorage.getItem('focusspace-ambient-track') as AmbientTrack;
+        const sv = parseFloat(localStorage.getItem('focusspace-ambient-vol') || '0.5');
+        if (st && ['rain', 'ocean', 'lofi', 'binaural', 'whitenoise', 'off'].includes(st)) {
+          savedTrack = st;
+        }
+        if (!isNaN(sv)) {
+          savedVol = Math.max(0, Math.min(1, sv));
+        }
       } catch {}
+    }
+    this.currentTrack = savedTrack;
+    this.currentVolume = savedVol;
+    this.snapshot = {
+      track: this.currentTrack,
+      playing: false,
+      volume: this.currentVolume,
+      isDucked: false,
+    };
 
+    if (typeof window !== 'undefined') {
       // Cross-Window BroadcastChannel Synchronization (Main <-> Floating HUD)
       if ('BroadcastChannel' in window) {
         try {
@@ -74,12 +91,12 @@ class AmbientSynthesizer {
               if (data.playing && !this.isAudioOwner) {
                 this.stopNodes();
               }
-              this.emit();
+              this.updateSnapshot();
             } else if (data.type === 'STOP_ALL') {
               this.isRunning = false;
               this.isAudioOwner = false;
               this.stopNodes();
-              this.emit();
+              this.updateSnapshot();
             }
           };
         } catch (err) {
@@ -95,7 +112,7 @@ class AmbientSynthesizer {
           if (this.isDucked !== shouldDuck) {
             this.isDucked = shouldDuck;
             this.applyEffectiveGain();
-            this.emit();
+            this.updateSnapshot();
           }
         }
       });
@@ -138,28 +155,38 @@ class AmbientSynthesizer {
     }
   }
 
-  private emit() {
-    const s: AmbientSoundState = {
+  private updateSnapshot() {
+    // Only re-allocate and notify if values actually changed (prevents re-render cascades)
+    if (
+      this.snapshot.track === this.currentTrack &&
+      this.snapshot.playing === this.isRunning &&
+      this.snapshot.volume === this.currentVolume &&
+      this.snapshot.isDucked === this.isDucked
+    ) {
+      return;
+    }
+    this.snapshot = {
       track: this.currentTrack,
       playing: this.isRunning,
       volume: this.currentVolume,
       isDucked: this.isDucked,
     };
-    this.listeners.forEach((fn) => fn(s));
+    this.listeners.forEach((fn: any) => {
+      try {
+        fn(this.snapshot);
+      } catch (err) {
+        console.error('Error in ambient sound listener:', err);
+      }
+    });
   }
 
+  /** Strict reference-cached snapshot for useSyncExternalStore */
   getState(): AmbientSoundState {
-    return {
-      track: this.currentTrack,
-      playing: this.isRunning,
-      volume: this.currentVolume,
-      isDucked: this.isDucked,
-    };
+    return this.snapshot;
   }
 
   subscribe(listener: (state: AmbientSoundState) => void): () => void {
     this.listeners.add(listener);
-    listener(this.getState());
     return () => this.listeners.delete(listener);
   }
 
@@ -169,7 +196,7 @@ class AmbientSynthesizer {
       localStorage.setItem('focusspace-ambient-vol', String(this.currentVolume));
     } catch {}
     this.applyEffectiveGain();
-    this.emit();
+    this.updateSnapshot();
     this.broadcastState();
   }
 
@@ -184,7 +211,7 @@ class AmbientSynthesizer {
         this.start(track);
       }
     } else {
-      this.emit();
+      this.updateSnapshot();
       this.broadcastState();
     }
   }
@@ -228,7 +255,7 @@ class AmbientSynthesizer {
       console.warn('Failed to start ambient synthesis:', err);
     }
 
-    this.emit();
+    this.updateSnapshot();
     this.broadcastState();
   }
 
@@ -236,7 +263,7 @@ class AmbientSynthesizer {
     this.isRunning = false;
     this.isAudioOwner = false;
     this.stopNodes();
-    this.emit();
+    this.updateSnapshot();
     this.broadcastState();
   }
 

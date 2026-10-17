@@ -440,7 +440,12 @@ runTier('T5', 'Electron Desktop Architecture & Native Window Hardening', () => {
     if (!preloadCjs.includes(method)) throw new Error(`preload.cjs missing ${method}`);
   }
 
-  return 'Electron app:// COOP/COEP, CSP, Navigation Lock, High-DPI HUD (440px) & Preload Bridge verified';
+  logVerbose('Verifying crash recovery guards and RootErrorBoundary containment...');
+  if (!mainCjs.includes('render-process-gone')) throw new Error('main.cjs missing render-process-gone crash guardrail');
+  const mainTsx = fs.readFileSync(path.join(ROOT, 'src', 'main.tsx'), 'utf-8');
+  if (!mainTsx.includes('RootErrorBoundary')) throw new Error('main.tsx missing RootErrorBoundary top-level safety mount');
+
+  return 'Electron app:// COOP/COEP, CSP, Navigation Lock, High-DPI HUD, Crash Recovery & RootErrorBoundary verified';
 });
 
 // ----------------------------------------------------------------------------

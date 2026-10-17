@@ -147,6 +147,15 @@ function createMainWindow() {
   applyNavigationLock(mainWindow.webContents);
   mainWindow.loadURL(getAppUrl());
 
+  // Crash Guardrail: If renderer process ever crashes unexpectedly, safely reload instead of showing a black void
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('[Process Guard] Main window renderer process exited unexpectedly:', details);
+    if (details.reason !== 'clean-exit' && !app.isQuitting) {
+      console.log('[Process Guard] Automatically recovering and reloading main window...');
+      mainWindow.loadURL(getAppUrl());
+    }
+  });
+
   mainWindow.on('close', (e) => {
     if (!app.isQuitting) {
       e.preventDefault();
@@ -186,6 +195,15 @@ function createHudWindow() {
 
   applyNavigationLock(hudWindow.webContents);
   hudWindow.loadURL(getAppUrl('?window=hud'));
+
+  // Crash Guardrail: If HUD window renderer crashes, safely reload
+  hudWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('[Process Guard] HUD window renderer process exited unexpectedly:', details);
+    if (details.reason !== 'clean-exit' && !app.isQuitting) {
+      console.log('[Process Guard] Automatically recovering and reloading HUD window...');
+      hudWindow.loadURL(getAppUrl('?window=hud'));
+    }
+  });
 
   hudWindow.on('close', (e) => {
     if (!app.isQuitting) {

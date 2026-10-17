@@ -22,7 +22,7 @@ import { getElectronAPI } from '../lib/runtime';
 import { subscribeHudBridge, sendHudCommand, requestHudSync, HudStatePayload, TodoItemSnapshot } from '../lib/hudBridge';
 import { pipHUD, usePipHUD } from '../lib/pipHud';
 import { useDictation } from '../voice/useDictation';
-import { ambientSound, AMBIENT_TRACKS, type AmbientTrack, type AmbientSoundState } from '../lib/ambientSound';
+import { ambientSound, AMBIENT_TRACKS, useAmbientSound, type AmbientTrack, type AmbientSoundState } from '../lib/ambientSound';
 import { FocusSpaceLogo } from './FocusSpaceLogo';
 
 export type HudArtboardId = '01' | '02' | '03' | '04' | '05' | '06';
@@ -91,7 +91,7 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
   const [activeTab, setActiveTab] = useState<HudTab>('todo');
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [scratchpad, setScratchpad] = useState('');
-  const [ambientState, setAmbientState] = useState<AmbientSoundState>(() => ambientSound.getState());
+  const ambientState = useAmbientSound();
   const noteRef = useRef<HTMLTextAreaElement | null>(null);
 
   const { isListening, toggle: toggleDictation } = useDictation({
@@ -103,11 +103,6 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
       }
     },
   });
-
-  // Keep ambient sound state in sync
-  useEffect(() => {
-    return ambientSound.subscribe(setAmbientState);
-  }, []);
 
   useEffect(() => {
     if (isNativeWindow) {
