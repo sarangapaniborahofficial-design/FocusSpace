@@ -20,12 +20,11 @@ import { ReloadPrompt } from './components/ReloadPrompt';
 import { Review } from './components/Review';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { Today } from './components/Today';
-import { AppDock } from './components/AppDock';
 import { FloatingHUDPortal } from './components/FloatingHUD';
 import { ErrorBoundary } from './components/ui';
 import { OnboardingWelcome, useWelcomeFlow, type WelcomeTask, type WelcomeHabit } from './components/OnboardingWelcome';
 import { openTaskEditor } from './lib/taskEditor';
-import { getTimerState, timer, useTimer } from './lib/timer';
+import { formatClock, getTimerState, timer, useTimer } from './lib/timer';
 import { soundscape, useSoundscape, type SoundscapeType } from './lib/soundscape';
 import { initJournalAutoSave } from './lib/journalAutoSave';
 import { parseTaskInput } from './lib/taskParser';
@@ -89,6 +88,8 @@ export default function App() {
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(() => (storage.get('focusspace-layout') === 'cockpit' ? 'cockpit' : 'orbital'));
   const [quitModalOpen, setQuitModalOpen] = useState(false);
   const [screenTimeOpen, setScreenTimeOpen] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [unsavedReason, setUnsavedReason] = useState<string | null>(null);
 
   const timerState = useTimer();
   const activeTask = useLiveQuery(
@@ -469,6 +470,77 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const api = getElectronAPI();
+    if (!api) return;
+    if (api.isWindowMaximized) {
+      void api.isWindowMaximized().then(setIsMaximized);
+    }
+    if (api.onMaximizeChange) {
+      return api.onMaximizeChange((maximized) => setIsMaximized(maximized));
+    }
+  }, []);
+
+  const handleMinimize = useCallback(() => {
+    const api = getElectronAPI();
+    if (api?.minimizeWindow) {
+      void api.minimizeWindow();
+    }
+  }, []);
+
+  const handleToggleMaximize = useCallback(() => {
+    const api = getElectronAPI();
+    if (api?.toggleMaximizeWindow) {
+      void api.toggleMaximizeWindow().then((next) => setIsMaximized(next));
+    } else {
+      if (document.fullscreenElement) {
+        void document.exitFullscreen();
+        setIsMaximized(false);
+      } else {
+        void document.documentElement.requestFullscreen();
+        setIsMaximized(true);
+      }
+    }
+  }, []);
+
+  const checkUnsavedWork = useCallback((): string | null => {
+    if (timerState.running) {
+      return `A Pomodoro focus session is currently running (${formatClock(timerState.remainingMs)} remaining). Exiting will pause your session.`;
+    }
+    if (globalDictation.state === 'listening' || globalDictation.state === 'transcribing') {
+      return 'Voice dictation is actively recording and processing speech.';
+    }
+    if (quick) {
+      return 'You have a task creation draft open in the quick-add modal.';
+    }
+    return null;
+  }, [timerState.running, timerState.remainingMs, globalDictation.state, quick]);
+
+  const handleClose = useCallback(() => {
+    const reason = checkUnsavedWork();
+    if (reason) {
+      setUnsavedReason(reason);
+      setQuitModalOpen(true);
+    } else {
+      const api = getElectronAPI();
+      if (api?.closeWindow) {
+        void api.closeWindow();
+      } else if (api?.quitApp) {
+        void api.quitApp();
+      } else {
+        window.close();
+      }
+    }
+  }, [checkUnsavedWork]);
+
+  useEffect(() => {
+    const api = getElectronAPI();
+    if (!api?.onWindowCloseRequested) return;
+    return api.onWindowCloseRequested(() => {
+      handleClose();
+    });
+  }, [handleClose]);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
@@ -511,11 +583,11 @@ export default function App() {
         if (shortcuts) { setShortcuts(false); return; }
         if (drawer) { setDrawer(false); return; }
         if (audioSetupOpen) { setAudioSetupOpen(false); return; }
-        if (quitModalOpen) { setQuitModalOpen(false); return; }
+        if (quitModalOpen) { setQuitModalOpen(false); setUnsavedReason(null); return; }
 
         if (nav.view === 'home' && !isEditing) {
           e.preventDefault();
-          setQuitModalOpen(true);
+          handleClose();
           return;
         }
       }
@@ -529,7 +601,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [go, triggerUniversalVoice, quick, search, shortcuts, drawer, audioSetupOpen, quitModalOpen, nav.view]);
+  }, [go, triggerUniversalVoice, quick, search, shortcuts, drawer, audioSetupOpen, quitModalOpen, nav.view, handleClose]);
 
   const closeQuick = useCallback(() => setQuick(false), []);
   const closeSearch = useCallback(() => setSearch(false), []);
@@ -571,7 +643,7 @@ export default function App() {
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col bg-canvas text-fg select-none">
       {/* Top Workspace & Views Area */}
-      <div className={`flex-1 min-h-0 flex flex-col ${layoutMode === 'orbital' ? 'p-2 sm:p-3 sm:pb-1.5' : 'p-0'}`}>
+      <div className={`flex-1 min-h-0 flex flex-col ${layoutMode === 'orbital' ? 'p-2 sm:p-3' : 'p-0'}`}>
         <div
           className={`w-full h-full bg-[var(--app-bg)] backdrop-blur-md text-fg flex overflow-hidden relative transition-[border-radius,box-shadow,gap,padding] duration-200 ease-out ${
             layoutMode === 'orbital'
@@ -590,6 +662,7 @@ export default function App() {
             activePageId={nav.pageId}
             onOpenPage={openPageIn}
             layoutMode={layoutMode}
+            onOpenScreenTime={() => setScreenTimeOpen(true)}
           />
 
           <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-transparent">
@@ -603,7 +676,11 @@ export default function App() {
               setTheme={setTheme}
               layoutMode={layoutMode}
               setLayoutMode={setLayoutMode}
-              onQuit={() => setQuitModalOpen(true)}
+              onMinimize={handleMinimize}
+              onToggleMaximize={handleToggleMaximize}
+              onClose={handleClose}
+              isMaximized={isMaximized}
+              onOpenScreenTime={() => setScreenTimeOpen(true)}
               onToggleSidebar={() => {
                 const next = !collapsed;
                 setCollapsed(next);
@@ -652,15 +729,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* Permanent Integrated Windows-Style Taskbar docked structurally at the bottom */}
-      <AppDock
-        onSearch={openSearch}
-        onStart={goHome}
-        onNavigate={go}
-        onTriggerVoice={triggerUniversalVoice}
-        onOpenScreenTime={() => setScreenTimeOpen(true)}
-      />
-
       {/* Global Overlays, Modals, and Portals */}
       <TaskEditor />
       <QuickAddModal open={quick} onClose={closeQuick} defaultCategory={isCategory ? active : undefined} />
@@ -702,7 +770,14 @@ export default function App() {
         onToggleHabit={handleWelcomeToggleHabit}
         onStartFocusTask={handleWelcomeStartFocusTask}
       />
-      <QuitConfirmModal open={quitModalOpen} onClose={() => setQuitModalOpen(false)} />
+      <QuitConfirmModal
+        open={quitModalOpen}
+        unsavedReason={unsavedReason}
+        onClose={() => {
+          setQuitModalOpen(false);
+          setUnsavedReason(null);
+        }}
+      />
       <ScreenTimeModal open={screenTimeOpen} onClose={() => setScreenTimeOpen(false)} />
       <Toaster />
       {!isElectron() && <ReloadPrompt />}

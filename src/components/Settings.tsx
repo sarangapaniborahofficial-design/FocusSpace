@@ -210,10 +210,10 @@ function DockPreferencesCard() {
       <div className="p-5 border-b border-line flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 font-medium">
-            <Globe size={16} className="text-accent-text" /> Application Dock & Browser Integration
+            <Globe size={16} className="text-accent-text" /> Browser & Desktop Window Integration
           </div>
           <p className="text-xs text-fg-subtle mt-1">
-            Choose your preferred browser for dock web apps, and manage distraction-free desktop display settings.
+            Choose your preferred browser for external links, and configure desktop window display modes.
           </p>
         </div>
       </div>
@@ -253,9 +253,9 @@ function DockPreferencesCard() {
         {isDesktop() && (
           <div className="pt-3 border-t border-line flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-xs font-semibold text-fg">Distraction-Free Window</div>
+              <div className="text-xs font-semibold text-fg">Fullscreen Presentation Mode</div>
               <div className="text-[11px] text-fg-subtle">
-                FocusSpace runs borderless to cover the Windows taskbar. Toggle with <kbd className="px-1.5 py-0.5 rounded border border-line bg-surface-2 font-mono text-[10px]">F11</kbd> or this button.
+                Toggle edge-to-edge distraction-free fullscreen presentation mode with <kbd className="px-1.5 py-0.5 rounded border border-line bg-surface-2 font-mono text-[10px]">F11</kbd> or this button.
               </div>
             </div>
             <button

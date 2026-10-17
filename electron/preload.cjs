@@ -36,6 +36,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('app:quit'),
   minimizeToTray: () =>
     ipcRenderer.invoke('app:minimize-to-tray'),
+  minimizeWindow: () =>
+    ipcRenderer.invoke('window:minimize'),
+  toggleMaximizeWindow: () =>
+    ipcRenderer.invoke('window:toggle-maximize'),
+  isWindowMaximized: () =>
+    ipcRenderer.invoke('window:is-maximized'),
+  closeWindow: () =>
+    ipcRenderer.invoke('window:close'),
+  onWindowCloseRequested: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('window:request-close', handler);
+    return () => ipcRenderer.removeListener('window:request-close', handler);
+  },
+  onMaximizeChange: (callback) => {
+    const handler = (_event, isMaximized) => callback(isMaximized);
+    ipcRenderer.on('window:maximize-changed', handler);
+    return () => ipcRenderer.removeListener('window:maximize-changed', handler);
+  },
 
   // External App Launching & File Selection
   openExternal: (url) =>

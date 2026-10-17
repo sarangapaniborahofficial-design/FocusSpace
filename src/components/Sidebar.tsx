@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState, useRef } from 'react';
 import { FocusSpaceLogo } from './FocusSpaceLogo';
 import {
+  Activity,
   BarChart3,
   BookOpen,
   CalendarDays,
@@ -50,6 +51,7 @@ export function Sidebar({
   activePageId,
   onOpenPage,
   layoutMode = 'orbital',
+  onOpenScreenTime,
 }: {
   collapsed: boolean;
   setCollapsed: (v: boolean) => void;
@@ -61,6 +63,7 @@ export function Sidebar({
   activePageId: string | null;
   onOpenPage: (categoryId: string, pageId: string) => void;
   layoutMode?: LayoutMode;
+  onOpenScreenTime?: () => void;
 }) {
   const isMobile = useMediaQuery('(max-width: 767px)');
   const { isInstallable, install } = usePWAInstall();
@@ -191,7 +194,7 @@ export function Sidebar({
               ? 'translate-x-0 w-[264px]'
               : '-translate-x-full w-[264px]'
             : isOverlayMode
-            ? 'translate-x-0 shadow-2xl fixed top-2 bottom-16 left-2 z-50 rounded-2xl border border-line'
+            ? 'translate-x-0 shadow-2xl fixed top-2 bottom-2 left-2 z-50 rounded-2xl border border-line'
             : isHiddenDesktop
             ? '-translate-x-full opacity-0 pointer-events-none md:static md:w-0 md:p-0 md:m-0 md:border-none'
             : 'md:static md:z-auto md:translate-x-0 opacity-100'
@@ -268,6 +271,15 @@ export function Sidebar({
                 active={active === 'journal'}
                 onClick={() => setActive('journal')}
               />
+              {onOpenScreenTime && (
+                <NavItem
+                  compact={false}
+                  icon={Activity}
+                  label="Screen Time & Wellbeing"
+                  active={false}
+                  onClick={onOpenScreenTime}
+                />
+              )}
               <NavItem
                 compact={false}
                 icon={FileText}

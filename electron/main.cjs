@@ -162,7 +162,8 @@ function createMainWindow() {
     backgroundColor: '#0d0c0b',
     icon: path.join(__dirname, '../public/icon-512.png'),
     autoHideMenuBar: true,
-    fullscreen: true,
+    fullscreen: false,
+    frame: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -174,6 +175,19 @@ function createMainWindow() {
 
   applyNavigationLock(mainWindow.webContents);
   mainWindow.loadURL(getAppUrl());
+
+  // Window state event broadcasting to renderer for responsive UI controls
+  mainWindow.on('maximize', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('window:maximize-changed', true);
+    }
+  });
+
+  mainWindow.on('unmaximize', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('window:maximize-changed', false);
+    }
+  });
 
   // Crash Guardrail: If renderer process ever crashes unexpectedly, safely reload instead of showing a black void
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
@@ -187,7 +201,9 @@ function createMainWindow() {
   mainWindow.on('close', (e) => {
     if (!app.isQuitting) {
       e.preventDefault();
-      mainWindow.hide();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('window:request-close');
+      }
     }
   });
 }
@@ -452,6 +468,40 @@ app.whenReady().then(() => {
 
   ipcMain.handle('window:is-fullscreen', () => {
     return Boolean(mainWindow && mainWindow.isFullScreen());
+  });
+
+  ipcMain.handle('window:minimize', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.minimize();
+      return true;
+    }
+    return false;
+  });
+
+  ipcMain.handle('window:toggle-maximize', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMaximized()) {
+        mainWindow.unmaximize();
+        return false;
+      } else {
+        mainWindow.maximize();
+        return true;
+      }
+    }
+    return false;
+  });
+
+  ipcMain.handle('window:is-maximized', () => {
+    return Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isMaximized());
+  });
+
+  ipcMain.handle('window:close', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      app.isQuitting = true;
+      mainWindow.close();
+      return true;
+    }
+    return false;
   });
 
   ipcMain.handle('app:quit', () => {

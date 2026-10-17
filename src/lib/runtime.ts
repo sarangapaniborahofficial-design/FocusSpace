@@ -19,6 +19,12 @@ export interface ElectronAPI {
   showMainWindow: () => void;
   toggleFullscreen: () => Promise<boolean>;
   isFullscreen: () => Promise<boolean>;
+  minimizeWindow: () => Promise<boolean>;
+  toggleMaximizeWindow: () => Promise<boolean>;
+  isWindowMaximized: () => Promise<boolean>;
+  closeWindow: () => Promise<boolean>;
+  onWindowCloseRequested?: (callback: () => void) => () => void;
+  onMaximizeChange?: (callback: (isMaximized: boolean) => void) => () => void;
   quitApp: () => Promise<void>;
   minimizeToTray: () => Promise<boolean>;
   openExternal: (url: string) => Promise<{ opened: boolean }>;

@@ -1,4 +1,4 @@
-import { Columns3, Keyboard, LayoutGrid, Maximize2, Menu, Minimize2, Moon, Orbit, PanelLeftClose, PanelLeftOpen, Pause, Play, Plus, Power, Search, Sparkles, Sun } from 'lucide-react';
+import { Activity, Columns3, Copy, Keyboard, LayoutGrid, Maximize2, Menu, Minus, Moon, Orbit, PanelLeftClose, PanelLeftOpen, Pause, Play, Plus, Search, Sparkles, Square, Sun, X } from 'lucide-react';
 import { MODE_LABELS, formatClock, timer, useTimer } from '../lib/timer';
 import type { LayoutMode } from '../types';
 import { FloatingHUDTrigger } from './FloatingHUD';
@@ -44,9 +44,13 @@ export function Header({
   setTheme,
   layoutMode = 'orbital',
   setLayoutMode,
-  onQuit,
   onToggleSidebar,
   isSidebarCollapsed,
+  onMinimize,
+  onToggleMaximize,
+  onClose,
+  isMaximized = false,
+  onOpenScreenTime,
 }: {
   title: string;
   onMenu: () => void;
@@ -57,34 +61,76 @@ export function Header({
   setTheme: (v: string) => void;
   layoutMode?: LayoutMode;
   setLayoutMode?: (m: LayoutMode) => void;
-  onQuit?: () => void;
   onToggleSidebar?: () => void;
   isSidebarCollapsed?: boolean;
+  onMinimize?: () => void;
+  onToggleMaximize?: () => void;
+  onClose?: () => void;
+  isMaximized?: boolean;
+  onOpenScreenTime?: () => void;
 }) {
   const currentTheme = THEMES.includes(theme) ? theme : 'nocturne';
   const next = THEMES[(THEMES.indexOf(currentTheme) + 1) % THEMES.length];
 
   return (
     <header
-      className={`h-16 shrink-0 flex items-center justify-between gap-3 px-3 sm:px-5 bg-surface/90 backdrop-blur-xl sticky top-0 z-30 border-b border-line ${
+      onDoubleClick={(e) => {
+        if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('window-drag-region')) {
+          onToggleMaximize?.();
+        }
+      }}
+      className={`h-16 shrink-0 flex items-center justify-between gap-3 px-3 sm:px-4 bg-surface/90 backdrop-blur-xl sticky top-0 z-30 border-b border-line window-drag-region ${
         layoutMode === 'orbital' ? 'rounded-2xl border shadow-card mb-1' : ''
       }`}
     >
-      {/* Left: Mobile Menu / Desktop Toggle + Breadcrumb Title */}
-      <div className="flex items-center gap-2.5 text-sm text-fg-muted min-w-0">
+      {/* Left: Window Controls + Mobile Menu / Desktop Toggle + Breadcrumb Title */}
+      <div className="flex items-center gap-2 sm:gap-2.5 text-sm text-fg-muted min-w-0">
+        {/* Native-style Window Controls on Top Left */}
+        <div className="flex items-center gap-1 sm:gap-1.5 p-1 rounded-xl bg-surface-2/70 border border-line/70 window-no-drag shadow-xs shrink-0">
+          <button
+            type="button"
+            onClick={onMinimize}
+            title="Minimize Window"
+            aria-label="Minimize Window"
+            className="size-7 grid place-items-center rounded-lg hover:bg-hover text-fg-muted hover:text-fg transition-colors cursor-pointer"
+          >
+            <Minus size={13} strokeWidth={2.2} />
+          </button>
+          <button
+            type="button"
+            onClick={onToggleMaximize}
+            title={isMaximized ? 'Restore Window' : 'Maximize / Multi-window'}
+            aria-label={isMaximized ? 'Restore Window' : 'Maximize Window'}
+            className="size-7 grid place-items-center rounded-lg hover:bg-hover text-fg-muted hover:text-fg transition-colors cursor-pointer"
+          >
+            {isMaximized ? <Copy size={11} strokeWidth={2.2} /> : <Square size={11} strokeWidth={2.2} />}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            title="Close Window (Prompts if active work)"
+            aria-label="Close Window"
+            className="size-7 grid place-items-center rounded-lg hover:bg-red-500/15 text-fg-muted hover:text-red-400 hover:border-red-500/30 transition-colors cursor-pointer"
+          >
+            <X size={13} strokeWidth={2.2} />
+          </button>
+        </div>
+
+        <div className="hidden sm:block h-5 w-px bg-line/80 mx-0.5 shrink-0" />
+
         <button
           onClick={onMenu}
           aria-label="Open navigation"
-          className="md:hidden size-9 grid place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover -ml-1 keycap cursor-pointer"
+          className="md:hidden size-8.5 grid place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover keycap cursor-pointer window-no-drag"
         >
-          <Menu size={18} />
+          <Menu size={17} />
         </button>
         {onToggleSidebar && (
           <button
             onClick={onToggleSidebar}
             aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={isSidebarCollapsed ? 'Expand sidebar permanently' : 'Collapse sidebar (Hover near left edge to pop up)'}
-            className="hidden md:grid size-8.5 place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover -ml-1 keycap cursor-pointer transition"
+            className="hidden md:grid size-8.5 place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover keycap cursor-pointer transition window-no-drag"
           >
             {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
           </button>
@@ -95,10 +141,12 @@ export function Header({
       </div>
 
       {/* Center: Quick Timer Control Pill (Desktop) */}
-      <HeaderTimerPill />
+      <div className="window-no-drag">
+        <HeaderTimerPill />
+      </div>
 
-      {/* Right: Search, Quick Add, Layout Switcher, Shortcuts, Theme Switcher */}
-      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+      {/* Right: Search, Quick Add, Screen Time, Layout Switcher, Shortcuts, Theme Switcher */}
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 window-no-drag">
         <button
           onClick={onSearch}
           aria-label="Search and commands"
@@ -124,6 +172,17 @@ export function Header({
           <Plus size={16} />
           <span className="hidden sm:inline">Quick Add</span>
         </button>
+
+        {onOpenScreenTime && (
+          <button
+            onClick={onOpenScreenTime}
+            title="Screen Time & Digital Wellbeing"
+            aria-label="Screen Time & Digital Wellbeing"
+            className="size-9 grid place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover transition-colors keycap cursor-pointer"
+          >
+            <Activity size={16} className="text-accent-text" />
+          </button>
+        )}
 
         {setLayoutMode && (
           <button
@@ -176,21 +235,6 @@ export function Header({
             className="size-9 grid place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover transition-colors keycap shrink-0 cursor-pointer"
           >
             <Maximize2 size={15} />
-          </button>
-        )}
-
-        {onQuit && (
-          <button
-            onClick={onQuit}
-            title="Exit FocusSpace (Press Esc on Home)"
-            aria-label="Exit FocusSpace"
-            className="h-9 px-2.5 sm:px-3 rounded-xl border border-red-500/35 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:border-red-500/60 hover:text-red-300 transition-colors flex items-center gap-1.5 text-xs font-bold keycap cursor-pointer shrink-0"
-          >
-            <Power size={14} className="text-red-400" />
-            <span className="hidden sm:inline">Quit</span>
-            <kbd className="hidden lg:inline-block px-1 py-0.2 rounded bg-black/40 text-[9px] font-mono text-fg-subtle border border-line">
-              ESC
-            </kbd>
           </button>
         )}
       </div>

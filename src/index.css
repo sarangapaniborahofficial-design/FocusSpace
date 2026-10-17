@@ -624,10 +624,17 @@ html.hud-window-mode #root {
 .hud-quick-submit,
 .hud-ambient-pill,
 .hud-vol-slider,
+.window-no-drag,
 button,
 input,
 textarea {
   -webkit-app-region: no-drag !important;
+}
+
+/* TOP-LEVEL DESKTOP WINDOW DRAG REGION */
+.window-drag-region {
+  -webkit-app-region: drag;
+  user-select: none;
 }
 
 .hud-clock {
