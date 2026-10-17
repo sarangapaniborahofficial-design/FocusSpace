@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import React, { useRef, useState, useEffect } from 'react';
-import { FolderOpen, Globe, Laptop, Mic, Pencil, Plus, Rocket, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, FolderOpen, Globe, Laptop, Pencil, Plus, Rocket, Trash2, X } from 'lucide-react';
 import { db } from '../db/db';
 import { APP_PRESETS, detectLaunchKind, launchTarget, normalizeWebUrl, isNativeFilePath } from '../lib/launcher';
 import { useTimerTaskId } from '../lib/timer';
@@ -111,6 +111,21 @@ export function AppDock({
     return localStorage.getItem('focusspace-default-browser') || '';
   });
   const [browserModalOpen, setBrowserModalOpen] = useState(false);
+  const [dockCollapsed, setDockCollapsed] = useState(() => {
+    return storage.get('focusspace-appdock-collapsed') === 'true';
+  });
+  const [isHoverOpen, setIsHoverOpen] = useState(false);
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const isVisible = !dockCollapsed || isHoverOpen;
+
+  const toggleDockCollapsed = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const next = !dockCollapsed;
+    setDockCollapsed(next);
+    storage.set('focusspace-appdock-collapsed', next ? 'true' : 'false');
+    setIsHoverOpen(false);
+  };
 
   // Close context menu on outside click
   useEffect(() => {
@@ -264,14 +279,45 @@ export function AppDock({
   if (floating) {
     return (
       <>
+        {/* Bottom Hover Trigger Zone & Peek Pill when Dock is Collapsed */}
+        {dockCollapsed && (
+          <div
+            onMouseEnter={() => {
+              if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+              setIsHoverOpen(true);
+            }}
+            onClick={toggleDockCollapsed}
+            className="fixed bottom-0 left-0 right-0 h-6 z-40 flex items-end justify-center pointer-events-auto cursor-pointer"
+            title="Hover or click to reveal App Dock"
+          >
+            <div className="h-3 px-8 rounded-t-xl bg-surface/90 hover:bg-surface border border-b-0 border-line text-fg-muted hover:text-fg shadow-card flex items-center justify-center transition-all group">
+              <ChevronUp size={11} className="group-hover:-translate-y-0.5 transition-transform text-accent-text" />
+            </div>
+          </div>
+        )}
+
         {/* Floating Dock Tray */}
         <div
           ref={dockRef}
-          onMouseEnter={handleMouseEnter}
+          onMouseEnter={() => {
+            handleMouseEnter();
+            if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+          }}
           onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2.5 sm:px-6 sm:py-3 rounded-3xl bg-surface/90 backdrop-blur-xl border border-line-strong shadow-pop keycap transition-all duration-150 max-w-[calc(100vw-2rem)] overflow-x-auto scrollbar-none"
-          style={{ willChange: 'transform' }}
+          onMouseLeave={() => {
+            handleMouseLeave();
+            if (dockCollapsed) {
+              hoverTimerRef.current = setTimeout(() => {
+                setIsHoverOpen(false);
+              }, 250);
+            }
+          }}
+          className={`fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2.5 sm:px-6 sm:py-3 rounded-3xl bg-surface/90 backdrop-blur-xl border border-line-strong shadow-pop keycap transition-all duration-200 max-w-[calc(100vw-2rem)] overflow-x-auto scrollbar-none ${
+            isVisible
+              ? 'bottom-5 opacity-100 translate-y-0'
+              : 'bottom-0 translate-y-[130%] opacity-0 pointer-events-none'
+          }`}
+          style={{ willChange: 'transform, opacity' }}
         >
           {links.length === 0 ? (
             /* Clean Empty Dock State */
@@ -346,18 +392,6 @@ export function AppDock({
 
           <div className="w-px h-8 bg-line mx-1" />
 
-          {/* Voice Typing Button */}
-          {onTriggerVoice && isVoiceEnabled() && (
-            <button
-              onClick={onTriggerVoice}
-              title="Universal Voice Typing (Alt+V)"
-              aria-label="Universal Voice Typing"
-              className="size-10 sm:size-11 rounded-2xl border border-line bg-surface hover:bg-accent hover:text-accent-fg text-fg-muted hover:border-accent flex items-center justify-center transition keycap shrink-0 shadow-xs cursor-pointer"
-            >
-              <Mic size={18} />
-            </button>
-          )}
-
           {/* Quick Add / Manage Button */}
           <button
             onClick={() => {
@@ -373,6 +407,16 @@ export function AppDock({
             className="size-10 sm:size-11 rounded-2xl border border-line bg-surface hover:bg-hover text-fg-muted hover:text-fg flex items-center justify-center transition keycap shrink-0 shadow-xs cursor-pointer"
           >
             {addOpen ? <X size={16} /> : <Plus size={16} />}
+          </button>
+
+          {/* Collapse / Pin Toggle Button */}
+          <button
+            onClick={toggleDockCollapsed}
+            title={dockCollapsed ? 'Pin Dock (Keep Visible)' : 'Collapse Dock (Hover near bottom to reveal)'}
+            aria-label={dockCollapsed ? 'Pin Dock' : 'Collapse Dock'}
+            className="size-10 sm:size-11 rounded-2xl border border-line bg-surface hover:bg-hover text-fg-muted hover:text-fg flex items-center justify-center transition keycap shrink-0 shadow-xs cursor-pointer"
+          >
+            {dockCollapsed ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
         </div>
 

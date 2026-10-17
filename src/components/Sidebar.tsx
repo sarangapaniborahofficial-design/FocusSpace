@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { FocusSpaceLogo } from './FocusSpaceLogo';
 import {
   BarChart3,
@@ -14,6 +14,8 @@ import {
   FolderKanban,
   GraduationCap,
   Home,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   Settings,
   Sparkles,
@@ -25,6 +27,7 @@ import { db } from '../db/db';
 import { useMediaQuery, usePWAInstall } from '../lib/hooks';
 import { createPage } from '../lib/pages';
 import { toast } from '../lib/toast';
+import { storage } from '../lib/utils';
 import type { Category, LayoutMode } from '../types';
 
 const iconFor = (id: string) =>
@@ -62,7 +65,30 @@ export function Sidebar({
   const isMobile = useMediaQuery('(max-width: 767px)');
   const { isInstallable, install } = usePWAInstall();
   const tasks = useLiveQuery(() => db.tasks.toArray(), []) ?? [];
-  const compact = collapsed && !isMobile;
+  const [isHovered, setIsHovered] = useState(false);
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleHoverEnter = () => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    setIsHovered(true);
+  };
+
+  const handleHoverLeave = () => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = setTimeout(() => {
+      setIsHovered(false);
+    }, 220);
+  };
+
+  const togglePermanentCollapse = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    storage.set('focusspace-sidebar', next ? 'collapsed' : 'expanded');
+    setIsHovered(false);
+  };
 
   const { countByCat, totalOpen } = useMemo(() => {
     const map: Record<string, number> = {};
@@ -81,8 +107,12 @@ export function Sidebar({
 
   const openCountByCat = (catId: string) => countByCat[catId] || 0;
 
+  const isOverlayMode = !isMobile && collapsed && isHovered;
+  const isHiddenDesktop = !isMobile && collapsed && !isHovered;
+
   return (
     <>
+      {/* Mobile backdrop */}
       {mobileOpen && (
         <div
           className="fade-in fixed inset-0 z-40 bg-black/65 backdrop-blur-xs md:hidden"
@@ -90,17 +120,41 @@ export function Sidebar({
           aria-hidden="true"
         />
       )}
+
+      {/* Hover Peek trigger strip on left edge when collapsed on desktop */}
+      {!isMobile && collapsed && (
+        <div
+          onMouseEnter={handleHoverEnter}
+          onClick={handleHoverEnter}
+          className="fixed top-0 bottom-0 left-0 w-3.5 z-40 group cursor-pointer flex items-center"
+          title="Hover or click to view sidebar"
+        >
+          <div className="w-1 h-14 rounded-r-full bg-line-strong/60 group-hover:bg-accent group-hover:w-1.5 transition-all shadow-xs" />
+        </div>
+      )}
+
+      {/* Main Sidebar Element */}
       <aside
         aria-label="Sidebar"
-        className={`fixed inset-y-0 left-0 z-50 w-[264px] md:static md:z-auto ${
-          compact ? 'md:w-[70px]' : 'md:w-[260px]'
-        } shrink-0 bg-surface text-fg-soft transition-[transform,width] duration-200 flex flex-col ${
+        onMouseEnter={collapsed ? handleHoverEnter : undefined}
+        onMouseLeave={collapsed ? handleHoverLeave : undefined}
+        className={`fixed inset-y-0 left-0 z-50 w-[264px] shrink-0 bg-surface text-fg-soft transition-[transform,opacity] duration-200 flex flex-col ${
           layoutMode === 'orbital'
             ? 'border border-line md:rounded-2xl shadow-card'
             : 'border-r border-line'
-        } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
+        } ${
+          isMobile
+            ? mobileOpen
+              ? 'translate-x-0'
+              : '-translate-x-full'
+            : isOverlayMode
+            ? 'translate-x-0 shadow-2xl fixed inset-y-0 left-0 z-50 m-2 sm:m-3'
+            : isHiddenDesktop
+            ? '-translate-x-full opacity-0 pointer-events-none md:static md:w-0 md:p-0 md:m-0 md:border-none'
+            : 'md:static md:z-auto md:w-[260px] md:translate-x-0 opacity-100'
+        }`}
       >
-        <div className={`h-20 flex items-center ${compact ? 'justify-center px-2' : 'px-5'} border-b border-line/70`}>
+        <div className="h-20 flex items-center px-5 border-b border-line/70">
           <button
             onClick={() => setActive('home')}
             className="flex items-center gap-3 min-w-0 group"
@@ -108,25 +162,21 @@ export function Sidebar({
             <div className="size-9 rounded-xl bg-accent text-accent-fg grid place-items-center shrink-0 keycap group-hover:scale-105 transition-transform">
               <FocusSpaceLogo size={20} />
             </div>
-            {!compact && (
-              <div className="text-left min-w-0">
-                <div className="font-bold tracking-tight text-fg text-base">FocusSpace</div>
-                <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-fg-muted truncate">
-                  Local workspace
-                </div>
+            <div className="text-left min-w-0">
+              <div className="font-bold tracking-tight text-fg text-base">FocusSpace</div>
+              <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-fg-muted truncate">
+                Local workspace
               </div>
-            )}
+            </div>
           </button>
         </div>
 
         <nav className="p-3 flex-1 overflow-y-auto space-y-4" aria-label="Main">
           <div>
-            {!compact && (
-              <div className="text-xs font-medium text-fg-muted px-3 mb-2">Workspace</div>
-            )}
+            <div className="text-xs font-medium text-fg-muted px-3 mb-2">Workspace</div>
             <div className="space-y-1">
               <NavItem
-                compact={compact}
+                compact={false}
                 icon={Home}
                 label="Home / Master"
                 badge={totalOpen > 0 ? String(totalOpen) : undefined}
@@ -134,35 +184,35 @@ export function Sidebar({
                 onClick={() => setActive('home')}
               />
               <NavItem
-                compact={compact}
+                compact={false}
                 icon={CalendarDays}
                 label="Calendar"
                 active={active === 'calendar'}
                 onClick={() => setActive('calendar')}
               />
               <NavItem
-                compact={compact}
+                compact={false}
                 icon={Trophy}
                 label="Weekly Review"
                 active={active === 'review'}
                 onClick={() => setActive('review')}
               />
               <NavItem
-                compact={compact}
+                compact={false}
                 icon={BarChart3}
                 label="Analytics"
                 active={active === 'analytics'}
                 onClick={() => setActive('analytics')}
               />
               <NavItem
-                compact={compact}
+                compact={false}
                 icon={BookOpen}
                 label="Daily Journal"
                 active={active === 'journal'}
                 onClick={() => setActive('journal')}
               />
               <NavItem
-                compact={compact}
+                compact={false}
                 icon={FileText}
                 label="Pages"
                 active={active === 'pages' && !activePageId}
@@ -172,16 +222,14 @@ export function Sidebar({
           </div>
 
           <div>
-            {!compact && (
-              <div className="text-xs font-medium text-fg-muted px-3 mb-2">Categories</div>
-            )}
+            <div className="text-xs font-medium text-fg-muted px-3 mb-2">Categories</div>
             <div className="space-y-1">
               {categories.map(c => {
                 const count = openCountByCat(c.id);
                 return (
                   <div key={c.id}>
                     <NavItem
-                      compact={compact}
+                      compact={false}
                       icon={iconFor(c.id)}
                       label={c.name}
                       dot={c.color}
@@ -189,7 +237,7 @@ export function Sidebar({
                       active={active === c.id && !activePageId}
                       onClick={() => setActive(c.id)}
                     />
-                    {!compact && active === c.id && (
+                    {active === c.id && (
                       <CategoryPages
                         categoryId={c.id}
                         activePageId={activePageId}
@@ -206,7 +254,7 @@ export function Sidebar({
         <div className="p-3 border-t border-line bg-surface-2/40 space-y-1">
           {isInstallable && (
             <NavItem
-              compact={compact}
+              compact={false}
               icon={Download}
               label="Install App"
               active={false}
@@ -214,18 +262,29 @@ export function Sidebar({
             />
           )}
           <NavItem
-            compact={compact}
+            compact={false}
             icon={Settings}
             label="Settings"
             active={active === 'settings'}
             onClick={() => setActive('settings')}
           />
           <button
-            onClick={() => setCollapsed(!collapsed)}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="mt-1 w-full h-8 rounded-xl border border-transparent hover:border-line text-fg-soft hover:text-fg hover:bg-hover hidden md:grid place-items-center"
+            onClick={togglePermanentCollapse}
+            aria-label={collapsed ? 'Pin and expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Pin Sidebar (Permanently Expanded)' : 'Collapse Sidebar (Hover near left edge to pop up)'}
+            className="mt-1 w-full h-8 rounded-xl border border-line/60 hover:border-line bg-surface-2/60 hover:bg-hover text-fg-soft hover:text-fg hidden md:flex items-center justify-center gap-2 text-xs font-semibold cursor-pointer transition keycap"
           >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            {collapsed ? (
+              <>
+                <PanelLeftOpen size={15} />
+                <span>Pin Sidebar</span>
+              </>
+            ) : (
+              <>
+                <PanelLeftClose size={15} />
+                <span>Collapse</span>
+              </>
+            )}
           </button>
         </div>
       </aside>
@@ -239,7 +298,7 @@ function NavItem({
   badge,
   active,
   onClick,
-  compact,
+  compact = false,
   dot,
 }: {
   icon: LucideIcon;
@@ -247,7 +306,7 @@ function NavItem({
   badge?: string;
   active: boolean;
   onClick: () => void;
-  compact: boolean;
+  compact?: boolean;
   dot?: string;
 }) {
   return (
@@ -269,8 +328,8 @@ function NavItem({
           {dot && <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: dot }} />}
           {badge && (
             <span
-              className={`text-[11px] font-mono px-1.5 py-0.5 rounded-md tabular-nums ${
-                active ? 'bg-black/20 text-accent-fg font-semibold' : 'bg-surface-2 text-fg-soft border border-line'
+              className={`text-[11px] font-mono px-1.5 py-0.5 rounded-md tabular-nums font-bold ${
+                active ? 'bg-surface text-fg shadow-xs border border-line' : 'bg-surface-2 text-fg-soft border border-line'
               }`}
             >
               {badge}

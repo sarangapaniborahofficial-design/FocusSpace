@@ -1,4 +1,4 @@
-import { Columns3, Keyboard, LayoutGrid, Maximize2, Menu, Minimize2, Moon, Orbit, Pause, Play, Plus, Power, Search, Sparkles, Sun } from 'lucide-react';
+import { Columns3, Keyboard, LayoutGrid, Maximize2, Menu, Minimize2, Moon, Orbit, PanelLeftClose, PanelLeftOpen, Pause, Play, Plus, Power, Search, Sparkles, Sun } from 'lucide-react';
 import { MODE_LABELS, formatClock, timer, useTimer } from '../lib/timer';
 import type { LayoutMode } from '../types';
 import { FloatingHUDTrigger } from './FloatingHUD';
@@ -45,6 +45,8 @@ export function Header({
   layoutMode = 'orbital',
   setLayoutMode,
   onQuit,
+  onToggleSidebar,
+  isSidebarCollapsed,
 }: {
   title: string;
   onMenu: () => void;
@@ -56,6 +58,8 @@ export function Header({
   layoutMode?: LayoutMode;
   setLayoutMode?: (m: LayoutMode) => void;
   onQuit?: () => void;
+  onToggleSidebar?: () => void;
+  isSidebarCollapsed?: boolean;
 }) {
   const currentTheme = THEMES.includes(theme) ? theme : 'nocturne';
   const next = THEMES[(THEMES.indexOf(currentTheme) + 1) % THEMES.length];
@@ -66,15 +70,25 @@ export function Header({
         layoutMode === 'orbital' ? 'rounded-2xl border shadow-card mb-1' : ''
       }`}
     >
-      {/* Left: Mobile Menu + Breadcrumb Title */}
+      {/* Left: Mobile Menu / Desktop Toggle + Breadcrumb Title */}
       <div className="flex items-center gap-2.5 text-sm text-fg-muted min-w-0">
         <button
           onClick={onMenu}
           aria-label="Open navigation"
-          className="md:hidden size-9 grid place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover -ml-1 keycap"
+          className="md:hidden size-9 grid place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover -ml-1 keycap cursor-pointer"
         >
           <Menu size={18} />
         </button>
+        {onToggleSidebar && (
+          <button
+            onClick={onToggleSidebar}
+            aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={isSidebarCollapsed ? 'Expand sidebar permanently' : 'Collapse sidebar (Hover near left edge to pop up)'}
+            className="hidden md:grid size-8.5 place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover -ml-1 keycap cursor-pointer transition"
+          >
+            {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          </button>
+        )}
         <span className="hidden sm:inline text-fg-subtle">Workspace</span>
         <span className="hidden sm:inline text-fg-subtle">/</span>
         <span className="font-semibold text-base text-fg truncate">{title}</span>

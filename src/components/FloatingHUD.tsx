@@ -431,7 +431,7 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
                 <div className="hud-tasks-scroll">
                   {todayTasks.length === 0 ? (
                     <div className="hud-empty-state">
-                      <ListTodo size={20} className="opacity-40" />
+                      <ListTodo size={22} className="opacity-80" />
                       <span>No active tasks today</span>
                     </div>
                   ) : (
@@ -491,7 +491,7 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
                 <div className="hud-tasks-scroll">
                   {subtasks.length === 0 ? (
                     <div className="hud-empty-state">
-                      <CheckSquare size={20} className="opacity-40" />
+                      <CheckSquare size={22} className="opacity-80" />
                       <span>No subtasks on current task</span>
                     </div>
                   ) : (

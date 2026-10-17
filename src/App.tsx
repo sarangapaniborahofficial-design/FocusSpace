@@ -594,6 +594,12 @@ export default function App() {
             layoutMode={layoutMode}
             setLayoutMode={setLayoutMode}
             onQuit={() => setQuitModalOpen(true)}
+            onToggleSidebar={() => {
+              const next = !collapsed;
+              setCollapsed(next);
+              storage.set('focusspace-sidebar', next ? 'collapsed' : 'expanded');
+            }}
+            isSidebarCollapsed={collapsed}
           />
 
           <div className="flex-1 min-h-0 flex overflow-hidden gap-3">

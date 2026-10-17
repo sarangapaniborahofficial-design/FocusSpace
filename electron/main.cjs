@@ -46,10 +46,10 @@ const ALLOWED_PROTOCOLS = new Set([
   'antigravity:',
 ]);
 
-// Dimensions: 320x76 (collapsed) and 320x368 (expanded) + 12px shadow canvas padding
-const HUD_WIDTH = 332;
+// Dimensions: 428x76 (collapsed) and 428x428 (expanded) + 12px shadow canvas padding
+const HUD_WIDTH = 440;
 const HUD_COLLAPSED_HEIGHT = 88;
-const HUD_EXPANDED_HEIGHT = 380;
+const HUD_EXPANDED_HEIGHT = 440;
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',

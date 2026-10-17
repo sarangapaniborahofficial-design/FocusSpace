@@ -1084,6 +1084,42 @@ function VoiceStudioPreferencesCard() {
       </div>
 
       <div className="p-5 space-y-5 text-xs text-fg-muted">
+        {/* Universal Voice Typing Option */}
+        <div className="p-4 rounded-xl bg-surface-2/70 border border-line space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="font-semibold text-fg text-sm flex items-center gap-2">
+                <Mic size={16} className="text-accent-text" /> Universal Voice Typing
+              </div>
+              <p className="text-xs text-fg-subtle mt-0.5">
+                Dictate directly into any focused note, task title, search bar, or quick-add input across the workspace.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface border border-line font-mono text-[11px] text-fg font-semibold shadow-xs">
+                <kbd className="text-accent-text">Alt</kbd> + <kbd className="text-accent-text">V</kbd>
+              </span>
+              <button
+                type="button"
+                onClick={toggleTestMic}
+                className={`h-8 px-3 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition keycap cursor-pointer ${
+                  testingMic
+                    ? 'bg-rose-500 text-white border-rose-600 shadow-sm'
+                    : 'bg-accent text-accent-fg border-accent hover:bg-accent-hover'
+                }`}
+              >
+                <Mic size={13} />
+                <span>{testingMic ? 'Stop Mic Listening' : 'Test Voice Typing'}</span>
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center justify-between text-[11px] pt-2 border-t border-line/60 text-fg-subtle gap-2">
+            <span>Global Activation Shortcut: <strong className="text-fg">Alt + V</strong></span>
+            <span>Target Insertion: <strong className="text-fg">Active Focused Input or Quick Add</strong></span>
+            <span>Audio Latency: <strong className="text-fg font-mono">Real-time / Sub-100ms VAD</strong></span>
+          </div>
+        </div>
+
         {/* Audio Hardware Devices Section */}
         <div className="p-4 rounded-xl bg-surface-2/70 border border-line space-y-4">
           <div className="flex items-center justify-between gap-2">
