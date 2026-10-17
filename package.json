@@ -16,9 +16,11 @@
     "check:voice": "node scripts/check-voice-assets.mjs --strict",
     "review": "node scripts/generate-review.mjs",
     "review:txt": "node scripts/generate-review.mjs",
+    "watch:review": "node scripts/watch-review.mjs",
+    "setup:hooks": "node scripts/install-hooks.mjs",
     "argus": "node scripts/argus.mjs",
     "test:argus": "node scripts/argus.mjs",
-    "postinstall": "node scripts/provision-voice.mjs && node scripts/check-voice-assets.mjs"
+    "postinstall": "node scripts/provision-voice.mjs && node scripts/check-voice-assets.mjs && node scripts/install-hooks.mjs"
   },
   "dependencies": {
     "@fontsource/geist-sans": "5.3.0",

@@ -33,16 +33,23 @@ const BINARY_EXTENSIONS = new Set([
   '.exe', '.dll', '.woff', '.woff2', '.ttf', '.eot'
 ]);
 
-function generateReview() {
-  console.log('[*] FocusSpace -- Generating Option 2 Code Review Export (review.txt)...');
+export function generateReview(silent = false) {
+  if (!silent) {
+    console.log('[*] FocusSpace -- Generating Option 2 Code Review Export (review.txt)...');
+  }
 
   let trackedFiles = [];
   try {
-    const stdout = execSync('git ls-files', { cwd: PROJECT_ROOT, encoding: 'utf-8' });
+    const stdout = execSync('git ls-files --cached --others --exclude-standard', {
+      cwd: PROJECT_ROOT,
+      encoding: 'utf-8',
+    });
     trackedFiles = stdout.split(/\r?\n/).filter(Boolean);
   } catch (err) {
-    console.error('[!] Failed to execute git ls-files:', err.message);
-    process.exit(1);
+    if (!silent) {
+      console.error('[!] Failed to execute git ls-files:', err.message);
+    }
+    return false;
   }
 
   const eligibleFiles = trackedFiles.filter((relPath) => {
@@ -68,8 +75,8 @@ function generateReview() {
       if (!content.endsWith('\n')) chunks.push('\n');
       chunks.push('\n');
       fileCount++;
-    } catch (readErr) {
-      console.warn(`  ! Skipped unreadable file: ${relPath}`);
+    } catch {
+      // Ignore unreadable files
     }
   }
 
@@ -87,15 +94,26 @@ function generateReview() {
     try {
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       fs.writeFileSync(dest, reviewContent, 'utf-8');
-      const sizeMB = (fs.statSync(dest).size / (1024 * 1024)).toFixed(2);
-      console.log(`  + Exported Option 2 review file: ${dest} (${sizeMB} MB)`);
+      if (!silent) {
+        const sizeMB = (fs.statSync(dest).size / (1024 * 1024)).toFixed(2);
+        console.log(`  + Exported Option 2 review file: ${dest} (${sizeMB} MB)`);
+      }
     } catch (writeErr) {
-      console.warn(`  ! Warning: Failed to write to ${dest}:`, writeErr.message);
+      if (!silent) {
+        console.warn(`  ! Warning: Failed to write to ${dest}:`, writeErr.message);
+      }
     }
   }
 
   const finalSizeMB = (Buffer.byteLength(reviewContent, 'utf-8') / (1024 * 1024)).toFixed(2);
-  console.log(`[SUCCESS] Option 2 Standard: ${fileCount} code files bundled into review.txt (${finalSizeMB} MB).\n`);
+  if (!silent) {
+    console.log(`[SUCCESS] Option 2 Standard: ${fileCount} code files bundled into review.txt (${finalSizeMB} MB).\n`);
+  }
+  return true;
 }
 
-generateReview();
+// Auto-run when executed directly via CLI
+if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename)) {
+  const isSilent = process.argv.includes('--silent') || process.argv.includes('-s');
+  generateReview(isSilent);
+}
