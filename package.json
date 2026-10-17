@@ -15,6 +15,8 @@
     "setup:voice": "node scripts/fetch-models.mjs",
     "check:voice": "node scripts/check-voice-assets.mjs --strict",
     "package:zip": "python scripts/package-clean-zip.py",
+    "package:code-zip": "powershell -Command \"Compress-Archive -Path 'src', 'electron', 'package.json', 'vite.config.ts', 'tsconfig.json', 'index.html', 'STATUS.md', 'TODO.md', 'ROADMAP.md', 'README.md' -DestinationPath '..\\FocusSpace_Code_Only.zip' -Force; Copy-Item '..\\FocusSpace_Code_Only.zip' 'C:\\Users\\Saran\\.gemini\\antigravity\\brain\\76401ca6-b123-4950-81c5-c79e0e7a48d5\\FocusSpace_Code_Only.zip' -Force\"",
+    "review:txt": "powershell -Command \"git ls-files | Where-Object { $_ -notmatch '^(package-lock\\.json|public/|dist/|release/|\\.agents/)' } | ForEach-Object { '=== FILE: ' + $_ + ' ==='; Get-Content $_ } | Set-Content review.txt\"",
     "argus": "node scripts/argus.mjs",
     "test:argus": "node scripts/argus.mjs",
     "postinstall": "node scripts/provision-voice.mjs && node scripts/check-voice-assets.mjs"
