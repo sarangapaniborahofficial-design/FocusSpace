@@ -19,7 +19,7 @@ export function toast(message: string, kind: ToastKind = 'info', options: { acti
   const id = nextId++;
   items = [...items.slice(-2), { id, message, kind, action: options.action }];
   emit();
-  window.setTimeout(() => dismissToast(id), options.duration ?? (options.action ? 6500 : 3800));
+  setTimeout(() => dismissToast(id), options.duration ?? (options.action ? 6500 : 3800));
   return id;
 }
 

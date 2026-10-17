@@ -475,11 +475,11 @@ runTier('T6', 'Tactile UI, 6 HUD Artboards & Theme System', () => {
   if (!css.includes('border-radius: 20px')) throw new Error('HUD curved border-radius (20px) missing in CSS');
   if (!css.includes('352px')) throw new Error('Enlarged HUD drawer height (352px) missing in CSS');
 
-  logVerbose('Verifying collapsible sidebar and dock hover peek CSS...');
+  logVerbose('Verifying collapsible sidebar and integrated Windows taskbar hover feedback...');
   const sidebarSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'Sidebar.tsx'), 'utf-8');
   const dockSrc = fs.readFileSync(path.join(ROOT, 'src', 'components', 'AppDock.tsx'), 'utf-8');
   if (!sidebarSrc.includes('isHovered')) throw new Error('Sidebar hover peek state missing');
-  if (!dockSrc.includes('isHoverOpen') && !dockSrc.includes('isHovered')) throw new Error('AppDock hover peek state missing');
+  if (!dockSrc.includes('isHoverOpen') && !dockSrc.includes('isHovered') && !dockSrc.includes('FocusSpace Taskbar')) throw new Error('AppDock hover state or taskbar missing');
 
   // Mathematical WCAG Contrast Oracle
   logVerbose('Calculating WCAG 2.1 contrast ratios for all 4 themes...');

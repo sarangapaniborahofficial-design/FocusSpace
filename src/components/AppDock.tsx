@@ -1,18 +1,36 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import React, { useRef, useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, FolderOpen, Globe, Laptop, Pencil, Plus, Rocket, Trash2, X } from 'lucide-react';
+import {
+  Clock,
+  FolderOpen,
+  Globe,
+  Laptop,
+  Mic,
+  Pause,
+  Pencil,
+  Play,
+  Plus,
+  Rocket,
+  Search,
+  Trash2,
+  Volume2,
+  X,
+} from 'lucide-react';
 import { db } from '../db/db';
 import { APP_PRESETS, detectLaunchKind, launchTarget, normalizeWebUrl, isNativeFilePath } from '../lib/launcher';
-import { useTimerTaskId } from '../lib/timer';
+import { timer, useTimer, formatClock, useTimerTaskId } from '../lib/timer';
+import { useScreenTimer, formatScreenTimeClock } from '../lib/screenTimer';
+import { ambientSound, useAmbientSound } from '../lib/ambientSound';
 import { storage, uid } from '../lib/utils';
 import { getElectronAPI, isVoiceEnabled } from '../lib/runtime';
 import type { LaunchKind, LaunchLink, Task } from '../types';
 import { resolveBrandLogo } from './BrandIcons';
 import { BrowserSetupModal, BROWSER_OPTIONS } from './BrowserSetupModal';
+import { FocusSpaceLogo } from './FocusSpaceLogo';
 
 const GLOBAL_DOCK_STORAGE_KEY = 'focusspace-global-appdock-v3';
 
-// Empty by default: user starts with a completely clean dock
+// Empty by default: user starts with a completely clean taskbar
 const DEFAULT_GLOBAL_APPS: LaunchLink[] = [];
 
 const POPULAR_NATIVE_PRESETS = [
@@ -60,16 +78,20 @@ export function AppDock({
   categoryId,
   title,
   floating = false,
-  collapsed: propCollapsed,
-  onToggleCollapsed,
+  onSearch,
+  onStart,
+  onNavigate,
   onTriggerVoice,
+  onOpenScreenTime,
 }: {
   categoryId?: string;
   title?: string;
   floating?: boolean;
-  collapsed?: boolean;
-  onToggleCollapsed?: (next: boolean) => void;
+  onSearch?: () => void;
+  onStart?: () => void;
+  onNavigate?: (view: string) => void;
   onTriggerVoice?: () => void;
+  onOpenScreenTime?: () => void;
 }) {
   const activeTaskId = useTimerTaskId();
 
@@ -89,7 +111,12 @@ export function AppDock({
     [activeTaskId]
   );
 
-  // Initialize dock with 0 apps by default (clean dock)
+  // Stores
+  const screenTime = useScreenTimer();
+  const timerState = useTimer();
+  const ambientState = useAmbientSound();
+
+  // Pinned Apps
   const [globalApps, setGlobalApps] = useState<LaunchLink[]>(() => {
     const saved = storage.get(GLOBAL_DOCK_STORAGE_KEY);
     if (saved) {
@@ -98,13 +125,24 @@ export function AppDock({
         if (Array.isArray(parsed)) {
           return parsed.map(sanitizeLaunchLink);
         }
-      } catch {
-        /* fallback */
-      }
+      } catch {}
     }
     return DEFAULT_GLOBAL_APPS;
   });
 
+  // Track session launched apps
+  const [launchedAppIds, setLaunchedAppIds] = useState<Set<string>>(() => new Set());
+
+  // Clock
+  const [clockDate, setClockDate] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setClockDate(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const timeFormatted = clockDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const dateFormatted = clockDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+
+  // Add / Edit Modal State
   const [addOpen, setAddOpen] = useState(false);
   const [editingLink, setEditingLink] = useState<LaunchLink | null>(null);
   const [contextMenuLink, setContextMenuLink] = useState<{ link: LaunchLink; x: number; y: number } | null>(null);
@@ -115,26 +153,7 @@ export function AppDock({
     return localStorage.getItem('focusspace-default-browser') || '';
   });
   const [browserModalOpen, setBrowserModalOpen] = useState(false);
-  const [internalDockCollapsed, setInternalDockCollapsed] = useState(() => {
-    return storage.get('focusspace-appdock-collapsed') === 'true';
-  });
-  const dockCollapsed = propCollapsed !== undefined ? propCollapsed : internalDockCollapsed;
-  const [isHoverOpen, setIsHoverOpen] = useState(false);
-  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const isVisible = !dockCollapsed || isHoverOpen;
-
-  const toggleDockCollapsed = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    const next = !dockCollapsed;
-    if (onToggleCollapsed) {
-      onToggleCollapsed(next);
-    } else {
-      setInternalDockCollapsed(next);
-      storage.set('focusspace-appdock-collapsed', next ? 'true' : 'false');
-    }
-    setIsHoverOpen(false);
-  };
+  const [isHovered, setIsHovered] = useState(false);
 
   // Close context menu on outside click
   useEffect(() => {
@@ -142,12 +161,6 @@ export function AppDock({
     window.addEventListener('click', handleOutsideClick);
     return () => window.removeEventListener('click', handleOutsideClick);
   }, []);
-
-  // Mouse hover physics for 60/120fps Gaussian scaling wave
-  const dockRef = useRef<HTMLDivElement>(null);
-  const rectRef = useRef<DOMRect | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const [mousePos, setMousePos] = useState<number | null>(null);
 
   const links: LaunchLink[] = categoryId
     ? (category?.launchLinks ?? []).map(sanitizeLaunchLink)
@@ -188,7 +201,6 @@ export function AppDock({
         setNewUrl(selectedPath);
         setNewKind('file');
         if (!newLabel.trim()) {
-          // Extract file name without extension
           const match = selectedPath.match(/[^\\\/]+(?=\.[^\\\/]+$)/);
           if (match) {
             setNewLabel(match[0]);
@@ -215,7 +227,6 @@ export function AppDock({
 
     if (!targetLabel.trim() || !targetUrl.trim()) return;
 
-    // If it's a web app and no browser has been chosen yet, ask for the first time
     if (targetKind === 'web' && !localStorage.getItem('focusspace-default-browser')) {
       setBrowserModalOpen(true);
     }
@@ -252,188 +263,199 @@ export function AppDock({
     await saveLinks(links.filter(l => l.id !== id));
   };
 
-  const handleMouseEnter = () => {
-    if (dockRef.current) {
-      rectRef.current = dockRef.current.getBoundingClientRect();
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!rectRef.current && dockRef.current) {
-      rectRef.current = dockRef.current.getBoundingClientRect();
-    }
-    if (rafRef.current) return;
-    const clientX = e.clientX;
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = null;
-      if (rectRef.current) {
-        setMousePos(clientX - rectRef.current.left);
-      }
-    });
-  };
-
-  const handleMouseLeave = () => {
-    rectRef.current = null;
-    if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    setMousePos(null);
-  };
-
   const currentBrowserName =
     BROWSER_OPTIONS.find(b => b.id === (preferredBrowser || 'system'))?.name || 'System Default';
 
-  // FLOATING BOTTOM DOCK TRAY
+  // PERMANENT INTEGRATED WINDOWS-STYLE TASKBAR
   if (floating) {
     return (
       <>
-        {/* Bottom Hover Trigger Zone & Peek Pill when Dock is Collapsed */}
-        {dockCollapsed && (
-          <div
-            onMouseEnter={() => {
-              if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-              setIsHoverOpen(true);
-            }}
-            onClick={toggleDockCollapsed}
-            className="fixed bottom-0 left-0 right-0 h-6 z-40 flex items-end justify-center pointer-events-auto cursor-pointer"
-            title="Hover or click to reveal App Dock"
-          >
-            <div className="h-3 px-8 rounded-t-xl bg-surface/90 hover:bg-surface border border-b-0 border-line text-fg-muted hover:text-fg shadow-card flex items-center justify-center transition-all group">
-              <ChevronUp size={11} className="group-hover:-translate-y-0.5 transition-transform text-accent-text" />
-            </div>
-          </div>
-        )}
-
-        {/* Floating Dock Tray */}
-        <div
-          ref={dockRef}
-          onMouseEnter={() => {
-            handleMouseEnter();
-            if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-          }}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={() => {
-            handleMouseLeave();
-            if (dockCollapsed) {
-              hoverTimerRef.current = setTimeout(() => {
-                setIsHoverOpen(false);
-              }, 250);
-            }
-          }}
-          className={`fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2.5 sm:px-6 sm:py-3 rounded-3xl bg-surface/90 backdrop-blur-xl border border-line-strong shadow-pop keycap transition-all duration-300 ease-out max-w-[calc(100vw-2rem)] overflow-x-auto scrollbar-none ${
-            isVisible
-              ? 'bottom-5 opacity-100 translate-y-0'
-              : 'bottom-0 translate-y-[130%] opacity-0 pointer-events-none'
-          }`}
-          style={{ willChange: 'transform, opacity' }}
+        <footer
+          aria-label="FocusSpace Taskbar"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          className="fixed bottom-0 left-0 right-0 z-40 h-13 sm:h-14 bg-[var(--app-bg)]/95 backdrop-blur-2xl border-t border-line text-fg flex items-center justify-between px-3 sm:px-4 select-none shadow-pop shrink-0"
         >
-          {links.length === 0 ? (
-            /* Clean Empty Dock State */
+          {/* Left: Start Hub & Windows-Style Search Input */}
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
             <button
-              onClick={() => setAddOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-surface border border-dashed border-line hover:border-accent hover:bg-hover text-xs font-semibold text-fg transition cursor-pointer"
+              onClick={onStart}
+              title="FocusSpace Start Hub (Home)"
+              aria-label="Start Hub"
+              className="size-9 sm:size-10 rounded-xl bg-surface-2 hover:bg-hover border border-line flex items-center justify-center keycap transition cursor-pointer shrink-0 shadow-2xs group"
             >
-              <Plus size={14} className="text-accent-text" />
-              <span>Add App to Dock</span>
+              <FocusSpaceLogo size={21} className="group-hover:scale-105 transition-transform" />
             </button>
-          ) : (
-            links.map((link, index) => {
+
+            <button
+              onClick={onSearch}
+              title="Search tasks, notes, habits, commands (Ctrl+K)"
+              className="flex items-center gap-2 h-9 px-3 rounded-xl bg-surface-2/80 hover:bg-surface-2 border border-line hover:border-line-strong text-xs text-fg-muted hover:text-fg transition shadow-2xs w-40 sm:w-56 md:w-64 cursor-pointer group"
+            >
+              <Search size={14} className="text-fg-subtle group-hover:text-accent-text transition-colors shrink-0" />
+              <span className="truncate text-[11px] sm:text-xs">Search anything…</span>
+              <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-surface text-[10px] font-mono border border-line text-fg-subtle ml-auto">
+                Ctrl K
+              </kbd>
+            </button>
+          </div>
+
+          {/* Center: Pinned & Running Apps with Underline Indicators */}
+          <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto scrollbar-none py-1 px-2 mx-1 sm:mx-2">
+            {links.map((link) => {
               const isAttached = isAppAttached(link, activeTask);
-
-              let scale = 1;
-              if (mousePos !== null && dockRef.current) {
-                const itemWidth = 56;
-                const itemCenter = index * (itemWidth + 8) + itemWidth / 2 + 16;
-                const d = Math.abs(mousePos - itemCenter);
-                scale = 1 + 0.28 * Math.exp(-Math.pow(d, 2) / (2 * Math.pow(65, 2)));
-              }
-
-              const translateY = -(scale - 1) * 16;
+              const isRunning = isAttached || launchedAppIds.has(link.id);
 
               return (
-                <div
-                  key={link.id}
-                  style={{
-                    transform: `translate3d(0, ${translateY}px, 0) scale(${scale})`,
-                    transformOrigin: 'bottom center',
-                    transition: mousePos === null ? 'transform 0.25s cubic-bezier(0.2, 0, 0, 1)' : 'none',
-                  }}
-                  className="relative group shrink-0"
-                >
+                <div key={link.id} className="relative group shrink-0">
                   <button
-                    onClick={() => launchTarget(link.url, link.label, link.kind)}
+                    onClick={() => {
+                      setLaunchedAppIds(prev => new Set(prev).add(link.id));
+                      launchTarget(link.url, link.label, link.kind);
+                    }}
                     onContextMenu={e => {
                       e.preventDefault();
                       setContextMenuLink({
                         link,
-                        x: e.clientX,
-                        y: e.clientY - 120,
+                        x: Math.max(10, e.clientX - 80),
+                        y: Math.max(10, e.clientY - 140),
                       });
                     }}
-                    title={`Launch ${link.label} — Right-click to edit`}
-                    className={`size-12 sm:size-14 rounded-2xl border flex items-center justify-center transition cursor-pointer shadow-sm ${
-                      isAttached
-                        ? 'bg-accent/15 border-accent shadow-md'
-                        : 'bg-surface-2 border-line hover:border-line-strong hover:bg-hover'
+                    title={`${link.label} (${link.kind === 'web' ? 'Web' : 'App'})${isRunning ? ' · Active' : ''} — Right click for options`}
+                    className={`size-10 sm:size-11 rounded-xl border flex items-center justify-center transition cursor-pointer relative shadow-2xs ${
+                      isRunning
+                        ? 'bg-accent/15 border-accent shadow-xs'
+                        : 'bg-surface-2/70 border-line hover:border-line-strong hover:bg-hover'
                     }`}
                   >
-                    {resolveBrandLogo(link, 26)}
+                    {resolveBrandLogo(link, 22)}
+                    {/* Windows Taskbar Active Indicator Bar */}
+                    {isRunning && (
+                      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-accent shadow-sm animate-pulse" />
+                    )}
                   </button>
 
-                  {isAttached && (
-                    <span
-                      className="absolute -bottom-1 left-1/2 -translate-x-1/2 size-1.5 rounded-full bg-accent shadow-sm animate-pulse"
-                      title={`Attached to active task: ${activeTask?.title}`}
-                    />
-                  )}
-
-                  <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg bg-inv text-on-inv text-[11px] font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-lg z-50">
+                  {/* Hover Tooltip / Preview */}
+                  <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-inv text-on-inv text-[10px] font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-lg z-50">
                     {link.label}
-                    <span className="ml-1 text-[9px] opacity-75 uppercase">
-                      ({link.kind === 'web' ? 'Web' : 'App'})
-                    </span>
+                    {isRunning && <span className="ml-1 text-accent-text font-normal">• Active</span>}
                   </span>
                 </div>
               );
-            })
-          )}
+            })}
 
-          <div className="w-px h-8 bg-line mx-1" />
+            {/* Quick Add Button on Taskbar */}
+            <button
+              onClick={() => {
+                if (addOpen) {
+                  cancelEditing();
+                  setAddOpen(false);
+                } else {
+                  setAddOpen(true);
+                }
+              }}
+              title="Pin App to Taskbar"
+              aria-label="Pin App"
+              className="size-8 sm:size-9 rounded-xl border border-dashed border-line bg-surface/50 hover:bg-hover text-fg-muted hover:text-fg flex items-center justify-center transition cursor-pointer shrink-0 ml-0.5"
+            >
+              {addOpen ? <X size={13} /> : <Plus size={13} />}
+            </button>
+          </div>
 
-          {/* Quick Add / Manage Button */}
-          <button
-            onClick={() => {
-              if (addOpen) {
-                cancelEditing();
-                setAddOpen(false);
-              } else {
-                setAddOpen(true);
-              }
-            }}
-            title="Add or Manage Dock Apps"
-            aria-label="Add App"
-            className="size-10 sm:size-11 rounded-2xl border border-line bg-surface hover:bg-hover text-fg-muted hover:text-fg flex items-center justify-center transition keycap shrink-0 shadow-xs cursor-pointer"
-          >
-            {addOpen ? <X size={16} /> : <Plus size={16} />}
-          </button>
+          {/* Right: System Tray & Digital Wellbeing & Clock */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Screen Time Widget */}
+            <button
+              onClick={onOpenScreenTime}
+              className="flex items-center gap-1.5 h-9 px-2.5 rounded-xl bg-surface-2 hover:bg-hover border border-line text-xs font-semibold text-fg transition cursor-pointer keycap shadow-2xs"
+              title="Screen Time & Digital Wellbeing (Click to configure limits & view stats)"
+            >
+              <span
+                className={`size-2 rounded-full ${
+                  screenTime.limitReached
+                    ? 'bg-rose-500 animate-pulse'
+                    : screenTime.limitWarningReached
+                    ? 'bg-amber-500'
+                    : 'bg-emerald-500'
+                }`}
+              />
+              <Clock size={13} className="text-accent-text" />
+              <span className="font-mono text-[11px] tabular-nums">
+                {formatScreenTimeClock(screenTime.todaySeconds)}
+              </span>
+            </button>
 
-          {/* Collapse / Pin Toggle Button */}
-          <button
-            onClick={toggleDockCollapsed}
-            title={dockCollapsed ? 'Pin Dock (Keep Visible)' : 'Collapse Dock (Hover near bottom to reveal)'}
-            aria-label={dockCollapsed ? 'Pin Dock' : 'Collapse Dock'}
-            className="size-10 sm:size-11 rounded-2xl border border-line bg-surface hover:bg-hover text-fg-muted hover:text-fg flex items-center justify-center transition keycap shrink-0 shadow-xs cursor-pointer"
-          >
-            {dockCollapsed ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
-        </div>
+            {/* Focus Timer Mini Status */}
+            <div className="hidden lg:flex items-center gap-1 h-9 px-2 rounded-xl bg-surface-2 border border-line text-xs font-semibold">
+              <button
+                onClick={() => timer.toggle()}
+                className="size-6 rounded-lg bg-accent text-accent-fg grid place-items-center keycap hover:bg-accent-hover cursor-pointer"
+                title={timerState.running ? 'Pause Timer (Space)' : 'Start Focus Timer (Space)'}
+              >
+                {timerState.running ? <Pause size={11} /> : <Play size={11} fill="currentColor" />}
+              </button>
+              <button
+                onClick={onStart}
+                className="font-mono text-[11px] px-1 hover:text-accent-text transition cursor-pointer tabular-nums"
+                title="Open Focus Timer"
+              >
+                {formatClock(timerState.remainingMs)}
+              </button>
+            </div>
+
+            {/* Ambient Sound Widget */}
+            <button
+              onClick={() => ambientSound.toggle()}
+              className={`size-9 rounded-xl border border-line grid place-items-center transition cursor-pointer keycap ${
+                ambientState.playing
+                  ? 'bg-accent/15 border-accent text-accent-fg'
+                  : 'bg-surface-2 hover:bg-hover text-fg-muted hover:text-fg'
+              }`}
+              title={ambientState.playing ? `Pause ${ambientState.track} Sound` : 'Play Ambient Sound'}
+            >
+              <Volume2 size={14} className={ambientState.playing ? 'animate-pulse text-accent-text' : ''} />
+            </button>
+
+            {/* Universal Voice Dictation */}
+            {isVoiceEnabled() && (
+              <button
+                onClick={onTriggerVoice}
+                className="size-9 rounded-xl border border-line bg-surface-2 hover:bg-hover text-fg-muted hover:text-fg grid place-items-center transition cursor-pointer keycap"
+                title="Universal Voice Typing (Alt+V)"
+              >
+                <Mic size={14} />
+              </button>
+            )}
+
+            {/* Live System Clock & Calendar Link */}
+            <button
+              onClick={() => onNavigate?.('calendar')}
+              className="flex flex-col items-end justify-center h-9 px-2 rounded-xl hover:bg-surface-2 transition text-right cursor-pointer"
+              title="Open Calendar Planner"
+            >
+              <span className="text-[11px] font-bold font-mono text-fg leading-none tabular-nums">
+                {timeFormatted}
+              </span>
+              <span className="text-[9px] font-mono text-fg-subtle leading-none mt-0.5">
+                {dateFormatted}
+              </span>
+            </button>
+
+            {/* Windows Show Desktop Sliver */}
+            <button
+              onClick={onStart}
+              className="w-1.5 h-8 rounded-full bg-line-strong/60 hover:bg-accent transition-all cursor-pointer ml-0.5"
+              title="Show Desktop / Go to Home"
+              aria-label="Show Desktop"
+            />
+          </div>
+        </footer>
 
         {/* Right-click Context Menu */}
         {contextMenuLink && (
           <div
             style={{
-              left: Math.min(typeof window !== 'undefined' ? window.innerWidth - 180 : 200, Math.max(10, contextMenuLink.x - 80)),
+              left: Math.min(typeof window !== 'undefined' ? window.innerWidth - 180 : 200, Math.max(10, contextMenuLink.x)),
               top: Math.max(10, contextMenuLink.y),
             }}
             className="fixed z-50 w-44 rounded-2xl bg-surface border border-line-strong shadow-pop p-1.5 space-y-0.5 text-xs select-none pop-in"
@@ -444,13 +466,14 @@ export function AppDock({
             </div>
             <button
               onClick={() => {
+                setLaunchedAppIds(prev => new Set(prev).add(contextMenuLink.link.id));
                 launchTarget(contextMenuLink.link.url, contextMenuLink.link.label, contextMenuLink.link.kind);
                 setContextMenuLink(null);
               }}
               className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-hover text-fg text-left transition cursor-pointer"
             >
               <Rocket size={13} className="text-accent-text" />
-              <span>Launch App</span>
+              <span>Launch / Bring to Front</span>
             </button>
             <button
               onClick={() => startEditing(contextMenuLink.link)}
@@ -459,6 +482,22 @@ export function AppDock({
               <Pencil size={13} className="text-fg-muted" />
               <span>Edit App</span>
             </button>
+            {launchedAppIds.has(contextMenuLink.link.id) && (
+              <button
+                onClick={() => {
+                  setLaunchedAppIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(contextMenuLink.link.id);
+                    return next;
+                  });
+                  setContextMenuLink(null);
+                }}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-hover text-fg text-left transition cursor-pointer"
+              >
+                <X size={13} className="text-fg-muted" />
+                <span>Detach from Session</span>
+              </button>
+            )}
             <button
               onClick={() => {
                 void removeLink(contextMenuLink.link.id);
@@ -467,18 +506,18 @@ export function AppDock({
               className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-rose-500/10 text-rose-500 text-left transition cursor-pointer"
             >
               <Trash2 size={13} />
-              <span>Remove from Dock</span>
+              <span>Unpin from Taskbar</span>
             </button>
           </div>
         )}
 
         {/* Modal Popover for Adding / Managing Apps */}
         {addOpen && (
-          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[380px] max-w-[calc(100vw-2rem)] pop-in p-5 rounded-3xl bg-surface border border-line-strong shadow-pop space-y-4">
+          <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 w-[380px] max-w-[calc(100vw-2rem)] pop-in p-5 rounded-3xl bg-surface border border-line-strong shadow-pop space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xs font-bold text-fg">
-                  {editingLink ? `Edit "${editingLink.label}"` : 'Add App to Dock'}
+                  {editingLink ? `Edit "${editingLink.label}"` : 'Pin App to Taskbar'}
                 </h3>
                 <p className="text-[11px] text-fg-subtle">
                   Pin native desktop executables or web applications with official SVG icons.
@@ -658,7 +697,7 @@ export function AppDock({
                   disabled={!newLabel.trim() || !newUrl.trim()}
                   className="flex-1 h-9 rounded-xl bg-accent text-accent-fg text-xs font-semibold hover:bg-accent-hover disabled:opacity-40 transition keycap shadow-xs cursor-pointer"
                 >
-                  {editingLink ? 'Save Changes' : 'Pin to Dock'}
+                  {editingLink ? 'Save Changes' : 'Pin to Taskbar'}
                 </button>
               </div>
             </div>
@@ -676,14 +715,14 @@ export function AppDock({
     );
   }
 
-  // INLINE CARD MODE (Settings / Category View)
+  // INLINE CARD MODE (Category View)
   return (
     <section className="atelier-card rounded-3xl p-4 sm:p-5 overflow-hidden">
       <div className="flex items-center justify-between gap-3 mb-3">
         <div className="flex items-center gap-2">
           <Rocket size={16} className="text-accent-text shrink-0" />
           <h2 className="text-sm font-semibold text-fg tracking-tight">
-            {title || (categoryId ? `${category?.name ?? 'Category'} Launchpad` : 'Command Hub & App Dock')}
+            {title || (categoryId ? `${category?.name ?? 'Category'} Launchpad` : 'Command Hub & Taskbar')}
           </h2>
           <span className="text-[10px] font-mono text-fg-subtle px-1.5 py-0.5 rounded bg-surface-2 border border-line">
             {links.length} apps
@@ -761,7 +800,7 @@ export function AppDock({
               disabled={!newLabel.trim() || !newUrl.trim()}
               className="h-9 px-4 rounded-xl bg-accent text-accent-fg text-xs font-semibold hover:bg-accent-hover disabled:opacity-40 transition keycap shrink-0 shadow-xs cursor-pointer"
             >
-              {editingLink ? 'Save' : 'Pin to Dock'}
+              {editingLink ? 'Save' : 'Pin to Taskbar'}
             </button>
           </div>
         </div>
@@ -807,17 +846,17 @@ export function AppDock({
                     onClick={() => startEditing(link)}
                     title={`Edit ${link.label}`}
                     aria-label={`Edit ${link.label}`}
-                    className="p-1 text-fg-subtle hover:text-fg opacity-60 hover:opacity-100 transition cursor-pointer"
+                    className="size-6 rounded-lg grid place-items-center text-fg-subtle hover:text-fg hover:bg-surface-2 transition cursor-pointer"
                   >
-                    <Pencil size={12} />
+                    <Pencil size={11} />
                   </button>
                   <button
                     onClick={() => void removeLink(link.id)}
-                    title="Remove from dock"
+                    title={`Remove ${link.label}`}
                     aria-label={`Remove ${link.label}`}
-                    className="p-1 text-fg-subtle hover:text-rose-500 opacity-60 hover:opacity-100 transition cursor-pointer"
+                    className="size-6 rounded-lg grid place-items-center text-fg-subtle hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={11} />
                   </button>
                 </div>
               </div>

@@ -44,6 +44,8 @@ import { DictationHud } from './voice/ui/DictationHud';
 import { isAudioConfigured } from './voice/audioDevices';
 import { AudioDeviceSetupModal } from './components/AudioDeviceSetupModal';
 import { QuitConfirmModal } from './components/QuitConfirmModal';
+import { ScreenTimeModal } from './components/ScreenTimeModal';
+import { screenTimer } from './lib/screenTimer';
 
 const STATIC_VIEWS = ['home', 'calendar', 'review', 'analytics', 'journal', 'pages', 'settings'];
 const VIEW_TITLES: Record<string, string> = {
@@ -87,7 +89,7 @@ export default function App() {
   const [theme, setTheme] = useState(() => normalizeTheme(storage.get('focusspace-theme')));
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(() => (storage.get('focusspace-layout') === 'cockpit' ? 'cockpit' : 'orbital'));
   const [quitModalOpen, setQuitModalOpen] = useState(false);
-  const [dockCollapsed, setDockCollapsed] = useState(() => storage.get('focusspace-appdock-collapsed') === 'true');
+  const [screenTimeOpen, setScreenTimeOpen] = useState(false);
 
   const lastFocusedInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [globalDictationTarget, setGlobalDictationTarget] = useState<DictationTarget | null>(null);
@@ -214,6 +216,10 @@ export default function App() {
 
   const active = nav.view;
   const isCategory = categories.some(c => c.id === active);
+
+  useEffect(() => {
+    screenTimer.setSection(active);
+  }, [active]);
 
   const go = useCallback((view: string, opts: { tab?: CategoryTab; pageId?: string | null; query?: string } = {}) => {
     const tab = opts.tab ?? 'tasks';
@@ -604,11 +610,7 @@ export default function App() {
           />
 
           <div className="flex-1 min-h-0 flex overflow-hidden gap-3">
-            <main
-              className={`flex-1 min-w-0 overflow-y-auto transition-[padding] duration-300 ease-out ${
-                dockCollapsed ? 'pb-6 sm:pb-8' : 'pb-28 sm:pb-24'
-              }`}
-            >
+            <main className="flex-1 min-w-0 overflow-y-auto pb-16 sm:pb-18">
               <div key={nav.n} className="view-in">
                 <ErrorBoundary onReset={goHome}>
                   {active === 'home' ? <Today onQuickAdd={openQuick} onNavigate={go} />
@@ -654,12 +656,11 @@ export default function App() {
       {active !== 'home' && layoutMode !== 'cockpit' && <MiniTimer onOpen={goHome} />}
       <AppDock
         floating
-        collapsed={dockCollapsed}
-        onToggleCollapsed={(next) => {
-          setDockCollapsed(next);
-          storage.set('focusspace-appdock-collapsed', next ? 'true' : 'false');
-        }}
+        onSearch={openSearch}
+        onStart={goHome}
+        onNavigate={go}
         onTriggerVoice={triggerUniversalVoice}
+        onOpenScreenTime={() => setScreenTimeOpen(true)}
       />
       {isVoiceEnabled() && (
         <>
@@ -698,6 +699,7 @@ export default function App() {
         onStartFocusTask={handleWelcomeStartFocusTask}
       />
       <QuitConfirmModal open={quitModalOpen} onClose={() => setQuitModalOpen(false)} />
+      <ScreenTimeModal open={screenTimeOpen} onClose={() => setScreenTimeOpen(false)} />
       <Toaster />
       {!isElectron() && <ReloadPrompt />}
     </div>
