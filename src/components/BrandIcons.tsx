@@ -328,34 +328,53 @@ export function WebBrowserLogo({ size = 20, className = '' }: BrandIconProps) {
   );
 }
 
-/** Dynamic Favicon Image Loader with Error Fallback */
+/** Deterministic color palette for offline monograms */
+function getMonogramPalette(str: string): { bg: string; fg: string; border: string } {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const palettes = [
+    { bg: '#1e3a8a', fg: '#93c5fd', border: '#3b82f6' }, // Deep Blue
+    { bg: '#064e3b', fg: '#a7f3d0', border: '#10b981' }, // Deep Emerald
+    { bg: '#4c1d95', fg: '#ddd6fe', border: '#8b5cf6' }, // Deep Violet
+    { bg: '#78350f', fg: '#fde68a', border: '#f59e0b' }, // Deep Amber
+    { bg: '#831843', fg: '#fbcfe8', border: '#ec4899' }, // Deep Rose
+    { bg: '#164e63', fg: '#a5f3fc', border: '#06b6d4' }, // Deep Cyan
+    { bg: '#312e81', fg: '#c7d2fe', border: '#6366f1' }, // Deep Indigo
+    { bg: '#134e4a', fg: '#99f6e4', border: '#14b8a6' }, // Deep Teal
+  ];
+  return palettes[Math.abs(hash) % palettes.length];
+}
+
+/** 100% Offline Deterministic Monogram Logo (Zero-Network, Zero-Tracking) */
 export function DynamicFaviconLogo({ url, label, size = 20 }: { url: string; label: string; size?: number }) {
-  const [failed, setFailed] = useState(false);
-
-  let domain = '';
+  let host = '';
   try {
-    domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname;
+    host = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, '');
   } catch {
-    domain = url;
+    host = url.replace(/^www\./, '');
   }
 
-  if (failed || !domain) {
-    return <WebBrowserLogo size={size} />;
-  }
-
-  // Google high-resolution favicon endpoint
-  const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+  const cleanLabel = (label || host || 'W').trim();
+  const initial = (cleanLabel.charAt(0) || 'W').toUpperCase();
+  const palette = getMonogramPalette(host || cleanLabel);
 
   return (
-    <img
-      src={faviconUrl}
-      alt={label}
-      width={size}
-      height={size}
-      className="rounded-md object-contain"
-      onError={() => setFailed(true)}
-      loading="lazy"
-    />
+    <div
+      style={{
+        width: size,
+        height: size,
+        backgroundColor: palette.bg,
+        color: palette.fg,
+        border: `1px solid ${palette.border}`,
+        fontSize: Math.max(10, Math.floor(size * 0.55)),
+      }}
+      className="rounded-md flex items-center justify-center font-bold tracking-tight select-none shadow-sm"
+      title={`${cleanLabel} (${host})`}
+    >
+      {initial}
+    </div>
   );
 }
 

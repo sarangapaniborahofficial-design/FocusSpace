@@ -17,3 +17,7 @@ export const removeLink = (id: string) => db.pageLinks.delete(id);
 
 /** Every page that links to a given task/habit (used so deleting one can also drop dangling links). */
 export const linksTo = (kind: PageLinkKind, targetId: string) => db.pageLinks.filter(l => l.kind === kind && l.targetId === targetId).toArray();
+
+/** Finds all inbound links (backlinks) pointing to this page from other pages. */
+export const getBacklinksToPage = (pageId: string) =>
+  db.pageLinks.where('targetId').equals(pageId).filter(l => l.kind === 'page').toArray();

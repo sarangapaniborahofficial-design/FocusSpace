@@ -597,6 +597,34 @@ html.hud-window-mode #root {
 .hud-collapsed { height: 76px; }
 .hud-expanded { height: 428px; }
 
+@keyframes hudNudgePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.4), 0 0 16px rgba(245, 158, 11, 0.2);
+    border-color: rgba(245, 158, 11, 0.9);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.7), 0 0 24px rgba(245, 158, 11, 0.4);
+    border-color: rgba(245, 158, 11, 1);
+  }
+}
+
+.hud-shell.hud-focus-nudge {
+  animation: hudNudgePulse 1.8s ease-in-out infinite !important;
+}
+
+.hud-nudge-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  white-space: nowrap;
+}
+
 /* NATIVE 0ms CHROMIUM DRAG REGION */
 .hud-top-row {
   position: relative;

@@ -3,8 +3,11 @@ import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
-import { Bold, Italic, Link2, List, ListChecks, ListOrdered, Quote, Strikethrough, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Bold, Italic, Link2, List, ListChecks, ListOrdered, Quote, Strikethrough, X, FileText, CheckSquare, Flame, Target } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../db/db';
+import { addLink } from '../lib/pageLinks';
 import { sanitizeDoc } from '../lib/richtext';
 import type { RichTextDoc } from '../types';
 import { useDictation } from '../voice/useDictation';
@@ -17,10 +20,6 @@ import { DictationHud } from '../voice/ui/DictationHud';
  * True rich-text editing (TipTap/ProseMirror), scoped to what Pages needs: headings (2-3), paragraphs,
  * bullet/ordered/task lists, blockquotes, bold/italic/strike/code, links. No tables, images or custom
  * blocks — kept deliberately small per the Pages design (this stays a note editor, not a page builder).
- *
- * Written against TipTap v2's documented API. Unlike the rest of this app's logic, this file could not
- * be run or tested in the build sandbox (no network access to install the package) — it's the one place
- * that needs a real hands-on check after `npm install`.
  */
 
 const extensions = [
@@ -30,32 +29,200 @@ const extensions = [
   TaskItem.configure({ nested: false }),
 ];
 
-export function RichTextEditor({ content, onChange, placeholder = 'Write today’s entry…', autoFocus = false }: {
+export interface AutocompleteItem {
+  id: string;
+  title: string;
+  kind: 'page' | 'task' | 'habit' | 'goal';
+  subtitle?: string;
+}
+
+export function RichTextEditor({ content, onChange, placeholder = 'Write today’s entry…', autoFocus = false, pageId }: {
   content: RichTextDoc;
   onChange: (doc: RichTextDoc) => void;
   placeholder?: string;
   autoFocus?: boolean;
+  pageId?: string;
 }) {
-  // Only the parent decides when an incoming `content` prop should overwrite the editor (see the effect
-  // below); the editor's own keystrokes must never be clobbered by that same prop bouncing back.
   const lastEmitted = useRef<string | null>(null);
+
+  const allPages = useLiveQuery(() => db.pages.toArray(), []) ?? [];
+  const allTasks = useLiveQuery(() => db.tasks.toArray(), []) ?? [];
+  const allHabits = useLiveQuery(() => db.habits.toArray(), []) ?? [];
+  const allGoals = useLiveQuery(() => db.goals.toArray(), []) ?? [];
+
+  const [autocompleteState, setAutocompleteState] = useState<{
+    trigger: '@' | '[[';
+    query: string;
+    from: number;
+    to: number;
+    selectedIndex: number;
+  } | null>(null);
+
+  const autocompleteRef = useRef<{ selectedIndex: number; matches: AutocompleteItem[] } | null>(null);
+
+  const matches: AutocompleteItem[] = useMemo(() => {
+    if (!autocompleteState) return [];
+    const q = autocompleteState.query.trim().toLowerCase();
+    const trigger = autocompleteState.trigger;
+    const list: AutocompleteItem[] = [];
+
+    if (trigger === '[[') {
+      for (const p of allPages) {
+        if (pageId && p.id === pageId) continue;
+        if (!q || p.title.toLowerCase().includes(q)) {
+          list.push({ id: p.id, title: p.title || 'Untitled Page', kind: 'page', subtitle: 'Knowledge Page' });
+        }
+      }
+      for (const t of allTasks) {
+        if (!q || t.title.toLowerCase().includes(q)) {
+          list.push({ id: t.id, title: t.title, kind: 'task', subtitle: 'Task' });
+        }
+      }
+    } else {
+      for (const t of allTasks) {
+        if (!q || t.title.toLowerCase().includes(q)) {
+          list.push({ id: t.id, title: t.title, kind: 'task', subtitle: 'Task' });
+        }
+      }
+      for (const h of allHabits) {
+        if (!q || h.name.toLowerCase().includes(q)) {
+          list.push({ id: h.id, title: h.name, kind: 'habit', subtitle: 'Habit' });
+        }
+      }
+      for (const g of allGoals) {
+        if (!q || g.title.toLowerCase().includes(q)) {
+          list.push({ id: g.id, title: g.title, kind: 'goal', subtitle: 'Goal' });
+        }
+      }
+      for (const p of allPages) {
+        if (pageId && p.id === pageId) continue;
+        if (!q || p.title.toLowerCase().includes(q)) {
+          list.push({ id: p.id, title: p.title || 'Untitled Page', kind: 'page', subtitle: 'Knowledge Page' });
+        }
+      }
+    }
+
+    return list.slice(0, 8);
+  }, [autocompleteState, allPages, allTasks, allHabits, allGoals, pageId]);
+
+  autocompleteRef.current = autocompleteState ? { selectedIndex: autocompleteState.selectedIndex, matches } : null;
+
+  const checkAutocomplete = (ed: Editor) => {
+    const { from, to } = ed.state.selection;
+    if (from !== to) {
+      setAutocompleteState(null);
+      return;
+    }
+    const textBefore = ed.state.doc.textBetween(Math.max(0, from - 50), from, '\n');
+    const match = textBefore.match(/(?:^|\s)(@|\[\[)([^@\[\]\n]*)$/);
+    if (!match) {
+      setAutocompleteState(null);
+      return;
+    }
+    const trigger = match[1] as '@' | '[[';
+    const query = match[2];
+    const matchStart = from - trigger.length - query.length;
+    setAutocompleteState(prev => ({
+      trigger,
+      query,
+      from: matchStart,
+      to: from,
+      selectedIndex: prev?.query === query ? prev.selectedIndex : 0,
+    }));
+  };
+
+  const applyAutocompleteItem = (item: AutocompleteItem) => {
+    if (!editor || !autocompleteState) return;
+    const { from, to, trigger } = autocompleteState;
+    let label = '';
+    let href = '';
+    if (item.kind === 'page') {
+      label = trigger === '[[' ? `[[${item.title}]]` : `@${item.title}`;
+      href = `#page:${item.id}`;
+    } else if (item.kind === 'task') {
+      label = `@${item.title}`;
+      href = `#task:${item.id}`;
+    } else if (item.kind === 'habit') {
+      label = `@${item.title}`;
+      href = `#habit:${item.id}`;
+    } else if (item.kind === 'goal') {
+      label = `@${item.title}`;
+      href = `#goal:${item.id}`;
+    }
+
+    editor
+      .chain()
+      .focus()
+      .deleteRange({ from, to })
+      .insertContent([
+        {
+          type: 'text',
+          text: label,
+          marks: [{ type: 'link', attrs: { href } }],
+        },
+        { type: 'text', text: ' ' },
+      ])
+      .run();
+
+    if (pageId && item.id !== pageId) {
+      void addLink(pageId, item.kind, item.id);
+    }
+
+    setAutocompleteState(null);
+  };
 
   const editor = useEditor({
     extensions,
     content: content as object,
     autofocus: autoFocus ? 'end' : false,
-    editorProps: { attributes: { class: 'rt-prose', 'aria-label': 'Journal entry' } },
-    onUpdate: ({ editor }) => {
-      const doc = sanitizeDoc(editor.getJSON());
+    editorProps: {
+      attributes: { class: 'rt-prose', 'aria-label': 'Journal entry' },
+      handleKeyDown: (_view, event) => {
+        if (!autocompleteRef.current) return false;
+        const { selectedIndex, matches: currentMatches } = autocompleteRef.current;
+        if (!currentMatches.length) return false;
+
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          setAutocompleteState(prev => prev ? { ...prev, selectedIndex: (prev.selectedIndex + 1) % currentMatches.length } : null);
+          return true;
+        }
+        if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          setAutocompleteState(prev => prev ? { ...prev, selectedIndex: (prev.selectedIndex - 1 + currentMatches.length) % currentMatches.length } : null);
+          return true;
+        }
+        if (event.key === 'Enter' || event.key === 'Tab') {
+          event.preventDefault();
+          const target = currentMatches[selectedIndex % currentMatches.length];
+          if (target) {
+            applyAutocompleteItem(target);
+            return true;
+          }
+        }
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          setAutocompleteState(null);
+          return true;
+        }
+        return false;
+      },
+    },
+    onUpdate: ({ editor: ed }) => {
+      const doc = sanitizeDoc(ed.getJSON());
       lastEmitted.current = JSON.stringify(doc);
       onChange(doc);
+      checkAutocomplete(ed);
+    },
+    onSelectionUpdate: ({ editor: ed }) => {
+      checkAutocomplete(ed);
     },
   });
 
   useEffect(() => {
     if (!editor) return;
     const incoming = JSON.stringify(content);
-    if (incoming === lastEmitted.current) return; // this is our own change coming back around; ignore it
+    if (incoming === lastEmitted.current) return;
     if (incoming !== JSON.stringify(editor.getJSON())) editor.commands.setContent(content as object, { emitUpdate: false });
   }, [editor, content]);
 
@@ -75,6 +242,44 @@ export function RichTextEditor({ content, onChange, placeholder = 'Write today�
     <div className="rounded-xl border border-line bg-surface-2 focus-within:border-accent relative">
       <Toolbar editor={editor} dictation={dictation} />
       <EditorContent editor={editor} placeholder={placeholder} />
+
+      {/* Inline @ or [[ Wiki-Link Autocomplete Dropdown */}
+      {autocompleteState && matches.length > 0 && (
+        <div className="absolute z-40 top-12 left-3 w-80 max-h-64 overflow-y-auto rounded-xl border border-line bg-surface shadow-2xl p-1.5 space-y-0.5 pop-in">
+          <div className="px-2 py-1 text-[10px] font-semibold tracking-wider uppercase text-fg-subtle border-b border-line/50 mb-1 flex items-center justify-between">
+            <span>Link {autocompleteState.trigger === '[[' ? 'Wiki Page' : 'Reference'}</span>
+            <span className="font-mono text-[9px] text-fg-subtle">↑↓ navigate · ↵ select</span>
+          </div>
+          {matches.map((item, idx) => {
+            const isSelected = idx === (autocompleteState.selectedIndex % matches.length);
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  applyAutocompleteItem(item);
+                }}
+                className={`w-full text-left px-2 py-1.5 rounded-lg flex items-center gap-2 text-xs transition cursor-pointer ${
+                  isSelected ? 'bg-accent/15 text-accent-text font-medium' : 'text-fg-soft hover:bg-hover'
+                }`}
+              >
+                <span className="shrink-0 opacity-80">
+                  {item.kind === 'page' && <FileText size={13} className="text-sky-500" />}
+                  {item.kind === 'task' && <CheckSquare size={13} className="text-emerald-500" />}
+                  {item.kind === 'habit' && <Flame size={13} className="text-amber-500" />}
+                  {item.kind === 'goal' && <Target size={13} className="text-purple-500" />}
+                </span>
+                <span className="truncate flex-1 font-medium">{item.title}</span>
+                <span className="text-[10px] text-fg-subtle font-mono uppercase shrink-0">
+                  {item.subtitle}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <DictationHud
         state={dictation.state}
         audioLevel={dictation.audioLevel}

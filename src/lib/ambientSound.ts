@@ -200,6 +200,14 @@ class AmbientSynthesizer {
     this.broadcastState();
   }
 
+  setDucked(ducked: boolean) {
+    if (this.isDucked !== ducked) {
+      this.isDucked = ducked;
+      this.applyEffectiveGain();
+      this.updateSnapshot();
+    }
+  }
+
   setTrack(track: AmbientTrack) {
     this.currentTrack = track;
     try {

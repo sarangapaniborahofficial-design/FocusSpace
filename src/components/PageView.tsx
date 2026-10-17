@@ -1,11 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeft, Check, Circle, Flame, ListChecks, Pencil, Plus, Sparkles, Target, Trash2, X, CalendarDays } from 'lucide-react';
+import { ArrowLeft, Check, Circle, Flame, ListChecks, Pencil, Plus, Sparkles, Target, Trash2, X, CalendarDays, BookOpen, GitFork } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { db } from '../db/db';
 import { computeStreaks } from '../lib/analytics';
 import { toggleHabitDay } from '../lib/habitActions';
 import { deleteEntry, getOrCreateEntry, restoreEntry, saveEntry, shouldDropEmptyEntry } from '../lib/journal';
-import { addLink, listLinks, removeLink } from '../lib/pageLinks';
+import { addLink, listLinks, removeLink, getBacklinksToPage } from '../lib/pageLinks';
 import { confirmLegacyPage, deletePage, restorePage, savePage } from '../lib/pages';
 import { changeStatus } from '../lib/tasks';
 import { generateDailySummaryDoc } from '../lib/journalSummary';
@@ -22,9 +22,23 @@ import type { DictationTarget } from '../voice/target/DictationTarget';
 import { MicButton } from '../voice/ui/MicButton';
 import { DictationHud } from '../voice/ui/DictationHud';
 
-/** Loads the page, then hands over to the editor. */
+/** Loads the page, then hands over to the editor. Supports wiki-link page switching. */
 export function PageView({ pageId, onBack }: { pageId: string; onBack: () => void }) {
-  const loaded = useLiveQuery(async () => ({ page: await db.pages.get(pageId) }), [pageId]);
+  const [currentPageId, setCurrentPageId] = useState(pageId);
+  useEffect(() => { setCurrentPageId(pageId); }, [pageId]);
+
+  useEffect(() => {
+    const handleNav = (e: any) => {
+      const target = e.detail?.pageId;
+      if (target) {
+        setCurrentPageId(target);
+      }
+    };
+    window.addEventListener('focusspace:navigate-page', handleNav);
+    return () => window.removeEventListener('focusspace:navigate-page', handleNav);
+  }, []);
+
+  const loaded = useLiveQuery(async () => ({ page: await db.pages.get(currentPageId) }), [currentPageId]);
   if (!loaded) return <div className="p-5 lg:p-7 max-w-3xl mx-auto"><div className="skeleton h-10 w-2/3 mb-4" /><div className="skeleton h-64" /></div>;
   if (!loaded.page) {
     return (
@@ -33,10 +47,10 @@ export function PageView({ pageId, onBack }: { pageId: string; onBack: () => voi
       </div>
     );
   }
-  return <PageEditor key={pageId} page={loaded.page} onBack={onBack} />;
+  return <PageEditor key={currentPageId} page={loaded.page} onBack={onBack} onNavigate={(pid) => setCurrentPageId(pid)} />;
 }
 
-function PageEditor({ page, onBack }: { page: Page; onBack: () => void }) {
+function PageEditor({ page, onBack, onNavigate }: { page: Page; onBack: () => void; onNavigate: (pageId: string) => void }) {
   const today = useMemo(() => isoToday(), []);
   const entries = useLiveQuery(() => db.journalEntries.where('pageId').equals(page.id).toArray(), [page.id]);
   const links = useLiveQuery(() => listLinks(page.id), [page.id]) ?? [];
@@ -164,7 +178,7 @@ function PageEditor({ page, onBack }: { page: Page; onBack: () => void }) {
           <ul className="space-y-3">
             {sorted.map(entry => (
               <JournalEntryRow
-                key={entry.id} entry={entry} isToday={entry.date === today}
+                key={entry.id} entry={entry} pageId={page.id} isToday={entry.date === today}
                 editing={editingEntryId === entry.id}
                 onEdit={() => setEditingEntryId(entry.id)}
                 onDoneEditing={() => setEditingEntryId(null)}
@@ -175,6 +189,8 @@ function PageEditor({ page, onBack }: { page: Page; onBack: () => void }) {
       </section>
 
       <Attachments pageId={page.id} />
+
+      <LinkedReferencesSection pageId={page.id} onNavigate={onNavigate} />
 
       {confirmingDelete && (
         <ConfirmDialog
@@ -188,7 +204,14 @@ function PageEditor({ page, onBack }: { page: Page; onBack: () => void }) {
 
 /* ---------- one journal entry ---------- */
 
-function JournalEntryRow({ entry, isToday, editing, onEdit, onDoneEditing }: { entry: JournalEntry; isToday: boolean; editing: boolean; onEdit: () => void; onDoneEditing: () => void }) {
+function JournalEntryRow({ entry, pageId, isToday, editing, onEdit, onDoneEditing }: {
+  entry: JournalEntry;
+  pageId: string;
+  isToday: boolean;
+  editing: boolean;
+  onEdit: () => void;
+  onDoneEditing: () => void;
+}) {
   const flush = async () => {
     if (shouldDropEmptyEntry(entry)) { await deleteEntry(entry.id); }
     onDoneEditing();
@@ -220,7 +243,7 @@ function JournalEntryRow({ entry, isToday, editing, onEdit, onDoneEditing }: { e
       </div>
       <div className="px-1 py-1">
         {editing ? (
-          <RichTextEditor content={entry.content} onChange={doc => void saveEntry(entry.id, doc)} autoFocus />
+          <RichTextEditor content={entry.content} onChange={doc => void saveEntry(entry.id, doc)} autoFocus pageId={pageId} />
         ) : (
           <div className="px-3 py-2">
             <RichTextView doc={entry.content} onToggleTask={path => void saveEntry(entry.id, toggleTaskAtPath(entry.content, path))} />
@@ -402,5 +425,66 @@ function LinkedGoalRow({ link }: { link: PageLink }) {
       </span>
       <button onClick={() => void removeLink(link.id)} aria-label={`Unlink ${goal.title}`} className="ml-auto shrink-0 text-fg-subtle hover:text-fg-soft opacity-0 group-hover:opacity-100"><X size={13} /></button>
     </div>
+  );
+}
+
+/* ---------- linked references (backlinks graph) ---------- */
+
+function LinkedReferencesSection({ pageId, onNavigate }: { pageId: string; onNavigate: (pageId: string) => void }) {
+  const backlinks = useLiveQuery(() => getBacklinksToPage(pageId), [pageId]) ?? [];
+  const referringPageIds = useMemo(() => backlinks.map(b => b.pageId), [backlinks]);
+
+  const referringPages = useLiveQuery(async () => {
+    if (referringPageIds.length === 0) return [];
+    return db.pages.where('id').anyOf(referringPageIds).toArray();
+  }, [referringPageIds.join(',')]) ?? [];
+
+  return (
+    <section className="mt-8 rounded-2xl border border-line bg-surface p-5 shadow-card">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2 font-medium text-sm text-fg">
+          <GitFork size={15} className="text-accent-text rotate-180" />
+          <span>Linked References</span>
+          <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-surface-2 text-fg-subtle border border-line">
+            {referringPages.length}
+          </span>
+        </div>
+      </div>
+
+      {referringPages.length === 0 ? (
+        <p className="text-xs text-fg-subtle py-1">
+          No backlinks referencing this page yet. Type <span className="font-mono text-accent">[[Page Title]]</span> or <span className="font-mono text-accent">@</span> in any note or journal entry to create a bi-directional link.
+        </p>
+      ) : (
+        <div className="space-y-2 mt-2">
+          {referringPages.map((refPage) => (
+            <div
+              key={refPage.id}
+              className="group flex items-center justify-between p-2.5 rounded-xl border border-line bg-surface-2/60 hover:bg-surface-2 hover:border-line-strong transition-all"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <BookOpen size={14} className="text-sky-500 shrink-0" />
+                <span className="text-sm font-medium text-fg truncate">
+                  {refPage.title || 'Untitled Page'}
+                </span>
+                {refPage.description && (
+                  <span className="text-xs text-fg-subtle truncate hidden sm:inline max-w-xs">
+                    — {refPage.description}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate(refPage.id)}
+                className="shrink-0 text-xs font-medium text-accent hover:underline flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-accent/10 transition cursor-pointer"
+              >
+                <span>Jump to page</span>
+                <span>→</span>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

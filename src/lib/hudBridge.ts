@@ -45,6 +45,8 @@ export interface HudStatePayload {
   todayTasks?: TodoItemSnapshot[];
   theme?: string;
   hudStyleOverride?: string | null;
+  focusNudge?: boolean;
+  distractionApp?: string;
 }
 
 export type HudMessage =
@@ -62,6 +64,8 @@ export type HudMessage =
   | { type: 'SHOW_DASHBOARD'; v: 1 }
   | { type: 'CLOSE_HUD'; v: 1 }
   | { type: 'RESIZE_HUD'; v: 1; expanded: boolean }
+  | { type: 'FOCUS_NUDGE'; v: 1; active: boolean; appName?: string; distractionSeconds?: number }
+  | { type: 'QUICK_CAPTURE'; v: 1; dictate?: boolean }
   | { type: 'MAIN_WINDOW_STATUS'; v: 1; status: 'active' | 'minimized' | 'closing' | 'closed' };
 
 const CHANNEL_NAME = 'focusspace-hud-bus';

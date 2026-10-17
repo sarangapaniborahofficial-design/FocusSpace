@@ -166,7 +166,8 @@ export async function takeNativeVaultSnapshot(): Promise<string | null> {
     const pad = (n: number) => String(n).padStart(2, '0');
     const timeStr = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     const filename = `focusspace-${isoToday()}-${timeStr}.json`;
-    const res = await api.writeSnapshot(filename, payload);
+    const secondaryDir = storage.get('focusspace-secondary-vault-dir') || undefined;
+    const res = await api.writeSnapshot(filename, payload, secondaryDir);
     storage.set('focusspace-last-native-backup', now.toISOString());
     return res.path;
   } catch (err) {

@@ -7,15 +7,17 @@
 
 export interface ElectronAPI {
   isElectron: boolean;
-  writeSnapshot: (filename: string, payload: string) => Promise<{ success: boolean; path: string }>;
+  writeSnapshot: (filename: string, payload: string, secondaryDir?: string) => Promise<{ success: boolean; path: string; secondaryPath?: string | null }>;
   listSnapshots: () => Promise<Array<{ filename: string; sizeBytes: number; updatedAt: string }>>;
   readSnapshot: (filename: string) => Promise<string>;
   getBackupDir: () => Promise<string>;
+  pickDirectory?: () => Promise<string | null>;
   showHud: (expanded?: boolean) => Promise<boolean>;
   hideHud: () => Promise<boolean>;
   toggleHud: () => Promise<boolean>;
   resizeHud: (expanded: boolean) => Promise<{ width: number; height: number }>;
   isHudVisible: () => Promise<boolean>;
+  onQuickCapture?: (callback: (data: { dictate?: boolean }) => void) => () => void;
   showMainWindow: () => void;
   toggleFullscreen: () => Promise<boolean>;
   isFullscreen: () => Promise<boolean>;
@@ -48,6 +50,8 @@ export interface SystemAppsResponse {
   supported: boolean;
   activeApp?: string;
   activeTitle?: string;
+  isDistraction?: boolean;
+  distractionSeconds?: number;
   apps: SystemAppUsage[];
 }
 

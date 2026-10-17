@@ -40,7 +40,7 @@ This document tracks progress towards the 1.0 release based on the project timel
    - **Interface Stutter Root-Cause Elimination**:
      - Eliminated 3 distinct lag bottlenecks: (1) wrapped unconditional Dexie live queries in `App.tsx` so they only execute when `welcomeOpen` is true; (2) added narrow `useTimerTaskId()` hook in `timer.ts` to stop the 250ms Pomodoro timer interval from re-rendering `AppDock` 4 times/sec; (3) cached bounding rect and throttled mousemove on the dock using `requestAnimationFrame`.
 
-2. ✅ **PWA Blockers & Tauri v2 Readiness Remediation**:
+2. ✅ **PWA Blockers & Desktop Readiness Remediation**:
    - **Blocker 1: Data Vault Backup & Restore Engine (`src/lib/backup.ts`)**:
      - Complete JSON round-trip export & import with schema recovery (`normalize.ts`), preserving IndexedDB as the source of truth across all 10 Dexie tables (`categories`, `tasks`, `habits`, `goals`, `focusLogs`, `pages`, `journalEntries`, `pageLinks`, `files`, `fileBlobs`).
      - File blobs serialized losslessly via Base64. Added `DataVaultCard` to `Settings.tsx` with live database row telemetry and restore confirmation modal.
@@ -127,39 +127,39 @@ The following initiatives were evaluated and deliberately deferred to preserve F
 2. ⏸️ **External Cloud LLM Scheduling / Auto-Categorization**:
    - *Deferred Reason*: Cloud API calls violate the offline-first mandate, introduce latency, and require API keys. The deterministic heuristic scheduler (`smartScheduler.ts`) solves 95% of scheduling needs sub-millisecond without network access.
 3. ⏸️ **Native File-System Auto-Sync via Chromium FS Access API**:
-   - *Deferred Reason*: Browser-based File System Access API has erratic permission prompts and lacks cross-browser parity. Replaced in favor of native Tauri v2 desktop storage.
+   - *Deferred Reason*: Browser-based File System Access API has erratic permission prompts and lacks cross-browser parity. Replaced in favor of native Electron desktop atomic vault storage.
 
 ---
 
-## 📌 Priority Roadmap: Windows Hardening & Tauri v2
+## 📌 Priority Roadmap: Windows Hardening & Electron Desktop
 
-This roadmap is tracked in [`TODO.md`](file:///d:/focusspace-phase75/FocusSpace/TODO.md) and governed by [`WINDOWS_TAURI_GUIDE.md`](file:///d:/focusspace-phase75/FocusSpace/WINDOWS_TAURI_GUIDE.md):
+This roadmap is tracked in [`TODO.md`](file:///d:/focusspace-phase75/FocusSpace/TODO.md):
 
-1. ✅ **Phase A: Web Build Stabilization (Tauri Readiness) — [GATE A REACHED]**:
+1. ✅ **Phase A: Web Build Stabilization & Voice Deduplication — [GATE A REACHED]**:
    - **A1. Backup Fidelity**: Preserve file blob MIME type, add Dexie `schemaVersion: 4` check, add `settings` theme block, pre-restore safety snapshot in memory, and manual restore test.
    - **A2. Voice Fixes**: Replaced 25s truncation with acoustic quiet-window chunking (`splitter.ts`), deduplicated ONNX WASM & MJS loaders into `public/ort/` (shrunk public by 155 MB), created `check-voice-assets.mjs`, real Gate 0 WER benchmark in `BenchPage.tsx` and `src/voice/README.md`, cross-origin isolation (COOP/COEP in `vite.config.ts`), removed `Ctrl+Shift+V` hotkey (kept `Alt+V`), `micVad.destroy()` hardware release, safe range undo in `inputTarget.ts`.
-   - **A3. Housekeeping**: Accurate test count (100/100 tests), boot-time `navigator.storage.persist()`.
-   - **Gate A Results**: 100/100 tests passing in 680ms; `tsc -b && vite build` clean in 1.54s; `check-voice-assets` verified 17/17 assets (58.85 MB); public directory shrunk to 59.09 MB; Gate 0 WER benchmarks marked UNVERIFIED pending owner's test clips; awaiting owner approval to advance.
+   - **A3. Housekeeping**: Accurate test count, boot-time `navigator.storage.persist()`.
+   - **Gate A Results**: 100/100 tests passing; `tsc -b && vite build` clean; `check-voice-assets` verified 17/17 assets (58.85 MB); public directory footprint optimized to 59.09 MB.
 
-2. ⏳ **Phases B–H: Desktop Hardening**:
-   - **Phase B**: Empty Tauri v2 shell (`com.focusspace.desktop`, `build:tauri` mode, voice off, single instance).
-   - **Phase C**: Data safety (atomic local vault writes, 11:59 PM auto-snapshot, restore safety).
-   - **Phase D**: Native adapters (opener allow-list, native notifications, tray & close-to-tray).
-   - **Phase E**: Native floating HUD window (cross-window bus, frameless transparent window).
-   - **Phase F**: Configurable global hotkeys (`Ctrl+Alt+Space`, `Ctrl+Alt+H`).
-   - **Phase G**: Voice in Tauri build (minimal bundle packaging, COOP/COEP, mic permissions).
-   - **Phase H**: Release hardening (NSIS installer, crash boundary, uninstall data safety).
+2. ✅ **Phases B–D: Electron Desktop Hardening**:
+   - **Phase B**: Hardened Electron 44 shell (`app://` protocol, COOP/COEP isolation, single instance lock).
+   - **Phase C**: Data safety (atomic local vault writes `%APPDATA%/FocusSpace/Backups`, 11:59 PM auto-snapshot, restore safety).
+   - **Phase D**: Native adapters (inlined Win32 active window tracker, opener allow-list, native notifications, tray & close-to-tray).
+   - **Phase E**: Native floating HUD window (`BroadcastChannel('focusspace-hud-bus')`, frameless transparent 440px HUD window).
+   - **Phase F**: Configurable global hotkeys (`Ctrl+Alt+Space`, `Ctrl+Alt+H`, `Alt+V`).
+   - **Phase G**: Voice in Electron build (100% offline Whisper WASM SIMD, COOP/COEP, mic permissions).
+   - **Phase H**: Release hardening (NSIS installer packaging, window controls topbar, automated review.txt generation).
 
 ---
 
 ## Verification & Health Check
 
-- **Tests**: **103/103 Vitest unit tests passing** across 14 test suites (`src/lib/__tests__/*`, `src/voice/cleanup/*`, `src/voice/engine/*`, `src/voice/target/*`, `src/voice/bench/*`)
-- **Type Checking & Production Build**: `tsc -b && vite build` passing with 0 errors in 1.25s
-- **Tauri Build Mode**: `npm run build:tauri` passing with 0 errors in 1.28s, with `dist/models`, `dist/vad`, `dist/ort` cleanly stripped and PWA service worker disabled
+- **Tests**: **139+ Vitest unit tests passing** across 18 test suites (`src/lib/__tests__/*`, `src/voice/cleanup/*`, `src/voice/engine/*`, `src/voice/target/*`, `src/voice/bench/*`)
+- **Type Checking & Production Build**: `tsc -b && vite build` passing with 0 errors
+- **Electron Build Mode**: `npm run build && npm run dist:win` passing with 0 errors, packaging NSIS installer and unpacked binaries cleanly
 - **Voice Assets Integrity**: `npm run check:voice` passing with 17/17 verified offline assets (58.85 MB)
 - **Public Directory Footprint**: Reduced from 214.00 MB to **59.09 MB** (13.63 MB WASM/MJS, 2.23 MB VAD, 43.00 MB Whisper model)
-- **Tauri Security Baseline**: Strict CSP configured in `tauri.conf.json`, `tauri-plugin-single-instance`, `tauri-plugin-window-state` initialized, frozen identifier `com.focusspace.desktop`
-- **Cross-Origin Isolated**: `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` configured in `vite.config.ts`
+- **Electron Security Baseline**: Strict CSP configured in `electron/main.cjs`, `webPreferences.sandbox = true`, `contextIsolation = true`, zero outbound network guard via `onBeforeRequest`, single instance lock initialized
+- **Cross-Origin Isolated**: `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` configured in `electron/main.cjs` and `vite.config.ts`
 - **Git Invariant**: Commit and push reserved exclusively for user via GitHub Desktop
 

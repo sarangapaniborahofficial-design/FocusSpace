@@ -1,4 +1,6 @@
 import { storage } from './utils';
+import { ambientSound, type AmbientTrack } from './ambientSound';
+import { useSyncExternalStore } from 'react';
 
 export type SoundscapeType = 'off' | 'brown' | 'rain' | 'binaural';
 
@@ -12,325 +14,148 @@ export interface SoundscapeState {
 const STORAGE_TYPE_KEY = 'focusspace-soundscape-type';
 const STORAGE_VOL_KEY = 'focusspace-soundscape-vol';
 
-class SoundscapeEngine {
-  private ctx: AudioContext | null = null;
-  private masterGain: GainNode | null = null;
-  private currentSource: { stop: () => void } | null = null;
-  private currentType: SoundscapeType = 'off';
-  private volume: number = 0.5;
-  private isDucked: boolean = false;
-  private listeners: Set<() => void> = new Set();
+function soundscapeTypeToAmbient(type: SoundscapeType): AmbientTrack {
+  switch (type) {
+    case 'brown':
+      return 'ocean';
+    case 'rain':
+      return 'rain';
+    case 'binaural':
+      return 'binaural';
+    case 'off':
+    default:
+      return 'off';
+  }
+}
 
+function ambientToSoundscapeType(track: AmbientTrack): SoundscapeType {
+  switch (track) {
+    case 'ocean':
+    case 'lofi':
+    case 'whitenoise':
+      return 'brown';
+    case 'rain':
+      return 'rain';
+    case 'binaural':
+      return 'binaural';
+    case 'off':
+    default:
+      return 'off';
+  }
+}
+
+/**
+ * Unified Soundscape Facade
+ *
+ * Bridges the legacy soundscape API directly to the unified AmbientSynthesizer
+ * (ambientSound.ts). Guarantees that toggling sound from the Welcome screen,
+ * App Dock, Floating HUD, or Pomodoro view controls the exact same AudioContext
+ * and Web Audio synthesis nodes.
+ */
+class UnifiedSoundscapeEngine {
   private snapshot: SoundscapeState;
+  private selectedType: SoundscapeType = 'off';
 
   constructor() {
     const savedType = storage.get(STORAGE_TYPE_KEY) as SoundscapeType | null;
     const savedVol = storage.get(STORAGE_VOL_KEY);
     if (savedType && ['off', 'brown', 'rain', 'binaural'].includes(savedType)) {
-      this.currentType = savedType;
+      this.selectedType = savedType;
     }
-    if (savedVol !== null) {
-      const v = parseFloat(savedVol);
-      if (!isNaN(v) && v >= 0 && v <= 1) this.volume = v;
+
+    const ambientState = ambientSound.getState();
+    const initialVol = savedVol !== null ? parseFloat(savedVol) : ambientState.volume;
+    if (!isNaN(initialVol) && initialVol >= 0 && initialVol <= 1) {
+      ambientSound.setVolume(initialVol);
     }
+
     this.snapshot = {
-      type: this.currentType,
-      volume: this.volume,
-      isPlaying: false,
-      isDucked: false,
+      type: ambientState.playing ? ambientToSoundscapeType(ambientState.track) : this.selectedType,
+      volume: ambientSound.getState().volume,
+      isPlaying: ambientState.playing,
+      isDucked: Boolean(ambientState.isDucked),
     };
+
+    ambientSound.subscribe(() => {
+      this.updateSnapshot();
+    });
   }
 
-  private applyEffectiveGain(smooth = true) {
-    if (!this.masterGain || !this.ctx) return;
-    // Duck by 80% (effective gain is 20% of base volume)
-    const effective = this.isDucked ? this.volume * 0.2 : this.volume;
-    if (smooth) {
-      this.masterGain.gain.setTargetAtTime(effective, this.ctx.currentTime, 0.15);
-    } else {
-      this.masterGain.gain.setValueAtTime(effective, this.ctx.currentTime);
-    }
-  }
+  private updateSnapshot(): void {
+    const amb = ambientSound.getState();
+    const mappedType = amb.playing ? ambientToSoundscapeType(amb.track) : this.selectedType;
+    const isPlaying = amb.playing;
+    const volume = amb.volume;
+    const isDucked = Boolean(amb.isDucked);
 
-  private initCtx(): AudioContext {
-    if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      this.ctx = new AudioCtx();
-      this.masterGain = this.ctx.createGain();
-      const initialGain = this.isDucked ? this.volume * 0.2 : this.volume;
-      this.masterGain.gain.setValueAtTime(initialGain, this.ctx.currentTime);
-      this.masterGain.connect(this.ctx.destination);
+    if (
+      this.snapshot.type !== mappedType ||
+      this.snapshot.isPlaying !== isPlaying ||
+      this.snapshot.volume !== volume ||
+      this.snapshot.isDucked !== isDucked
+    ) {
+      this.snapshot = {
+        type: mappedType,
+        isPlaying,
+        volume,
+        isDucked,
+      };
     }
-    if (this.ctx.state === 'suspended') {
-      void this.ctx.resume();
-    }
-    return this.ctx;
   }
 
   getState(): SoundscapeState {
+    this.updateSnapshot();
     return this.snapshot;
   }
 
   subscribe(listener: () => void): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+    return ambientSound.subscribe(() => {
+      this.updateSnapshot();
+      listener();
+    });
   }
 
-  private notify() {
-    this.listeners.forEach(l => l());
-  }
-
-  private updateSnapshot() {
-    this.snapshot = {
-      type: this.currentType,
-      volume: this.volume,
-      isPlaying: this.currentType !== 'off' && this.currentSource !== null,
-      isDucked: this.isDucked,
-    };
-    this.notify();
-  }
-
-  setVolume(vol: number) {
-    const clamped = Math.max(0, Math.min(1, vol));
-    this.volume = clamped;
-    storage.set(STORAGE_VOL_KEY, String(clamped));
-    this.applyEffectiveGain(true);
-    this.updateSnapshot();
-  }
-
-  setDucked(ducked: boolean) {
-    if (this.isDucked === ducked) return;
-    this.isDucked = ducked;
-    this.applyEffectiveGain(true);
-    this.updateSnapshot();
-  }
-
-  setType(type: SoundscapeType) {
-    if (this.currentType === type && this.currentSource) return;
-    this.stopCurrent();
-    this.currentType = type;
+  setType(type: SoundscapeType): void {
+    this.selectedType = type;
     storage.set(STORAGE_TYPE_KEY, type);
 
-    if (type !== 'off') {
-      this.startType(type);
+    if (type === 'off') {
+      ambientSound.stop();
+    } else {
+      const ambientTrack = soundscapeTypeToAmbient(type);
+      ambientSound.start(ambientTrack);
     }
     this.updateSnapshot();
   }
 
-  private stopCurrent() {
-    if (this.currentSource) {
-      try {
-        this.currentSource.stop();
-      } catch {
-        // Source may already be stopped
-      }
-      this.currentSource = null;
+  play(): void {
+    if (this.selectedType === 'off') {
+      this.setType('brown');
+    } else {
+      ambientSound.start(soundscapeTypeToAmbient(this.selectedType));
     }
+    this.updateSnapshot();
   }
 
-  private startType(type: SoundscapeType) {
-    const ctx = this.initCtx();
-    const now = ctx.currentTime;
-
-    // Fade-in node
-    const fadeGain = ctx.createGain();
-    fadeGain.gain.setValueAtTime(0.001, now);
-    fadeGain.gain.exponentialRampToValueAtTime(1, now + 0.3);
-    fadeGain.connect(this.masterGain!);
-
-    if (type === 'brown') {
-      this.currentSource = this.createBrownNoise(ctx, fadeGain);
-    } else if (type === 'rain') {
-      this.currentSource = this.createRainNoise(ctx, fadeGain);
-    } else if (type === 'binaural') {
-      this.currentSource = this.createBinauralDrone(ctx, fadeGain);
-    }
+  stop(): void {
+    ambientSound.stop();
+    this.updateSnapshot();
   }
 
-  /**
-   * Brown Noise (1/f² integration of random walk)
-   * Deep, warm rumble that masks vocal frequencies.
-   */
-  private createBrownNoise(ctx: AudioContext, destination: AudioNode) {
-    const bufferSize = ctx.sampleRate * 5; // 5-second seamless buffer
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-
-    let lastOut = 0.0;
-    for (let i = 0; i < bufferSize; i++) {
-      const white = Math.random() * 2 - 1;
-      lastOut = (lastOut + 0.02 * white) / 1.02;
-      data[i] = lastOut * 3.5;
-    }
-
-    // Seamless loop crossfade (first and last 1000 samples)
-    const fadeLen = 1000;
-    for (let i = 0; i < fadeLen; i++) {
-      const factor = i / fadeLen;
-      data[i] = data[i] * factor + data[bufferSize - 1 - i] * (1 - factor);
-    }
-
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = true;
-
-    const lowpass = ctx.createBiquadFilter();
-    lowpass.type = 'lowpass';
-    lowpass.frequency.setValueAtTime(450, ctx.currentTime);
-
-    source.connect(lowpass);
-    lowpass.connect(destination);
-    source.start();
-
-    return {
-      stop: () => {
-        try {
-          source.stop();
-          source.disconnect();
-          lowpass.disconnect();
-        } catch {}
-      },
-    };
+  setVolume(volume: number): void {
+    const clamped = Math.max(0, Math.min(1, volume));
+    storage.set(STORAGE_VOL_KEY, String(clamped));
+    ambientSound.setVolume(clamped);
+    this.updateSnapshot();
   }
 
-  /**
-   * Soft Analog Rain (Pink noise with bandpass + LFO envelope modulation)
-   */
-  private createRainNoise(ctx: AudioContext, destination: AudioNode) {
-    const bufferSize = ctx.sampleRate * 5;
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-
-    // Paul Kellet's filtered pink noise algorithm
-    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-    for (let i = 0; i < bufferSize; i++) {
-      const white = Math.random() * 2 - 1;
-      b0 = 0.99886 * b0 + white * 0.0555179;
-      b1 = 0.99332 * b1 + white * 0.0750759;
-      b2 = 0.96900 * b2 + white * 0.1538520;
-      b3 = 0.86650 * b3 + white * 0.3104856;
-      b4 = 0.55000 * b4 + white * 0.5329522;
-      b5 = -0.7616 * b5 - white * 0.0168980;
-      data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.12;
-      b6 = white * 0.115926;
-    }
-
-    // Crossfade loop boundaries
-    const fadeLen = 1000;
-    for (let i = 0; i < fadeLen; i++) {
-      const factor = i / fadeLen;
-      data[i] = data[i] * factor + data[bufferSize - 1 - i] * (1 - factor);
-    }
-
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = true;
-
-    // Filters for rain characteristics
-    const lowpass = ctx.createBiquadFilter();
-    lowpass.type = 'lowpass';
-    lowpass.frequency.setValueAtTime(1400, ctx.currentTime);
-
-    const highpass = ctx.createBiquadFilter();
-    highpass.type = 'highpass';
-    highpass.frequency.setValueAtTime(120, ctx.currentTime);
-
-    // Subtle gentle swell LFO
-    const lfo = ctx.createOscillator();
-    lfo.type = 'sine';
-    lfo.frequency.setValueAtTime(0.15, ctx.currentTime);
-    const lfoGain = ctx.createGain();
-    lfoGain.gain.setValueAtTime(0.15, ctx.currentTime);
-
-    const rainGain = ctx.createGain();
-    rainGain.gain.setValueAtTime(0.85, ctx.currentTime);
-    lfo.connect(lfoGain);
-    lfoGain.connect(rainGain.gain);
-
-    source.connect(highpass);
-    highpass.connect(lowpass);
-    lowpass.connect(rainGain);
-    rainGain.connect(destination);
-
-    source.start();
-    lfo.start();
-
-    return {
-      stop: () => {
-        try {
-          source.stop();
-          lfo.stop();
-          source.disconnect();
-          lfo.disconnect();
-        } catch {}
-      },
-    };
-  }
-
-  /**
-   * Binaural Alpha Drone (216 Hz left + 230 Hz right -> 14 Hz Alpha focus beat)
-   * With warm 108 Hz sub-bass foundation.
-   */
-  private createBinauralDrone(ctx: AudioContext, destination: AudioNode) {
-    const merger = ctx.createChannelMerger(2);
-
-    // Left channel: 216 Hz
-    const oscLeft = ctx.createOscillator();
-    oscLeft.type = 'sine';
-    oscLeft.frequency.setValueAtTime(216, ctx.currentTime);
-
-    // Right channel: 230 Hz (creates 14 Hz alpha difference)
-    const oscRight = ctx.createOscillator();
-    oscRight.type = 'sine';
-    oscRight.frequency.setValueAtTime(230, ctx.currentTime);
-
-    // Sub-bass center foundation
-    const oscSub = ctx.createOscillator();
-    oscSub.type = 'sine';
-    oscSub.frequency.setValueAtTime(108, ctx.currentTime);
-
-    const subGain = ctx.createGain();
-    subGain.gain.setValueAtTime(0.35, ctx.currentTime);
-    oscSub.connect(subGain);
-
-    const leftGain = ctx.createGain();
-    leftGain.gain.setValueAtTime(0.2, ctx.currentTime);
-    oscLeft.connect(leftGain);
-
-    const rightGain = ctx.createGain();
-    rightGain.gain.setValueAtTime(0.2, ctx.currentTime);
-    oscRight.connect(rightGain);
-
-    leftGain.connect(merger, 0, 0); // left output
-    subGain.connect(merger, 0, 0);
-
-    rightGain.connect(merger, 0, 1); // right output
-    subGain.connect(merger, 0, 1);
-
-    merger.connect(destination);
-
-    oscLeft.start();
-    oscRight.start();
-    oscSub.start();
-
-    return {
-      stop: () => {
-        try {
-          oscLeft.stop();
-          oscRight.stop();
-          oscSub.stop();
-          oscLeft.disconnect();
-          oscRight.disconnect();
-          oscSub.disconnect();
-        } catch {}
-      },
-    };
+  setDucked(ducked: boolean): void {
+    ambientSound.setDucked(ducked);
+    this.updateSnapshot();
   }
 }
 
-export const soundscape = new SoundscapeEngine();
-
-import { useSyncExternalStore } from 'react';
+export const soundscape = new UnifiedSoundscapeEngine();
 
 export const SOUNDSCAPES: { id: SoundscapeType; label: string; desc: string }[] = [
   { id: 'off', label: 'Off', desc: 'Silence' },
@@ -344,21 +169,4 @@ export function useSoundscape(): SoundscapeState {
     onStoreChange => soundscape.subscribe(onStoreChange),
     () => soundscape.getState()
   );
-}
-
-import { getTimerState, subscribeTimer } from './timer';
-
-// Sonic Anchor Auto-Ducking: Duck volume by 80% when timer is paused during focus
-if (typeof window !== 'undefined') {
-  subscribeTimer(() => {
-    const t = getTimerState();
-    const s = soundscape.getState();
-    if (s.isPlaying) {
-      if (t.mode === 'focus' && !t.running) {
-        soundscape.setDucked(true);
-      } else {
-        soundscape.setDucked(false);
-      }
-    }
-  });
 }

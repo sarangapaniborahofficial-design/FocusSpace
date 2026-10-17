@@ -4,14 +4,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
 
   // Vault Disk Snapshots
-  writeSnapshot: (filename, payload) =>
-    ipcRenderer.invoke('vault:write-snapshot', { filename, payload }),
+  writeSnapshot: (filename, payload, secondaryDir) =>
+    ipcRenderer.invoke('vault:write-snapshot', { filename, payload, secondaryDir }),
   listSnapshots: () =>
     ipcRenderer.invoke('vault:list-snapshots'),
   readSnapshot: (filename) =>
     ipcRenderer.invoke('vault:read-snapshot', { filename }),
   getBackupDir: () =>
     ipcRenderer.invoke('vault:get-backup-dir'),
+  pickDirectory: () =>
+    ipcRenderer.invoke('dialog:pick-directory'),
 
   // Floating HUD Controls
   showHud: (expanded = false) =>
@@ -24,6 +26,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('hud:resize', { expanded }),
   isHudVisible: () =>
     ipcRenderer.invoke('hud:is-visible'),
+  onQuickCapture: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('hud:quick-capture', handler);
+    return () => ipcRenderer.removeListener('hud:quick-capture', handler);
+  },
 
   // Main Window Controls & Power
   showMainWindow: () =>

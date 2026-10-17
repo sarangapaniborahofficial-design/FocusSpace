@@ -168,7 +168,7 @@ export function normalizeJournalEntry(raw: any): JournalEntry | null {
   return { id: raw.id, pageId: raw.pageId, date: raw.date, content, plainText: typeof raw.plainText === 'string' ? raw.plainText : richTextToPlainText(content), createdAt: timestamp(raw.createdAt, now), updatedAt: timestamp(raw.updatedAt, now) };
 }
 
-const LINK_KINDS: PageLinkKind[] = ['task', 'habit', 'goal'];
+const LINK_KINDS: PageLinkKind[] = ['task', 'habit', 'goal', 'page'];
 export function normalizePageLink(raw: any): PageLink | null {
   if (!raw || typeof raw.id !== 'string' || typeof raw.pageId !== 'string' || typeof raw.targetId !== 'string' || !LINK_KINDS.includes(raw.kind)) return null;
   return { id: raw.id, pageId: raw.pageId, kind: raw.kind, targetId: raw.targetId, createdAt: timestamp(raw.createdAt, new Date().toISOString()) };

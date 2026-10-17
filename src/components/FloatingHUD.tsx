@@ -91,11 +91,32 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
   const [activeTab, setActiveTab] = useState<HudTab>('todo');
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [scratchpad, setScratchpad] = useState('');
+  const [focusNudged, setFocusNudged] = useState(false);
+  const [nudgeApp, setNudgeApp] = useState('');
   const ambientState = useAmbientSound();
   const noteRef = useRef<HTMLTextAreaElement | null>(null);
+  const quickInputRef = useRef<HTMLInputElement | null>(null);
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isMainClosed, setIsMainClosed] = useState(false);
   const { isListening, toggle: toggleDictation } = useDictation();
+
+  const triggerQuickCapture = async (dictate = true) => {
+    setExpanded(true);
+    const api = getElectronAPI();
+    if (api) {
+      await api.resizeHud(true);
+    } else {
+      sendHudCommand({ type: 'RESIZE_HUD', v: 1, expanded: true });
+    }
+    setActiveTab('todo');
+    if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+    focusTimerRef.current = setTimeout(() => {
+      quickInputRef.current?.focus();
+      if (dictate && !isListening) {
+        toggleDictation();
+      }
+    }, 60);
+  };
 
   const handleMicClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -130,12 +151,20 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
         if (msg.activeTask?.scratchpadNotes !== undefined) {
           setScratchpad(msg.activeTask.scratchpadNotes || '');
         }
+        if (msg.focusNudge !== undefined) {
+          setFocusNudged(Boolean(msg.focusNudge));
+        }
       } else if (msg.type === 'MAIN_WINDOW_STATUS') {
         if (msg.status === 'closing' || msg.status === 'closed') {
           setIsMainClosed(true);
         } else if (msg.status === 'active') {
           setIsMainClosed(false);
         }
+      } else if (msg.type === 'FOCUS_NUDGE') {
+        setFocusNudged(msg.active);
+        setNudgeApp(msg.appName || '');
+      } else if (msg.type === 'QUICK_CAPTURE') {
+        void triggerQuickCapture(msg.dictate !== false);
       }
     });
 
@@ -149,16 +178,21 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
       }
     });
 
+    const unsubQuickCapture = api?.onQuickCapture?.((data) => {
+      void triggerQuickCapture(data?.dictate !== false);
+    });
+
     requestHudSync();
     return () => {
       unsub();
       unsubLifecycle?.();
+      unsubQuickCapture?.();
       if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
       if (isNativeWindow) {
         document.documentElement.classList.remove('hud-window-mode');
       }
     };
-  }, [isNativeWindow]);
+  }, [isNativeWindow, isListening]);
 
   const currentTheme = hudState?.theme || localStorage.getItem('focusspace-theme') || 'nocturne';
 
@@ -298,7 +332,7 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
       <div
         className={`hud-shell ${expanded ? 'hud-expanded' : 'hud-collapsed'} hud-${artboardId} hud-theme-${currentTheme} ${
           isListening ? 'dictating' : ''
-        }`}
+        } ${focusNudged ? 'hud-focus-nudge' : ''}`}
       >
         {/* Top 76px Bar — Native 0ms Chromium Drag Surface */}
         <div className="hud-top-row" onDoubleClick={() => handleToggleExpand()}>
@@ -320,11 +354,18 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
             onClick={handleOpenDashboard}
             title="Open FocusSpace Dashboard"
           >
-            {isListening
-              ? '🎙 Listening for note…'
-              : isMainClosed
-              ? 'FocusSpace Closed • Click to Open'
-              : hudState?.activeTask?.title || 'Free Focus Session'}
+            {isListening ? (
+              '🎙 Listening for note…'
+            ) : focusNudged ? (
+              <span className="flex items-center gap-1.5 text-amber-400 font-medium">
+                <span className="hud-nudge-badge">Focus Guard</span>
+                <span>Return to Focus Task</span>
+              </span>
+            ) : isMainClosed ? (
+              'FocusSpace Closed • Click to Open'
+            ) : (
+              hudState?.activeTask?.title || 'Free Focus Session'
+            )}
           </div>
 
           {/* Jump to Dashboard Button */}
@@ -506,10 +547,16 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
                 {/* Quick Add Task Form */}
                 <form onSubmit={handleAddTask} className="hud-quick-add-form">
                   <input
+                    ref={quickInputRef}
                     type="text"
                     value={newTaskTitle}
                     onChange={(e) => setNewTaskTitle(e.target.value)}
-                    placeholder="+ Add new task & press Enter"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        handleToggleExpand();
+                      }
+                    }}
+                    placeholder="+ Add new task & press Enter (Ctrl+Alt+Space)"
                     className="hud-quick-input"
                   />
                   <button type="submit" className="hud-quick-submit" disabled={!newTaskTitle.trim()}>

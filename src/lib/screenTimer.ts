@@ -3,6 +3,39 @@ import { isoToday, storage } from './utils';
 import { toast } from './toast';
 import { getElectronAPI } from './runtime';
 import { isActivityWatchRunning, fetchActivityWatchSummary } from './activityWatch';
+import { hudBridge } from './hudBridge';
+import { getTimerState } from './timer';
+
+let lastNudgeTime = 0;
+
+export function playAcousticNudge() {
+  const now = Date.now();
+  if (now - lastNudgeTime < 120_000) return; // rate limit: max once every 2 minutes
+  lastNudgeTime = now;
+
+  try {
+    const Ctx: typeof AudioContext | undefined = window.AudioContext ?? (window as any).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const start = ctx.currentTime;
+    // Gentle warm two-tone acoustic nudge (440Hz -> 554.37Hz C#5)
+    [440, 554.37].forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const at = start + idx * 0.16;
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, at);
+      gain.gain.exponentialRampToValueAtTime(0.08, at + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(at);
+      osc.stop(at + 0.4);
+    });
+    setTimeout(() => { void ctx.close(); }, 1000);
+  } catch {}
+}
 
 export interface ScreenTimeSettings {
   dailyLimitMinutes: number; // 0 = disabled, default 240 (4 hours)
@@ -202,6 +235,27 @@ class ScreenTimerEngine {
           this.systemApps = apps;
           if (changed) {
             this.updateSnapshot();
+          }
+
+          // Context-Aware Focus Guard check:
+          const timerState = getTimerState();
+          if (timerState.running && timerState.mode === 'focus') {
+            if (res.isDistraction && res.distractionSeconds && res.distractionSeconds >= 120) {
+              hudBridge.send({
+                type: 'FOCUS_NUDGE',
+                v: 1,
+                active: true,
+                appName: activeApp,
+                distractionSeconds: res.distractionSeconds,
+              });
+              playAcousticNudge();
+            } else if (!res.isDistraction) {
+              hudBridge.send({
+                type: 'FOCUS_NUDGE',
+                v: 1,
+                active: false,
+              });
+            }
           }
           return;
         }

@@ -11,9 +11,51 @@ function renderMarks(text: string, marks: RichMark[] | undefined, key: number): 
       case 'bold': return <strong key={i} className="font-semibold text-fg">{child}</strong>;
       case 'italic': return <em key={i}>{child}</em>;
       case 'strike': return <del key={i} className="text-fg-muted">{child}</del>;
-      case 'code': return <code key={i} className="md-code-inline">{child}</code>;
-      case 'link': return <a key={i} href={mark.attrs?.href} target="_blank" rel="noopener noreferrer" className="text-sky-600 underline underline-offset-2 hover:text-sky-200 break-words">{child}</a>;
-      default: return child;
+      case 'link': {
+        const href = mark.attrs?.href || '';
+        if (href.startsWith('#page:')) {
+          const targetPageId = href.replace('#page:', '');
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.dispatchEvent(new CustomEvent('focusspace:navigate-page', { detail: { pageId: targetPageId } }));
+              }}
+              className="inline-flex items-center gap-1 font-medium text-accent hover:underline decoration-accent underline-offset-2 px-1.5 py-0.5 rounded bg-accent/10 hover:bg-accent/20 transition-colors cursor-pointer"
+              title="Open linked knowledge page"
+            >
+              <span className="text-[11px] opacity-70">📄</span>
+              {child}
+            </button>
+          );
+        }
+        if (href.startsWith('#task:')) {
+          return (
+            <span
+              key={i}
+              className="inline-flex items-center gap-1 font-medium text-fg-soft px-1.5 py-0.5 rounded bg-surface-2 border border-line text-xs"
+            >
+              <span className="text-[10px] opacity-70">☑</span>
+              {child}
+            </span>
+          );
+        }
+        if (href.startsWith('#habit:')) {
+          return (
+            <span
+              key={i}
+              className="inline-flex items-center gap-1 font-medium text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 text-xs"
+            >
+              <span className="text-[10px]">🔥</span>
+              {child}
+            </span>
+          );
+        }
+        return <a key={i} href={href} target="_blank" rel="noopener noreferrer" className="text-sky-600 underline underline-offset-2 hover:text-sky-200 break-words">{child}</a>;
+      }
     }
   }, <Fragment key={key}>{text}</Fragment>);
 }

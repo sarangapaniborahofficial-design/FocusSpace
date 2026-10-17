@@ -10,7 +10,7 @@ Strategic architecture, milestone phases, and native transition gates for FocusS
 2. **Minimalist & Distraction-Free**: Swiss architectural neo-brutalist aesthetics. Functionality reveals itself progressively without cognitive overload.
 3. **Daily-Driver Hardened**: Features are designed, battle-tested, and refined through real daily execution before introducing complex extensions.
 4. **Privacy-Respecting Utility**: Audio synthesis, scheduling optimization, and voice transcription operate 100% client-side without cloud leaks.
-5. **PWA-First Before Native Wrapper**: Refine all UI, themes, data boundaries, and web features in Vite + React before wrapping in Tauri v2 (Windows) and Android.
+5. **PWA & Native Desktop Parity**: Deliver full local web capability while hardening native Windows execution via Electron 44 and Chromium.
 
 ---
 
@@ -28,7 +28,7 @@ Strategic architecture, milestone phases, and native transition gates for FocusS
 | **10** | Sprint 1: Contrast, HUD & Bottom Dock | ✅ **Completed** | Fixed Swiss Brutal tab contrast, automated WCAG contrast tests, Document PiP Always-on-Top HUD with Flow Overtime & scratchpad, bottom-anchored app dock with hover magnification. |
 | **11** | Sprint 2: Knowledge Split & Onboarding | ✅ **Completed** | Dedicated Journal tab with 11:59 PM auto-save engine & catch-up, Category-grouped Pages tab, flowy 3-slide welcome onboarding journey with cinematic morph. |
 | **12** | Sprint 3: Voice Studio & PWA Readiness | ✅ **Completed** | 100% offline voice typing studio with Silero VAD, Whisper WASM, Light disfluency engine, JSON Data Vault engine, local fonts, and pinned deps. |
-| **13** | Sprint 4: Native Windows & Mobile Feeder | 🚀 **Scheduled** | Tauri v2 desktop package (tray, global hotkeys, direct file backups), One-way Android capture app (Phone → Laptop), local Wi-Fi direct push, and Windows Morning Briefing Phone Drop Triage Tray. |
+| **13** | Sprint 4: Native Windows Hardening | ✅ **Completed** | Electron 44 desktop package (Tray, global hotkeys, atomic vault disk mirroring, 440px Always-on-top HUD, Zero-Network perimeter). |
 
 ---
 
@@ -71,14 +71,14 @@ Strategic architecture, milestone phases, and native transition gates for FocusS
 
 ---
 
-### Sprint 3: Native Windows Shell (Tauri v2) & Offline Voice Studio
-- **3.1: Tauri v2 Native Windows Flagship Wrapper**:
-  - Sub-15MB installer, ~40MB RAM footprint.
-  - Native Windows system tray with timer badge and global hotkey `Ctrl+Shift+Space`.
-  - True frameless, transparent, draggable Always-on-Top HUD window (`WebviewWindow('hud')`).
-  - Direct local JSON/SQLite backup folder write (`C:\Users\<User>\FocusSpace\Backups\`).
-- **3.2: 100% Offline Voice Typing Studio (`voiceEngine.ts`, `disfluency.ts`, `VoiceDock.tsx`)**:
-  - Whisper WASM (Transformers.js) / Web Speech fallback running in Web Worker.
+### Sprint 3: Native Windows Desktop Hardening & Offline Voice Studio
+- **3.1: Electron 44 Hardened Desktop Flagship**:
+  - Sandboxed Electron 44 runtime with Chromium context isolation and strict navigation locks.
+  - Native Windows system tray with context controls, instant restore, and global hotkeys.
+  - True frameless, transparent Always-on-Top HUD window (440px curved geometry, 6 bespoke artboards).
+  - Atomic Data Vault disk mirroring (`%APPDATA%/FocusSpace/Backups/`) with rolling retention.
+- **3.2: 100% Offline Voice Typing Studio (`useDictation.ts`, `disfluency.ts`, `asr.worker.ts`)**:
+  - Quantized Whisper tiny.en ONNX model + Silero VAD v5 running offline in Web Worker.
   - Real-time 4-pass Disfluency Sanitizer: strips acoustic fillers ("um", "ah"), discourse hedges ("like", "you know"), collapses stutters ("the the"), and auto-capitalizes/punctuates.
   - Floating Live Review Dock with 1-click routing to Task, Journal, or Page Note.
 

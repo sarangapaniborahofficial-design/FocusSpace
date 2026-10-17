@@ -75,8 +75,8 @@ export interface JournalEntry {
   updatedAt: string;
 }
 
-export type PageLinkKind = 'task' | 'habit' | 'goal';
-/** A reference from a page to a task/habit/goal. Never a copy — the page always reads the live record. */
+export type PageLinkKind = 'task' | 'habit' | 'goal' | 'page';
+/** A reference from a page to a task/habit/goal/page. Never a copy — the page always reads the live record. */
 export interface PageLink { id: string; pageId: string; kind: PageLinkKind; targetId: string; createdAt: string; }
 
 /* ---------- rich text (ProseMirror/TipTap-compatible JSON) ---------- */

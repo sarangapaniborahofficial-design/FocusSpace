@@ -1,11 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Activity, Bell, BookOpen, Calendar, Check, Database, Download, Flame, Globe, Keyboard, Maximize, Mic, Palette, Pencil, Plus, RefreshCw, ShieldCheck, Sliders, Smartphone, Sparkles, Target, Trash2, Upload, Volume2, X, Zap } from 'lucide-react';
+import { Activity, Bell, BookOpen, Calendar, Check, Database, Download, Flame, Folder, FolderSync, Globe, Keyboard, Maximize, Mic, Palette, Pencil, Plus, RefreshCw, ShieldCheck, Sliders, Smartphone, Sparkles, Target, Trash2, Upload, Volume2, X, Zap } from 'lucide-react';
 import { isNotificationSupported, getNotificationPermission, requestNotificationPermission, sendNotification } from '../lib/notifications';
 import { useEffect, useRef, useState } from 'react';
 import { db } from '../db/db';
 import { downloadBackupFile, importFullBackup } from '../lib/backup';
 import { takeNativeVaultSnapshot } from '../lib/journalAutoSave';
-import { isDesktop } from '../lib/runtime';
+import { isDesktop, getElectronAPI } from '../lib/runtime';
 import { hudBridge, broadcastHudState } from '../lib/hudBridge';
 import { getTimerState } from '../lib/timer';
 import { getAsrClient } from '../voice/engine/AsrClient';
@@ -274,9 +274,10 @@ function DockPreferencesCard() {
 
 
 
-/** Data Vault & Portability: Full JSON export and restore for IndexedDB / Tauri desktop migration */
+/** Data Vault & Portability: Full JSON export and restore for IndexedDB / Desktop offline persistence */
 function DataVaultCard() {
   const [busy, setBusy] = useState(false);
+  const [secondaryDir, setSecondaryDir] = useState<string>(() => storage.get('focusspace-secondary-vault-dir') || '');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const taskCount = useLiveQuery(() => db.tasks.count(), []) ?? 0;
@@ -284,6 +285,23 @@ function DataVaultCard() {
   const habitCount = useLiveQuery(() => db.habits.count(), []) ?? 0;
   const pageCount = useLiveQuery(() => db.pages.count(), []) ?? 0;
   const journalCount = useLiveQuery(() => db.journalEntries.count(), []) ?? 0;
+
+  const handlePickSecondaryDir = async () => {
+    const api = getElectronAPI();
+    if (!api?.pickDirectory) return;
+    const chosen = await api.pickDirectory();
+    if (chosen) {
+      storage.set('focusspace-secondary-vault-dir', chosen);
+      setSecondaryDir(chosen);
+      toast(`Secondary vault mirror set to: ${chosen}`, 'success');
+    }
+  };
+
+  const handleClearSecondaryDir = () => {
+    storage.remove('focusspace-secondary-vault-dir');
+    setSecondaryDir('');
+    toast('Secondary vault mirror cleared. Snapshots write to AppData only.', 'info');
+  };
 
   const handleNativeVaultBackup = async () => {
     try {
@@ -363,7 +381,7 @@ function DataVaultCard() {
             <Database size={16} className="text-accent-text" /> Data Vault & Portable Backup
           </div>
           <p className="text-xs text-fg-subtle mt-1">
-            Export a full JSON snapshot of your local IndexedDB to migrate to Tauri desktop or preserve your vault offline.
+            Export a full JSON snapshot of your local IndexedDB to preserve your data sovereignly offline.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -400,6 +418,39 @@ function DataVaultCard() {
           </button>
         </div>
       </div>
+      {isDesktop() && (
+        <div className="p-4 bg-surface-2/20 border-b border-line flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="space-y-1">
+            <div className="font-semibold text-fg flex items-center gap-1.5">
+              <FolderSync size={14} className="text-accent" />
+              Secondary Mirror Directory (Auto 11:59 PM & Manual Snapshots)
+            </div>
+            <p className="text-fg-subtle font-mono text-[11px] truncate max-w-md">
+              {secondaryDir ? secondaryDir : 'Not configured — snapshots mirror exclusively to %APPDATA%/FocusSpace/Backups'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePickSecondaryDir}
+              className="h-7 px-2.5 rounded-lg border border-line bg-surface text-fg hover:bg-hover flex items-center gap-1 transition"
+            >
+              <Folder size={12} />
+              {secondaryDir ? 'Change Folder' : 'Select Mirror Folder'}
+            </button>
+            {secondaryDir && (
+              <button
+                type="button"
+                onClick={handleClearSecondaryDir}
+                className="h-7 px-2 rounded-lg text-rose-500 hover:bg-rose-500/10 transition"
+                title="Clear secondary mirror"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       <div className="p-4 bg-surface-2/40 text-xs text-fg-muted flex flex-wrap gap-4 font-mono">
         <span>{taskCount} tasks</span>
         <span>·</span>

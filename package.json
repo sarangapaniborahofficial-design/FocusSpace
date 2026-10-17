@@ -79,13 +79,15 @@
       "dist/**/*",
       "electron/**/*",
       "public/icon-192.png",
-      "public/icon-512.png"
+      "public/icon-512.png",
+      "scripts/active-window-tracker.ps1"
     ],
     "asarUnpack": [
       "dist/models/**/*",
       "dist/vad/**/*",
       "dist/ort/**/*",
-      "dist/assets/*.wasm"
+      "dist/assets/*.wasm",
+      "scripts/active-window-tracker.ps1"
     ],
     "win": {
       "target": [

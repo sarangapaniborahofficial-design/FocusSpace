@@ -368,8 +368,7 @@ app.whenReady().then(() => {
         u.startsWith('app://') ||
         u.startsWith('devtools://') ||
         u.startsWith('chrome-extension://') ||
-        (isDev && u.startsWith('http://localhost:5173')) ||
-        u.startsWith('https://www.google.com/s2/favicons')
+        (isDev && u.startsWith('http://localhost:5173'))
       ) {
         callback({ cancel: false });
       } else {
@@ -443,7 +442,7 @@ app.whenReady().then(() => {
       headers.set('Cross-Origin-Resource-Policy', 'same-origin');
       headers.set(
         'Content-Security-Policy',
-        "default-src 'self' app:; connect-src 'self' app: data: blob:; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' app:; style-src 'self' 'unsafe-inline' app:; font-src 'self' app: data:; img-src 'self' app: data: blob: https://www.google.com; media-src 'self' app: data: blob:; worker-src 'self' app: blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self';"
+        "default-src 'self' app:; connect-src 'self' app: data: blob:; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' app:; style-src 'self' 'unsafe-inline' app:; font-src 'self' app: data:; img-src 'self' app: data: blob:; media-src 'self' app: data: blob:; worker-src 'self' app: blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self';"
       );
 
       return new Response(data, {
@@ -559,7 +558,16 @@ app.whenReady().then(() => {
   // --- 2. Atomic Disk Vault Mirroring ---
   ipcMain.handle('vault:get-backup-dir', async () => getBackupDir());
 
-  ipcMain.handle('vault:write-snapshot', async (_, { filename, payload }) => {
+  ipcMain.handle('dialog:pick-directory', async () => {
+    const res = await dialog.showOpenDialog(mainWindow, {
+      title: 'Select Secondary Vault Mirror Directory',
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    if (res.canceled || !res.filePaths || res.filePaths.length === 0) return null;
+    return res.filePaths[0];
+  });
+
+  ipcMain.handle('vault:write-snapshot', async (_, { filename, payload, secondaryDir }) => {
     if (!SAFE_FILENAME_RE.test(filename)) {
       throw new Error(`Invalid snapshot filename: ${filename}`);
     }
@@ -587,7 +595,21 @@ app.whenReady().then(() => {
       console.error('Snapshot retention warning:', err);
     }
 
-    return { success: true, path: finalPath };
+    let secondaryPath = null;
+    if (secondaryDir && typeof secondaryDir === 'string') {
+      try {
+        await fs.mkdir(secondaryDir, { recursive: true });
+        const secTemp = path.join(secondaryDir, `${filename}.tmp`);
+        const secFinal = path.join(secondaryDir, filename);
+        await fs.writeFile(secTemp, payload, 'utf8');
+        await fs.rename(secTemp, secFinal);
+        secondaryPath = secFinal;
+      } catch (secErr) {
+        console.warn('[Vault Secondary Mirror] Could not write snapshot to secondary dir:', secErr.message);
+      }
+    }
+
+    return { success: true, path: finalPath, secondaryPath };
   });
 
   ipcMain.handle('vault:list-snapshots', async () => {
@@ -798,19 +820,91 @@ app.whenReady().then(() => {
     return 'General Application';
   }
 
+  const DISTRACTION_APPS = new Set([
+    'steam',
+    'epicgameslauncher',
+    'discordcanary',
+    'netflix',
+    'vlc',
+    'tiktok',
+    'roblox',
+    'riotclientservices',
+    'leagueclient',
+  ]);
+
+  const DISTRACTION_TITLE_RE = /(youtube|twitter|x\.com|reddit|twitch|instagram|tiktok|facebook|netflix|hulu|disney\+|prime video|9gag|buzzfeed|pinterest|kick\.com)/i;
+
+  function isDistractionApp(procName, title) {
+    const p = (procName || '').toLowerCase();
+    if (DISTRACTION_APPS.has(p)) return true;
+    const t = (title || '').toLowerCase();
+    if (DISTRACTION_TITLE_RE.test(t)) return true;
+    return false;
+  }
+
+  let consecutiveDistractionSeconds = 0;
+
   function startSystemAppTracker() {
     if (process.platform !== 'win32') return;
 
-    const scriptPath = path.join(__dirname, '../scripts/active-window-tracker.ps1');
     const { spawn } = require('child_process');
 
+    const trackerScript = `
+$code = @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Diagnostics;
+
+public class Win32Active {
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+    public static string GetForeground() {
+        IntPtr hwnd = GetForegroundWindow();
+        if (hwnd == IntPtr.Zero) return "Idle|Idle";
+        uint pid = 0;
+        GetWindowThreadProcessId(hwnd, out pid);
+        if (pid == 0) return "Idle|Idle";
+        try {
+            Process p = Process.GetProcessById((int)pid);
+            string name = p.ProcessName;
+            StringBuilder sb = new StringBuilder(256);
+            GetWindowText(hwnd, sb, 256);
+            string title = sb.ToString().Trim();
+            return name + "|" + (string.IsNullOrEmpty(title) ? name : title);
+        } catch {
+            return "Unknown|Unknown";
+        }
+    }
+}
+'@
+try { Add-Type -TypeDefinition $code -ErrorAction Stop } catch {}
+while ($true) {
     try {
+        $res = [Win32Active]::GetForeground()
+        [Console]::WriteLine($res)
+        [Console]::Out.Flush()
+    } catch {}
+    Start-Sleep -Seconds 2
+}
+`;
+
+    try {
+      const encodedCommand = Buffer.from(trackerScript, 'utf16le').toString('base64');
       systemTrackerProc = spawn('powershell.exe', [
         '-NoProfile',
+        '-NonInteractive',
         '-ExecutionPolicy',
         'Bypass',
-        '-File',
-        scriptPath,
+        '-EncodedCommand',
+        encodedCommand,
       ], {
         stdio: ['ignore', 'pipe', 'ignore'],
         shell: false,
@@ -846,6 +940,12 @@ app.whenReady().then(() => {
             if (windowTitle && windowTitle !== currentForegroundApp) {
               appUsageToday[currentForegroundApp].title = windowTitle;
             }
+
+            if (isDistractionApp(currentForegroundApp, currentForegroundTitle)) {
+              consecutiveDistractionSeconds += elapsedSec;
+            } else {
+              consecutiveDistractionSeconds = 0;
+            }
           }
 
           currentForegroundApp = procName;
@@ -876,6 +976,11 @@ app.whenReady().then(() => {
         };
       }
       appUsageToday[currentForegroundApp].seconds += elapsedSec;
+      if (isDistractionApp(currentForegroundApp, currentForegroundTitle)) {
+        consecutiveDistractionSeconds += elapsedSec;
+      } else {
+        consecutiveDistractionSeconds = 0;
+      }
       lastForegroundChangeTime = now;
     }
 
@@ -896,13 +1001,25 @@ app.whenReady().then(() => {
       supported: process.platform === 'win32',
       activeApp: currentForegroundApp,
       activeTitle: currentForegroundTitle,
+      isDistraction: isDistractionApp(currentForegroundApp, currentForegroundTitle),
+      distractionSeconds: consecutiveDistractionSeconds,
       apps: list,
     };
   });
 
   // --- 5. Conflict-Free Global Hotkeys ---
   const regSpace = globalShortcut.register('CommandOrControl+Alt+Space', () => {
-    showMainWindowSafely();
+    if (hudWindow && !hudWindow.isDestroyed()) {
+      if (!hudWindow.isVisible()) {
+        hudWindow.show();
+      }
+      setHudDimensions(true);
+      hudWindow.focus();
+      hudWindow.setAlwaysOnTop(true, 'screen-saver');
+      hudWindow.webContents.send('hud:quick-capture', { dictate: true });
+    } else {
+      showMainWindowSafely();
+    }
   });
   if (!regSpace) {
     console.warn('[Hotkeys] Failed to register CommandOrControl+Alt+Space');
