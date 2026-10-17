@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeCategory, normalizeHabit, normalizeList, normalizeLog, normalizeTask } from '../normalize';
+import { normalizeCategory, normalizeHabit, normalizeList, normalizeLog, normalizeTask, normalizeTitle } from '../normalize';
 
 describe('normalize data helpers', () => {
   it('repairs partially malformed task objects', () => {
@@ -59,5 +59,16 @@ describe('normalize data helpers', () => {
     expect(task?.order).toBe(42);
     expect(task?.launchLinks).toHaveLength(1);
     expect(task?.launchLinks?.[0].label).toBe('Spotify');
+  });
+
+  it('preserves quarter suffixes - Q1..- Q4 while stripping trailing dashes in normalizeTitle', () => {
+    expect(normalizeTitle('Q1 Roadmap - Q1')).toBe('Q1 Roadmap - Q1');
+    expect(normalizeTitle('Revenue Projections - Q2')).toBe('Revenue Projections - Q2');
+    expect(normalizeTitle('Product Launch - Q3')).toBe('Product Launch - Q3');
+    expect(normalizeTitle('Year End Review - Q4')).toBe('Year End Review - Q4');
+    expect(normalizeTitle('Planning Session – Q1')).toBe('Planning Session – Q1');
+    expect(normalizeTitle('Task With Trailing Hyphen - ')).toBe('Task With Trailing Hyphen');
+    expect(normalizeTitle('  Messy   Spaced   Title  ')).toBe('Messy Spaced Title');
+    expect(normalizeTitle('')).toBe('');
   });
 });

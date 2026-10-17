@@ -6,7 +6,8 @@ import { db } from '../db/db';
 import { downloadBackupFile, importFullBackup } from '../lib/backup';
 import { takeNativeVaultSnapshot } from '../lib/journalAutoSave';
 import { isDesktop } from '../lib/runtime';
-import { hudBridge } from '../lib/hudBridge';
+import { hudBridge, broadcastHudState } from '../lib/hudBridge';
+import { getTimerState } from '../lib/timer';
 import { getAsrClient } from '../voice/engine/AsrClient';
 import { BROWSER_OPTIONS } from './BrowserSetupModal';
 import {
@@ -1030,7 +1031,23 @@ function VoiceStudioPreferencesCard() {
     } else {
       localStorage.removeItem('focusspace-hud-style');
     }
-    hudBridge.send({ type: 'REQUEST_SYNC', v: 1 });
+    const tState = getTimerState();
+    broadcastHudState({
+      timer: {
+        mode: tState.mode,
+        remainingMs: tState.remainingMs,
+        totalMs: (tState.durations[tState.mode] || 25) * 60_000,
+        durationMinutes: tState.durations[tState.mode] || 25,
+        running: tState.running,
+        isOvertime: Boolean(tState.isOvertime),
+        overtimeMs: tState.overtimeMs || 0,
+        taskId: tState.taskId,
+        taskTitle: tState.taskTitle,
+      },
+      activeTask: null,
+      theme: localStorage.getItem('focusspace-theme') || 'nocturne',
+      hudStyleOverride: styleId || null,
+    });
     toast('Floating HUD artboard theme updated', 'info');
   };
 
@@ -1053,7 +1070,7 @@ function VoiceStudioPreferencesCard() {
   };
 
   const HUD_ARTBOARDS = [
-    { id: '', name: 'Match App Theme' },
+    { id: '', name: 'Auto' },
     { id: '01', name: '01 Nocturne Solaris' },
     { id: '02', name: '02 Swiss Onyx' },
     { id: '03', name: '03 Swiss Brutal' },

@@ -93,16 +93,25 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
   const [scratchpad, setScratchpad] = useState('');
   const ambientState = useAmbientSound();
   const noteRef = useRef<HTMLTextAreaElement | null>(null);
+  const { isListening, toggle: toggleDictation } = useDictation();
 
-  const { isListening, toggle: toggleDictation } = useDictation({
-    onTranscript: (_raw, cleanedText) => {
-      const next = scratchpad ? `${scratchpad} ${cleanedText}` : cleanedText;
-      setScratchpad(next);
-      if (hudState?.activeTask?.id) {
-        sendHudCommand({ type: 'SAVE_SCRATCHPAD', v: 1, taskId: hudState.activeTask.id, text: next });
+  const handleMicClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!expanded) {
+      setExpanded(true);
+      const api = getElectronAPI();
+      if (api) {
+        await api.resizeHud(true);
+      } else {
+        sendHudCommand({ type: 'RESIZE_HUD', v: 1, expanded: true });
       }
-    },
-  });
+    }
+    setActiveTab('notes');
+    setTimeout(() => {
+      noteRef.current?.focus();
+    }, 50);
+    toggleDictation();
+  };
 
   useEffect(() => {
     if (isNativeWindow) {
@@ -311,10 +320,7 @@ export const FloatingHUD: React.FC<{ isNativeWindow?: boolean }> = ({ isNativeWi
           <button
             type="button"
             className="hud-icon-btn btn-mic hud-no-drag"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleDictation();
-            }}
+            onClick={handleMicClick}
             title="Voice Dictate Note"
             aria-label="Dictate"
           >

@@ -12,6 +12,27 @@ const {
 } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
+const nodeFs = require('fs');
+
+function getSavedHudBounds() {
+  try {
+    const file = path.join(app.getPath('userData'), 'hud-bounds.json');
+    if (nodeFs.existsSync(file)) {
+      const data = JSON.parse(nodeFs.readFileSync(file, 'utf8'));
+      if (typeof data.x === 'number' && typeof data.y === 'number') {
+        return { x: data.x, y: data.y };
+      }
+    }
+  } catch {}
+  return null;
+}
+
+function saveHudBounds(bounds) {
+  try {
+    const file = path.join(app.getPath('userData'), 'hud-bounds.json');
+    nodeFs.writeFileSync(file, JSON.stringify({ x: bounds.x, y: bounds.y }), 'utf8');
+  } catch {}
+}
 
 // Register 'app://' as a standard, secure, Cross-Origin-Isolated scheme BEFORE app.ready
 protocol.registerSchemesAsPrivileged([
@@ -172,7 +193,8 @@ function createMainWindow() {
 }
 
 function createHudWindow() {
-  hudWindow = new BrowserWindow({
+  const savedBounds = getSavedHudBounds();
+  const windowOpts = {
     width: HUD_WIDTH,
     height: HUD_COLLAPSED_HEIGHT,
     useContentSize: true,
@@ -194,7 +216,13 @@ function createHudWindow() {
       sandbox: true,
       backgroundThrottling: false,
     },
-  });
+  };
+  if (savedBounds) {
+    windowOpts.x = savedBounds.x;
+    windowOpts.y = savedBounds.y;
+  }
+
+  hudWindow = new BrowserWindow(windowOpts);
 
   // Pin above all standard desktop apps and IDEs
   hudWindow.setAlwaysOnTop(true, 'screen-saver');
@@ -202,6 +230,14 @@ function createHudWindow() {
 
   applyNavigationLock(hudWindow.webContents);
   hudWindow.loadURL(getAppUrl('?window=hud'));
+
+  // Persist HUD coordinates across restarts whenever user finishes dragging window
+  hudWindow.on('moved', () => {
+    if (hudWindow && !hudWindow.isDestroyed()) {
+      const [x, y] = hudWindow.getPosition();
+      saveHudBounds({ x, y });
+    }
+  });
 
   // Crash Guardrail: If HUD window renderer crashes, safely reload
   hudWindow.webContents.on('render-process-gone', (_event, details) => {
@@ -308,11 +344,27 @@ app.whenReady().then(() => {
 
     try {
       let data;
+      let targetPath = distPath;
+      const ext = path.extname(distPath).toLowerCase();
+
+      // For .onnx and .wasm files, resolve from app.asar.unpacked if present
+      if (ext === '.onnx' || ext === '.wasm') {
+        const unpackedPath = distPath.replace('app.asar', 'app.asar.unpacked');
+        if (unpackedPath !== distPath && nodeFs.existsSync(unpackedPath)) {
+          targetPath = unpackedPath;
+        }
+      }
+
       try {
-        data = await fs.readFile(distPath);
+        data = await fs.readFile(targetPath);
       } catch (err) {
-        // Fallback to index.html for SPA client-side routes without file extensions
-        if (!path.extname(distPath)) {
+        // Fallback to app.asar.unpacked if read failed
+        const unpackedFallback = targetPath.replace('app.asar', 'app.asar.unpacked');
+        if (unpackedFallback !== targetPath && nodeFs.existsSync(unpackedFallback)) {
+          data = await fs.readFile(unpackedFallback);
+          targetPath = unpackedFallback;
+        } else if (!path.extname(distPath)) {
+          // Fallback to index.html for SPA client-side routes without file extensions
           distPath = path.join(distDir, 'index.html');
           data = await fs.readFile(distPath);
         } else {

@@ -111,6 +111,15 @@ export function sendHudCommand(msg: HudMessage): void {
   hudBridge.send(msg);
 }
 
+export function broadcastHudState(payload: Omit<HudStatePayload, 'type' | 'v'>): void {
+  hudBridge.send({
+    type: 'STATE_SYNC',
+    v: 1,
+    ...payload,
+  });
+}
+
 export function requestHudSync(): void {
   hudBridge.send({ type: 'REQUEST_SYNC', v: 1 });
 }
+

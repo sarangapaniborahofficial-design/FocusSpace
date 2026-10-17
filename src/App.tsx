@@ -25,7 +25,7 @@ import { FloatingHUDPortal } from './components/FloatingHUD';
 import { ErrorBoundary } from './components/ui';
 import { OnboardingWelcome, useWelcomeFlow, type WelcomeTask, type WelcomeHabit } from './components/OnboardingWelcome';
 import { openTaskEditor } from './lib/taskEditor';
-import { getTimerState, timer } from './lib/timer';
+import { getTimerState, timer, useTimer } from './lib/timer';
 import { soundscape, useSoundscape, type SoundscapeType } from './lib/soundscape';
 import { initJournalAutoSave } from './lib/journalAutoSave';
 import { parseTaskInput } from './lib/taskParser';
@@ -34,7 +34,7 @@ import { computeStreaks } from './lib/analytics';
 import { checkAndNotifyOverdue } from './lib/notifications';
 import { isoToday, storage, uid } from './lib/utils';
 import { getElectronAPI, isElectron, isVoiceEnabled } from './lib/runtime';
-import { hudBridge, type TaskSnapshot } from './lib/hudBridge';
+import { broadcastHudState, subscribeHudBridge, type TaskSnapshot } from './lib/hudBridge';
 import type { FocusLog, Habit, LayoutMode, Page, Subtask, Task, Theme } from './types';
 import { useDictation } from './voice/useDictation';
 import { createInputTarget } from './voice/target/inputTarget';
@@ -89,6 +89,12 @@ export default function App() {
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(() => (storage.get('focusspace-layout') === 'cockpit' ? 'cockpit' : 'orbital'));
   const [quitModalOpen, setQuitModalOpen] = useState(false);
   const [screenTimeOpen, setScreenTimeOpen] = useState(false);
+
+  const timerState = useTimer();
+  const activeTask = useLiveQuery(
+    () => (timerState.taskId ? db.tasks.get(timerState.taskId) : undefined),
+    [timerState.taskId]
+  );
 
   const lastFocusedInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [globalDictationTarget, setGlobalDictationTarget] = useState<DictationTarget | null>(null);
@@ -255,67 +261,71 @@ export default function App() {
   }, []);
 
   // Synchronize Timer and Task State across the Floating HUD Bridge
-  useEffect(() => {
-    const syncState = async () => {
-      const tState = getTimerState();
-      let activeTaskSnapshot: TaskSnapshot | null = null;
-      if (tState.taskId) {
-        const t = await db.tasks.get(tState.taskId);
-        if (t) {
-          activeTaskSnapshot = {
-            id: t.id,
-            title: t.title,
-            notes: t.notes,
-            status: t.status,
-            subtasks: t.subtasks,
-          };
-        }
-      }
-
-      // Collect today's pending & completed tasks for the HUD Todo List
-      const allTasks = await db.tasks.toArray();
-      const todayStr = isoToday();
-      const todayTasks = allTasks
-        .filter(t => !t.completedAt || t.completedAt.slice(0, 10) === todayStr || t.status !== 'Submitted/Done')
-        .sort((a, b) => {
-          if (a.status === 'Submitted/Done' && b.status !== 'Submitted/Done') return 1;
-          if (a.status !== 'Submitted/Done' && b.status === 'Submitted/Done') return -1;
-          return (b.updatedAt || '').localeCompare(a.updatedAt || '');
-        })
-        .slice(0, 15)
-        .map(t => ({
+  const syncState = useCallback(async () => {
+    const tState = getTimerState();
+    let activeTaskSnapshot: TaskSnapshot | null = null;
+    if (tState.taskId) {
+      const t = await db.tasks.get(tState.taskId);
+      if (t) {
+        activeTaskSnapshot = {
           id: t.id,
           title: t.title,
-          completed: t.status === 'Submitted/Done',
-          priority: t.priority,
-        }));
+          notes: t.notes,
+          scratchpadNotes: t.notes,
+          status: t.status,
+          subtasks: t.subtasks,
+        };
+      }
+    }
 
-      hudBridge.send({
-        type: 'STATE_SYNC',
-        v: 1,
-        timer: {
-          mode: tState.mode,
-          remainingMs: tState.remainingMs,
-          totalMs: (tState.durations[tState.mode] || 25) * 60_000,
-          durationMinutes: tState.durations[tState.mode] || 25,
-          running: tState.running,
-          isOvertime: Boolean(tState.isOvertime),
-          overtimeMs: tState.overtimeMs || 0,
-          taskId: tState.taskId,
-          taskTitle: tState.taskTitle,
-        },
-        activeTask: activeTaskSnapshot,
-        todayTasks,
-        theme: normalizeTheme(storage.get('focusspace-theme')),
-        hudStyleOverride: storage.get('focusspace-hud-style'),
-      });
-    };
+    // Collect today's pending & completed tasks for the HUD Todo List
+    const allTasks = await db.tasks.toArray();
+    const todayStr = isoToday();
+    const todayTasks = allTasks
+      .filter(t => !t.completedAt || t.completedAt.slice(0, 10) === todayStr || t.status !== 'Submitted/Done')
+      .sort((a, b) => {
+        if (a.status === 'Submitted/Done' && b.status !== 'Submitted/Done') return 1;
+        if (a.status !== 'Submitted/Done' && b.status === 'Submitted/Done') return -1;
+        return (b.updatedAt || '').localeCompare(a.updatedAt || '');
+      })
+      .slice(0, 15)
+      .map(t => ({
+        id: t.id,
+        title: t.title,
+        completed: t.status === 'Submitted/Done',
+        priority: t.priority,
+      }));
 
+    broadcastHudState({
+      timer: {
+        mode: tState.mode,
+        remainingMs: tState.remainingMs,
+        totalMs: (tState.durations[tState.mode] || 25) * 60_000,
+        durationMinutes: tState.durations[tState.mode] || 25,
+        running: tState.running,
+        isOvertime: Boolean(tState.isOvertime),
+        overtimeMs: tState.overtimeMs || 0,
+        taskId: tState.taskId,
+        taskTitle: tState.taskTitle,
+      },
+      activeTask: activeTaskSnapshot,
+      todayTasks,
+      theme: normalizeTheme(storage.get('focusspace-theme')),
+      hudStyleOverride: storage.get('focusspace-hud-style'),
+    });
+  }, []);
+
+  // Automatically broadcast whenever timer state, active task, or theme changes
+  useEffect(() => {
+    void syncState();
+  }, [timerState, activeTask, theme, syncState]);
+
+  useEffect(() => {
     const unsubTimer = timer.subscribe(() => {
       void syncState();
     });
 
-    const unsubBridge = hudBridge.subscribe(async (msg) => {
+    const unsubBridge = subscribeHudBridge(async (msg) => {
       if (msg.type === 'REQUEST_SYNC') {
         void syncState();
       } else if (msg.type === 'TOGGLE_TIMER') {
@@ -400,6 +410,16 @@ export default function App() {
           await db.tasks.update(task.id, { notes: newNotes, updatedAt: now.toISOString() });
           void syncState();
         }
+      } else if (msg.type === 'RESIZE_HUD') {
+        const api = getElectronAPI();
+        if (api) {
+          void api.resizeHud(msg.expanded);
+        }
+      } else if (msg.type === 'CLOSE_HUD') {
+        const api = getElectronAPI();
+        if (api) {
+          void api.hideHud();
+        }
       }
     });
 
@@ -409,7 +429,7 @@ export default function App() {
       unsubTimer();
       unsubBridge();
     };
-  }, []);
+  }, [syncState]);
 
   // Desktop global shortcuts are handled natively by Electron main process
   useEffect(() => {
@@ -423,26 +443,8 @@ export default function App() {
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', clean === 'nocturne' ? '#040404' : clean === 'onyx' ? '#020302' : clean === 'bauhaus' ? '#e9ece4' : '#f3eee4');
     storage.set('focusspace-theme', clean);
-    const tState = getTimerState();
-    hudBridge.send({
-      type: 'STATE_SYNC',
-      v: 1,
-      timer: {
-        mode: tState.mode,
-        remainingMs: tState.remainingMs,
-        totalMs: (tState.durations[tState.mode] || 25) * 60_000,
-        durationMinutes: tState.durations[tState.mode] || 25,
-        running: tState.running,
-        isOvertime: Boolean(tState.isOvertime),
-        overtimeMs: tState.overtimeMs || 0,
-        taskId: tState.taskId,
-        taskTitle: tState.taskTitle,
-      },
-      activeTask: null,
-      theme: clean,
-      hudStyleOverride: storage.get('focusspace-hud-style'),
-    });
-  }, [theme]);
+    void syncState();
+  }, [theme, syncState]);
 
   useEffect(() => {
     document.documentElement.dataset.layout = layoutMode;

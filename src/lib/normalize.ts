@@ -26,6 +26,23 @@ function normalizeRecurrence(raw: any): Recurrence | undefined {
   return { freq: raw.freq, interval, ...(raw.freq === 'monthly' && anchor >= 1 && anchor <= 31 ? { anchorDay: anchor } : {}) };
 }
 
+/**
+ * Cleans and normalizes a task or page title.
+ * Preserves quarter suffixes (e.g. "- Q1", "- Q2", "- Q3", "- Q4") while
+ * stripping dangling unattached hyphens or extraneous whitespace.
+ */
+export function normalizeTitle(raw: unknown): string {
+  if (typeof raw !== 'string') return '';
+  const trimmed = raw.trim().replace(/\s+/g, ' ');
+  if (!trimmed) return '';
+  // Explicitly protect - Q1 .. - Q4 suffixes
+  if (/[-–—]\s*Q[1-4]\b/i.test(trimmed)) {
+    return trimmed;
+  }
+  // Strip dangling trailing separators
+  return trimmed.replace(/\s*[-–—:]\s*$/, '').trim();
+}
+
 export function normalizeCategory(raw: any): Category | null {
   if (!raw || typeof raw.id !== 'string' || typeof raw.name !== 'string' || !raw.name.trim()) return null;
   return {
@@ -51,7 +68,7 @@ export function normalizeTask(raw: any): Task | null {
     : [];
   return {
     id: raw.id,
-    title: raw.title,
+    title: normalizeTitle(raw.title) || raw.title,
     categoryId: raw.categoryId,
     projectTag: str(raw.projectTag),
     priority: PRIORITIES.includes(raw.priority) ? raw.priority : 'Medium',

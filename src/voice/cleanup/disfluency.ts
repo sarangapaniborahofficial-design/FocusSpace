@@ -95,11 +95,13 @@ export function cleanLight(raw: string): CleanLightResult {
     if (command === 'scratch-that') return { text: '', command };
   }
 
-  // 2. Remove standalone fillers and adjacent commas
-  let cleaned = raw.replace(FILLER_REGEX, (match, filler: string, offset: number, full: string) => {
-    // Check if the preceding character was a comma or whitespace
-    return '';
-  });
+  // 2. Remove standalone fillers and adjacent commas in a loop until convergence
+  let cleaned = raw;
+  let prev = '';
+  while (cleaned !== prev) {
+    prev = cleaned;
+    cleaned = cleaned.replace(FILLER_REGEX, '');
+  }
 
   // 3. Clean up any weird comma artifacts like " ," or leading/trailing commas
   cleaned = cleanPunctuationAndSpacing(cleaned);

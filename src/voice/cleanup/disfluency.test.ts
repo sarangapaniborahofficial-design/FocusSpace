@@ -74,6 +74,13 @@ describe('Voice Studio Disfluency & Cleanup Engine (cleanLight)', () => {
     expect(res.text).toBe('Let us start the timer');
   });
 
+  it('loops filler removal until convergence for consecutive identical fillers', () => {
+    const res = cleanLight('um um I think');
+    expect(res.text).toBe('I think');
+    const res2 = cleanLight('uh uh uh we can do this');
+    expect(res2.text).toBe('We can do this');
+  });
+
   it('handles 3x duplicate whitelist words', () => {
     const res = cleanLight('We need to to to finish');
     expect(res.text).toBe('We need to finish');
