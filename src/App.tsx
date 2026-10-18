@@ -22,7 +22,6 @@ import { ShortcutsModal } from './components/ShortcutsModal';
 import { Today } from './components/Today';
 import { PlanInspector } from './components/PlanInspector';
 import { SessionInspector } from './components/SessionInspector';
-import { FocusTransportBar } from './components/FocusTransportBar';
 import { FloatingHUDPortal } from './components/FloatingHUD';
 import { ErrorBoundary } from './components/ui';
 import { OnboardingWelcome, useWelcomeFlow, type WelcomeTask, type WelcomeHabit } from './components/OnboardingWelcome';
@@ -652,7 +651,7 @@ export default function App() {
   const title = VIEW_TITLES[active] ?? categories.find(c => c.id === active)?.name ?? 'Home';
 
   return (
-    <div className="h-screen w-screen overflow-hidden flex flex-col bg-canvas text-fg p-2 gap-2 select-none">
+    <div className="h-screen w-screen overflow-hidden flex flex-col bg-canvas text-fg p-2.5 gap-2.5 select-none">
       {/* Row 1 — Full-Width Top Titlebar */}
       <Header
         title={title}
@@ -677,8 +676,8 @@ export default function App() {
         isSidebarCollapsed={collapsed}
       />
 
-      {/* Row 2 — The 3-Island Middle Row */}
-      <div className="flex-1 min-h-0 flex gap-2 overflow-hidden">
+      {/* Row 2 — The 3-Island Modular Grid extending full height to bottom */}
+      <div className="flex-1 min-h-0 flex gap-2.5 overflow-hidden">
         {/* Island 1: Sidebar */}
         <Sidebar
           collapsed={collapsed}
@@ -745,30 +744,11 @@ export default function App() {
           </div>
         </main>
 
-        {/* Island 3: Right Session Inspector */}
+        {/* Island 3: Right Session Cockpit / Inspector */}
         {(active === 'home' || (layoutMode === 'cockpit' && active !== 'plan')) && (
-          active === 'home' ? (
-            <SessionInspector selectedTaskId={selectedTaskId} />
-          ) : (
-            <aside className="w-[320px] xl:w-[340px] shrink-0 h-full rounded-2xl bg-surface border border-line overflow-y-auto p-5 flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-2">
-                <span className="index-chip text-fg-muted font-mono uppercase text-[11px]">Docked Pomodoro Timer</span>
-                <span className="size-2 rounded-full bg-accent animate-pulse" />
-              </div>
-              <ErrorBoundary fallbackTitle="Docked Pomodoro Timer">
-                <Pomodoro />
-              </ErrorBoundary>
-            </aside>
-          )
+          <SessionInspector selectedTaskId={selectedTaskId} />
         )}
       </div>
-
-      {/* Row 3 — Full-Width Bottom Transport Bar */}
-      <FocusTransportBar
-        activeTask={activeTask}
-        onTriggerVoice={triggerUniversalVoice}
-        onNavigateTask={(taskId) => openTaskEditor(taskId)}
-      />
 
       {/* Global Overlays, Modals, and Portals */}
       <TaskEditor />

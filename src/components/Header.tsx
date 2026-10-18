@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import type { LayoutMode } from '../types';
 import { FloatingHUDTrigger } from './FloatingHUD';
+import { PinnedAppsPill } from './PinnedAppsPill';
 import { getElectronAPI } from '../lib/runtime';
 import { useScreenTimer, formatScreenTimeClock } from '../lib/screenTimer';
 import { FocusSpaceLogo } from './FocusSpaceLogo';
@@ -134,6 +135,11 @@ export function Header({
             Ctrl K
           </kbd>
         </button>
+      </div>
+
+      {/* Pinned Workspace Apps Pill */}
+      <div className="window-no-drag hidden md:flex items-center shrink-0">
+        <PinnedAppsPill />
       </div>
 
       {/* Right: Screen Time, Quick Add, Theme, Controls & Window Buttons */}
