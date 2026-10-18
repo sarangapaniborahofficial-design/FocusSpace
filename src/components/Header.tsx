@@ -1,4 +1,4 @@
-import { Activity, Columns3, Copy, Keyboard, LayoutGrid, Maximize2, Menu, Minus, Moon, Orbit, PanelLeftClose, PanelLeftOpen, Pause, Play, Plus, Search, Sparkles, Square, Sun, X } from 'lucide-react';
+import { Activity, Columns3, Keyboard, LayoutGrid, Maximize2, Menu, Moon, Orbit, PanelLeftClose, PanelLeftOpen, Pause, Play, Plus, Search, Sparkles, Sun } from 'lucide-react';
 import { MODE_LABELS, formatClock, timer, useTimer } from '../lib/timer';
 import type { LayoutMode } from '../types';
 import { FloatingHUDTrigger } from './FloatingHUD';
@@ -79,7 +79,9 @@ export function Header({
           onToggleMaximize?.();
         }
       }}
-      className={`h-16 shrink-0 flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 bg-surface/90 backdrop-blur-xl sticky top-0 z-30 border-b border-line window-drag-region select-none overflow-hidden ${
+      className={`h-16 shrink-0 flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 ${
+        getElectronAPI()?.isElectron ? 'pr-[140px]' : ''
+      } bg-surface/90 backdrop-blur-xl sticky top-0 z-30 border-b border-line window-drag-region select-none overflow-hidden ${
         layoutMode === 'orbital' ? 'rounded-2xl border shadow-card mb-1' : ''
       }`}
     >
@@ -212,39 +214,9 @@ export function Header({
           </button>
         )}
 
-        {/* Subtle Divider Before Windows Controls */}
-        <div className="h-5 w-px bg-line/80 mx-0.5 shrink-0" />
-
-        {/* Windows Standard Top-Right Control Cluster: [ — ] [ ◻ ] [ ✕ ] */}
-        <div className="flex items-center gap-1 sm:gap-1.5 p-1 rounded-xl bg-surface-2/70 border border-line/70 window-no-drag shadow-xs shrink-0">
-          <button
-            type="button"
-            onClick={onMinimize}
-            title="Minimize Window"
-            aria-label="Minimize Window"
-            className="size-7 grid place-items-center rounded-lg hover:bg-hover text-fg-muted hover:text-fg transition-colors cursor-pointer"
-          >
-            <Minus size={13} strokeWidth={2.2} />
-          </button>
-          <button
-            type="button"
-            onClick={onToggleMaximize}
-            title={isMaximized ? 'Restore Window' : 'Maximize / Multi-window'}
-            aria-label={isMaximized ? 'Restore Window' : 'Maximize Window'}
-            className="size-7 grid place-items-center rounded-lg hover:bg-hover text-fg-muted hover:text-fg transition-colors cursor-pointer"
-          >
-            {isMaximized ? <Copy size={11} strokeWidth={2.2} /> : <Square size={11} strokeWidth={2.2} />}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            title="Close Window (Prompts if active work)"
-            aria-label="Close Window"
-            className="size-7 grid place-items-center rounded-lg hover:bg-red-600 hover:text-white text-fg-muted transition-colors cursor-pointer"
-          >
-            <X size={13} strokeWidth={2.2} />
-          </button>
-        </div>
+        {/* Windows 11 native caption controls (Minimize, Snap Layouts / Maximize, Close)
+            are rendered directly by Windows DWM via titleBarOverlay in electron/main.cjs.
+            onMinimize, onToggleMaximize, and onClose props remain bound in the interface. */}
       </div>
     </header>
   );

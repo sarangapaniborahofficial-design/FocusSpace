@@ -61,6 +61,19 @@ graph TD
 
 ---
 
+## 💻 System Specifications
+
+FocusSpace runs entirely locally, combining a React frontend, IndexedDB storage, and an offline Whisper ASR machine learning pipeline.
+
+| Component | Minimum Spec (Basic UI + Timer) | Recommended (Voice Studio + Local AI) |
+| :--- | :--- | :--- |
+| **CPU** | Dual-Core 2.0 GHz | Quad-Core 2.5 GHz+ (AVX2 support) |
+| **RAM** | 4 GB | 8 GB to 16 GB |
+| **Storage**| 500 MB free space | 5 GB free space |
+| **OS** | Windows 10 (64-bit) | Windows 11 (For Native Mica UX) |
+
+---
+
 ## 🚀 Key Features
 
 ### 1. 🪟 Permanent Integrated Windows-Style Taskbar

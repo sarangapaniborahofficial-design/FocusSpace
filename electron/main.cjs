@@ -173,6 +173,16 @@ function applyNavigationLock(webContents) {
   });
 }
 
+function getTitleBarOverlayOptions(themeName = 'nocturne') {
+  const palettes = {
+    nocturne: { color: '#0d0c0b', symbolColor: '#f2ece4', height: 48 },
+    onyx: { color: '#0a0c0a', symbolColor: '#ededed', height: 48 },
+    solaris: { color: '#fffdf9', symbolColor: '#161412', height: 48 },
+    bauhaus: { color: '#ffffff', symbolColor: '#0d0f0d', height: 48 },
+  };
+  return palettes[themeName] || palettes.nocturne;
+}
+
 function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -180,11 +190,13 @@ function createMainWindow() {
     minWidth: 960,
     minHeight: 640,
     title: 'FocusSpace',
-    backgroundColor: '#0d0c0b',
+    backgroundColor: '#00000000',
+    backgroundMaterial: 'mica',
     icon: path.join(__dirname, '../public/icon-512.png'),
     autoHideMenuBar: true,
     fullscreen: false,
-    frame: false,
+    titleBarStyle: 'hidden',
+    titleBarOverlay: getTitleBarOverlayOptions('nocturne'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -541,6 +553,13 @@ app.whenReady().then(() => {
       return true;
     }
     return false;
+  });
+
+  ipcMain.handle('window:set-titlebar-theme', (_event, themeName) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    try {
+      mainWindow.setTitleBarOverlay(getTitleBarOverlayOptions(themeName));
+    } catch {}
   });
 
   ipcMain.handle('app:quit', () => {

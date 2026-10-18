@@ -449,6 +449,7 @@ export default function App() {
     if (meta) meta.setAttribute('content', clean === 'nocturne' ? '#040404' : clean === 'onyx' ? '#020302' : clean === 'bauhaus' ? '#e9ece4' : '#f3eee4');
     storage.set('focusspace-theme', clean);
     void syncState();
+    void getElectronAPI()?.setTitleBarTheme?.(clean);
   }, [theme, syncState]);
 
   useEffect(() => {

@@ -161,7 +161,7 @@
 
 /* ---------- 3. NOCTURNE SOLARIS (Dark Pitch-Black Anodized Studio) ---------- */
 :root[data-theme="nocturne"], :root[data-theme="dark"] {
-  --c-canvas: #040404;
+  --c-canvas: rgba(4, 4, 4, 0.78);
   --c-surface: #0d0c0b;
   --c-surface-2: #151311;
   --c-surface-3: #1f1c19;
@@ -186,11 +186,11 @@
   --c-keycap-accent-shadow: 2.5px 3px 0px #000000, 0 0 0 1px #ff5526, 2.5px 3px 0px 1px #801d04, 0 1px 0 rgba(255, 255, 255, 0.35) inset;
   --c-keycap-active: 0 0 0 transparent, 0 1px 3px rgba(0, 0, 0, 0.75) inset;
 
-  --app-bg: rgba(9, 8, 7, 0.94);
+  --app-bg: rgba(9, 8, 7, 0.70);
   --body-bg:
     radial-gradient(circle at 12% 10%, rgba(255, 85, 38, 0.075), transparent 38%),
     radial-gradient(#24201c 1px, transparent 1px),
-    #030303;
+    rgba(3, 3, 3, 0.65);
   --body-bg-size: auto, 20px 20px, auto;
   --sidebar-active-bg: #ff5526;
   --sidebar-active-text: #ffffff;
@@ -203,7 +203,7 @@
 
 /* ---------- 4. SWISS ONYX (Dark Pitch-Black Architectural Grid) ---------- */
 :root[data-theme="onyx"] {
-  --c-canvas: #020302;
+  --c-canvas: rgba(2, 3, 2, 0.78);
   --c-surface: #0a0c0a;
   --c-surface-2: #111411;
   --c-surface-3: #1a1f1a;
@@ -229,11 +229,11 @@
   --c-keycap-accent-shadow: 2.5px 3px 0px #000000, 0 0 0 1px #a3e635, 2.5px 3px 0px 1px #48730b, 0 1px 0 rgba(255, 255, 255, 0.38) inset;
   --c-keycap-active: 0 0 0 transparent, 0 1px 3px rgba(0, 0, 0, 0.75) inset;
 
-  --app-bg: rgba(7, 8, 7, 0.95);
+  --app-bg: rgba(7, 8, 7, 0.70);
   --body-bg:
     linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    #020302;
+    rgba(2, 3, 2, 0.65);
   --body-bg-size: 32px 32px, 32px 32px, auto;
   --sidebar-active-bg: #a3e635;
   --sidebar-active-text: #000000;

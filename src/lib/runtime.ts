@@ -25,6 +25,7 @@ export interface ElectronAPI {
   toggleMaximizeWindow: () => Promise<boolean>;
   isWindowMaximized: () => Promise<boolean>;
   closeWindow: () => Promise<boolean>;
+  setTitleBarTheme?: (themeName: string) => Promise<void>;
   onWindowCloseRequested?: (callback: () => void) => () => void;
   onMaximizeChange?: (callback: (isMaximized: boolean) => void) => () => void;
   onMainWindowLifecycle?: (callback: (data: { state: 'minimized' | 'restored' | 'closed' }) => void) => () => void;

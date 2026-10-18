@@ -51,6 +51,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('window:is-maximized'),
   closeWindow: () =>
     ipcRenderer.invoke('window:close'),
+  setTitleBarTheme: (themeName) =>
+    ipcRenderer.invoke('window:set-titlebar-theme', themeName),
   onWindowCloseRequested: (callback) => {
     const handler = () => callback();
     ipcRenderer.on('window:request-close', handler);
