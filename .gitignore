@@ -36,5 +36,6 @@ public/vad/
 
 # Lightweight export bundles & review dumps
 review.txt
+review-bundles/
 *.zip
 

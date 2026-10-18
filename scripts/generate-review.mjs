@@ -26,7 +26,7 @@ const PROJECT_ROOT = path.resolve(__dirname, '..');
 const WORKSPACE_ROOT = path.resolve(PROJECT_ROOT, '..');
 const ARTIFACT_DIR = String.raw`C:\Users\Saran\.gemini\antigravity\brain\76401ca6-b123-4950-81c5-c79e0e7a48d5`;
 
-const EXCLUDE_REGEX = /^(package-lock\.json|public\/|dist\/|dist-electron\/|release\/|\.agents\/)/i;
+const EXCLUDE_REGEX = /^(package-lock\.json|public\/|dist\/|dist-electron\/|release\/|\.agents\/|review-bundles\/)/i;
 const BINARY_EXTENSIONS = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.ico', '.webp',
   '.onnx', '.wasm', '.bin', '.tar', '.gz', '.zip',
@@ -105,9 +105,126 @@ export function generateReview(silent = false) {
     }
   }
 
+  // --- Generate Domain-Specific Review Bundles (Claude-Friendly < 350KB chunks) ---
+  const viewFiles = new Set([
+    'src/components/Today.tsx',
+    'src/components/Analytics.tsx',
+    'src/components/PageView.tsx',
+    'src/components/Review.tsx',
+    'src/components/Calendar.tsx',
+    'src/components/Journal.tsx',
+    'src/components/Settings.tsx',
+    'src/components/TaskManager.tsx',
+    'src/components/OnboardingWelcome.tsx',
+    'src/components/CategoryView.tsx',
+    'src/components/PagesList.tsx',
+  ]);
+
+  const domainCategories = {
+    '00-README-and-docs.txt': (f) => f.endsWith('.md') && !f.includes('/'),
+    '01-desktop-and-core.txt': (f) => f.startsWith('electron/') || f.startsWith('src/db/') || f === 'src/App.tsx' || f === 'src/main.tsx' || f === 'src/types.ts' || f.startsWith('scripts/'),
+    '02a-ui-views.txt': (f) => viewFiles.has(f),
+    '02b-ui-widgets-and-modals.txt': (f) => f.startsWith('src/components/') && !viewFiles.has(f),
+    '03-voice-and-audio.txt': (f) => f.startsWith('src/voice/') || f === 'src/lib/ambientSound.ts' || f === 'src/lib/soundscape.ts',
+    '04-vault-and-logic.txt': (f) => f.startsWith('src/lib/') && f !== 'src/lib/ambientSound.ts' && f !== 'src/lib/soundscape.ts',
+  };
+
+  const bundleRoots = [
+    path.join(PROJECT_ROOT, 'review-bundles'),
+    path.join(WORKSPACE_ROOT, 'review-bundles'),
+  ];
+  if (fs.existsSync(ARTIFACT_DIR)) {
+    bundleRoots.push(path.join(ARTIFACT_DIR, 'review-bundles'));
+  }
+
+  for (const bRoot of bundleRoots) {
+    try {
+      fs.mkdirSync(bRoot, { recursive: true });
+    } catch {}
+  }
+
+  for (const [bundleName, predicate] of Object.entries(domainCategories)) {
+    const bundleChunks = [];
+    for (const relPath of eligibleFiles) {
+      const norm = relPath.replace(/\\/g, '/');
+      if (predicate(norm)) {
+        const fullPath = path.join(PROJECT_ROOT, relPath);
+        if (fs.existsSync(fullPath)) {
+          try {
+            const content = fs.readFileSync(fullPath, 'utf-8');
+            bundleChunks.push(`=== FILE: ${norm} ===\n`);
+            bundleChunks.push(content);
+            if (!content.endsWith('\n')) bundleChunks.push('\n');
+            bundleChunks.push('\n');
+          } catch {}
+        }
+      }
+    }
+
+    const bundleContent = bundleChunks.join('');
+    for (const bRoot of bundleRoots) {
+      try {
+        const bundleDest = path.join(bRoot, bundleName);
+        fs.writeFileSync(bundleDest, bundleContent, 'utf-8');
+      } catch {}
+    }
+    if (!silent) {
+      const bSizeKB = (Buffer.byteLength(bundleContent, 'utf-8') / 1024).toFixed(1);
+      console.log(`  + Exported modular review bundle: review-bundles/${bundleName} (${bSizeKB} KB)`);
+    }
+  }
+
+  // --- Generate Clean Code-Only ZIP Archive (Zero Heavy AI Models, Claude-Friendly) ---
+  const zipName = 'focusspace-code.zip';
+  const zipTargets = [
+    path.join(PROJECT_ROOT, zipName),
+    path.join(WORKSPACE_ROOT, zipName),
+  ];
+  if (fs.existsSync(ARTIFACT_DIR)) {
+    zipTargets.push(path.join(ARTIFACT_DIR, zipName));
+  }
+
+  try {
+    const primaryZip = zipTargets[0];
+    const zipItems = [
+      'src',
+      'electron',
+      'scripts',
+      'package.json',
+      'vite.config.ts',
+      'tsconfig.json',
+      'index.html',
+      'README.md',
+      'STATUS.md',
+      'TODO.md',
+      'ROADMAP.md',
+    ];
+    // Use native Windows tar.exe to create a standard .zip archive with zero binary assets
+    execSync(`tar.exe -a -cf "${primaryZip}" ${zipItems.join(' ')}`, {
+      cwd: PROJECT_ROOT,
+      stdio: 'ignore',
+    });
+
+    if (fs.existsSync(primaryZip)) {
+      const zipSizeKB = (fs.statSync(primaryZip).size / 1024).toFixed(1);
+      for (let i = 1; i < zipTargets.length; i++) {
+        try {
+          fs.copyFileSync(primaryZip, zipTargets[i]);
+        } catch {}
+      }
+      if (!silent) {
+        console.log(`  + Exported Code-Only ZIP archive: ${zipName} (${zipSizeKB} KB)`);
+      }
+    }
+  } catch (zipErr) {
+    if (!silent) {
+      console.warn('  ! Note: Could not create code-only zip archive:', zipErr.message);
+    }
+  }
+
   const finalSizeMB = (Buffer.byteLength(reviewContent, 'utf-8') / (1024 * 1024)).toFixed(2);
   if (!silent) {
-    console.log(`[SUCCESS] Option 2 Standard: ${fileCount} code files bundled into review.txt (${finalSizeMB} MB).\n`);
+    console.log(`[SUCCESS] Option 2 Standard: ${fileCount} code files bundled into review.txt (${finalSizeMB} MB) + modular bundles + code-only zip.\n`);
   }
   return true;
 }
