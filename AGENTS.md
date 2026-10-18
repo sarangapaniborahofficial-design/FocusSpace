@@ -5,12 +5,12 @@ These guidelines are loaded automatically by Antigravity on every interaction in
 ---
 
 ## 🛡️ Git & Version Control Invariants
-- **NEVER execute `git commit` or `git push`**: All staging, committing, and pushing is reserved exclusively for the user via GitHub Desktop.
-- **Automatic Milestone Wrap-up**: At the conclusion of every implementation, refactor, or sprint, automatically:
+- **Automated Commits Enabled**: When finishing implementations, refactors, or milestones, stage all files and execute `git commit` on your own with a conventional commit message.
+- **NEVER execute `git push`**: Remote pushing to GitHub is reserved exclusively for the user via GitHub Desktop or terminal.
+- **Automatic Milestone Wrap-up**: At the conclusion of every implementation, refactor, or sprint:
   1. Verify zero regressions: execute `npm test` and `npm run build`.
-  2. Provide a **Conventional Commit Title** (e.g., `feat(...)` or `fix(...)`).
-  3. Provide a structured **Commit Summary** formatted for GitHub Desktop's description box.
-  4. Keep [`STATUS.md`](file:///D:/focusspace-phase75/FocusSpace/STATUS.md) and [`TODO.md`](file:///D:/focusspace-phase75/FocusSpace/TODO.md) up to date without needing explicit reminders.
+  2. Execute `git commit` with a clean, conventional commit title and structured description.
+  3. Keep [`STATUS.md`](file:///D:/focusspace-phase75/FocusSpace/STATUS.md) and [`TODO.md`](file:///D:/focusspace-phase75/FocusSpace/TODO.md) up to date without needing explicit reminders.
 
 ---
 

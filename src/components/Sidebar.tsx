@@ -15,6 +15,7 @@ import {
   FolderKanban,
   GraduationCap,
   Home,
+  ListTodo,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
@@ -238,10 +239,17 @@ export function Sidebar({
               <NavItem
                 compact={false}
                 icon={Home}
-                label="Home / Master"
+                label="Today"
                 badge={totalOpen > 0 ? String(totalOpen) : undefined}
                 active={active === 'home'}
                 onClick={() => setActive('home')}
+              />
+              <NavItem
+                compact={false}
+                icon={ListTodo}
+                label="Plan"
+                active={active === 'plan'}
+                onClick={() => setActive('plan')}
               />
               <NavItem
                 compact={false}

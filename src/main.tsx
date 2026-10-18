@@ -16,6 +16,10 @@ if (typeof window !== 'undefined') {
 }
 
 const isHudWindow = typeof window !== 'undefined' && window.location.search.includes('window=hud');
+if (isHudWindow && typeof document !== 'undefined') {
+  document.documentElement.classList.add('hud-window');
+  document.body.classList.add('hud-window');
+}
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

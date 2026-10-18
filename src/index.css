@@ -258,6 +258,15 @@ body {
   letter-spacing: -0.011em;
   position: relative;
 }
+html.hud-window,
+body.hud-window {
+  background: transparent !important;
+  background-color: transparent !important;
+  overflow: hidden !important;
+}
+body.hud-window::before {
+  display: none !important;
+}
 body::before {
   content: "";
   position: fixed;

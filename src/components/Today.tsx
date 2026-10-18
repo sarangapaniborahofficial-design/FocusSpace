@@ -1,56 +1,63 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   AlarmClock,
+  AlertCircle,
   ArrowUpRight,
+  Calendar,
   Check,
   CheckCircle2,
   Circle,
-  Clock3,
+  Clock,
   Flame,
   Inbox,
+  Mic,
+  Play,
   Plus,
   Sparkles,
   Target,
-  Trophy,
+  Volume2,
+  VolumeX,
   Zap,
-  Calendar,
-  Clock,
-  Hash,
-  Tag,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { db } from '../db/db';
-import { useDictation } from '../voice/useDictation';
-import { createInputTarget } from '../voice/target/inputTarget';
-import type { DictationTarget } from '../voice/target/DictationTarget';
-import { MicButton } from '../voice/ui/MicButton';
-import { DictationHud } from '../voice/ui/DictationHud';
 import { computeStreaks } from '../lib/analytics';
 import { toggleHabitDay } from '../lib/habitActions';
 import { useToday } from '../lib/hooks';
-import { parseTaskInput } from '../lib/taskParser';
 import { openTaskEditor } from '../lib/taskEditor';
-import { deleteTask, reorderTasks } from '../lib/tasks';
+import { changeStatus, deleteTask } from '../lib/tasks';
+import { focusOnTask, timer, useTimer } from '../lib/timer';
 import { toast } from '../lib/toast';
 import { buildTodayPlan } from '../lib/todayPlan';
-import { focusOnTask } from '../lib/timer';
-import { addDays, formatDuration, storage, uid } from '../lib/utils';
-import type { Category, Task } from '../types';
+import { formatDuration, isoToday, relativeDay, uid } from '../lib/utils';
+import { soundscape, useSoundscape } from '../lib/soundscape';
+import { useDictation } from '../voice/useDictation';
+import type { Category, Subtask, Task } from '../types';
 import { DailyBriefing } from './DailyBriefing';
-import { Pomodoro } from './Pomodoro';
 import { SmartScheduleModal } from './SmartScheduleModal';
-import { TaskCard } from './TaskCard';
-import { EmptyState, Ring } from './ui';
+import { Ring } from './ui';
 
 const nowTime = () => {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+};
+
 type QueueTab = 'all' | 'today' | 'overdue' | 'done';
 
-/** Home. Answers "what should I do today?" directly: a single suggestion, then overdue, due-today and done. */
-export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNavigate?: (view: string) => void }) {
+export function Today({
+  onQuickAdd,
+  onNavigate,
+}: {
+  onQuickAdd: () => void;
+  onNavigate?: (view: string) => void;
+}) {
   const today = useToday();
   const tasks = useLiveQuery(() => db.tasks.toArray(), []);
   const habits = useLiveQuery(() => db.habits.filter(h => h.active).toArray(), []) ?? [];
@@ -63,405 +70,483 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
   const completionRatio = totalCount > 0 ? plan.done.length / totalCount : 0;
   const habitsDone = habits.filter(h => h.completions.includes(today)).length;
 
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
-  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [queueTab, setQueueTab] = useState<QueueTab>('all');
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [inlineNewTask, setInlineNewTask] = useState('');
 
-  // Resizable Right Column Width (Pomodoro & Habits)
-  const [rightColWidth, setRightColWidth] = useState(() => {
-    const v = parseInt(storage.get('focusspace-today-right-width') || '360', 10);
-    return isNaN(v) ? 360 : Math.max(280, Math.min(560, v));
-  });
-  const [isWorkspaceDragging, setIsWorkspaceDragging] = useState(false);
+  const timerState = useTimer();
+  const activeTaskFromTimer = useLiveQuery(
+    () => (timerState.taskId ? db.tasks.get(timerState.taskId) : undefined),
+    [timerState.taskId]
+  );
 
-  const handleWorkspaceResizeDown = (e: React.PointerEvent) => {
+  // Inspector Focus Task: active timer task OR user-selected task OR next suggested task OR first open task
+  const inspectorTask = useMemo(() => {
+    if (activeTaskFromTimer) return activeTaskFromTimer;
+    if (selectedTaskId && tasks) {
+      const found = tasks.find(t => t.id === selectedTaskId);
+      if (found) return found;
+    }
+    if (plan.next?.task) return plan.next.task;
+    return plan.today[0] || plan.overdue[0] || tasks?.[0] || null;
+  }, [activeTaskFromTimer, selectedTaskId, tasks, plan]);
+
+  const inspectorCat = inspectorTask ? catMap.get(inspectorTask.categoryId) : null;
+  const inspectorSubtasks = inspectorTask?.subtasks || [];
+  const completedSubtasksCount = inspectorSubtasks.filter(s => s.completed).length;
+  const subtaskProgressPct =
+    inspectorSubtasks.length > 0
+      ? Math.round((completedSubtasksCount / inspectorSubtasks.length) * 100)
+      : 0;
+
+  const handleToggleSubtask = async (subtaskId: string) => {
+    if (!inspectorTask) return;
+    const updated = inspectorSubtasks.map(s =>
+      s.id === subtaskId ? { ...s, completed: !s.completed } : s
+    );
+    await db.tasks.update(inspectorTask.id, {
+      subtasks: updated,
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  const handleScratchpadChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (!inspectorTask) return;
+    const val = e.target.value;
+    await db.tasks.update(inspectorTask.id, {
+      notes: val,
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  const handleStartTask = (t: Task) => {
+    focusOnTask(t);
+    toast(`Focus started on "${t.title}"`, 'success');
+  };
+
+  const handleToggleTaskStatus = async (t: Task) => {
+    const nextStatus = t.status === 'Submitted/Done' ? 'To Do' : 'Submitted/Done';
+    await changeStatus(t, nextStatus);
+  };
+
+  const handleInlineCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsWorkspaceDragging(true);
-    const startX = e.clientX;
-    const startWidth = rightColWidth;
+    const title = inlineNewTask.trim();
+    if (!title) return;
+    const targetCat = cats[0];
+    if (!targetCat) return;
 
-    const onPointerMove = (ev: PointerEvent) => {
-      const delta = startX - ev.clientX;
-      const newWidth = Math.max(280, Math.min(560, startWidth + delta));
-      setRightColWidth(newWidth);
+    const newTask: Task = {
+      id: uid(),
+      title,
+      categoryId: targetCat.id,
+      projectTag: targetCat.name,
+      priority: 'Medium',
+      status: 'To Do',
+      estimatedDuration: 30,
+      dueDate: today,
+      dueTime: '',
+      subtasks: [],
+      notes: '',
+      colorCode: targetCat.color,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
-
-    const onPointerUp = (ev: PointerEvent) => {
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      setIsWorkspaceDragging(false);
-      const delta = startX - ev.clientX;
-      const finalWidth = Math.max(280, Math.min(560, startWidth + delta));
-      storage.set('focusspace-today-right-width', String(finalWidth));
-    };
-
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
+    await db.tasks.add(newTask);
+    toast(`Added "${title}" to Today`, 'success');
+    setInlineNewTask('');
   };
 
-  const handleTodayDrop = async (targetId: string) => {
-    if (!dragId || dragId === targetId) return;
-    const currentIds = plan.today.map(t => t.id);
-    const fromIdx = currentIds.indexOf(dragId);
-    const toIdx = currentIds.indexOf(targetId);
-    if (fromIdx === -1 || toIdx === -1) return;
-    const updated = [...currentIds];
-    updated.splice(fromIdx, 1);
-    updated.splice(toIdx, 0, dragId);
-    await reorderTasks(updated);
-    setDragId(null);
-    setOverId(null);
-  };
+  const currentSoundscape = useSoundscape();
+  const { isListening, toggle: toggleDictation } = useDictation();
 
-  const update = useCallback((task: Task) => db.tasks.put(task), []);
-  const onDeleteTask = useCallback((t: Task) => void deleteTask(t), []);
-  const onStartTask = useCallback((t: Task) => focusOnTask(t), []);
+  const formattedDate = useMemo(() => {
+    return new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    });
+  }, []);
 
-  const card = (t: Task, isReorderable = false) => {
-    const cardEl = (
-      <TaskCard
-        key={t.id}
-        task={t}
-        category={catMap.get(t.categoryId)}
-        onUpdate={update}
-        onDelete={() => onDeleteTask(t)}
-        onStart={() => onStartTask(t)}
-        dragging={dragId === t.id}
-        onDragStart={
-          isReorderable
-            ? e => {
-                e.dataTransfer.setData('text/plain', t.id);
-                e.dataTransfer.effectAllowed = 'move';
-                setDragId(t.id);
-              }
-            : undefined
-        }
-        onDragEnd={
-          isReorderable
-            ? () => {
-                setDragId(null);
-                setOverId(null);
-              }
-            : undefined
-        }
-      />
-    );
-
-    if (!isReorderable) return cardEl;
-
-    return (
-      <div
-        key={t.id}
-        onDragOver={e => {
-          if (dragId && dragId !== t.id) {
-            e.preventDefault();
-            if (overId !== t.id) setOverId(t.id);
-          }
-        }}
-        onDragLeave={e => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOverId(null);
-        }}
-        onDrop={e => {
-          e.preventDefault();
-          void handleTodayDrop(t.id);
-        }}
-        className={`transition-[box-shadow] rounded-2xl ${overId === t.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-surface' : ''}`}
-      >
-        {cardEl}
-      </div>
-    );
-  };
-
-  const last7Days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(today, -(6 - i))), [today]);
+  // Filtered task rows
+  const taskRows = useMemo(() => {
+    if (queueTab === 'today') return plan.today;
+    if (queueTab === 'overdue') return plan.overdue;
+    if (queueTab === 'done') return plan.done;
+    return [...plan.overdue, ...plan.today, ...plan.done];
+  }, [queueTab, plan]);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-[1560px] mx-auto space-y-6">
-      {/* Dynamic Time-Aware Daily Briefing Card */}
-      <DailyBriefing
-        today={today}
-        openCount={openCount}
-        totalCount={totalCount}
-        completionRatio={completionRatio}
-        plannedMinutes={plan.plannedMinutes}
-        habitsDone={habitsDone}
-        totalHabits={habits.length}
-        nextTask={plan.next}
-        onNavigate={onNavigate}
-        onOpenSchedule={() => setScheduleOpen(true)}
-      />
+    <div className="w-full h-full flex flex-col xl:flex-row gap-2 overflow-hidden select-none font-['Space_Grotesk',sans-serif]">
+      {/* Center Island: Island 2 (Main Today Tasks & Spotlight) */}
+      <div className="flex-1 min-w-0 bg-[#111411] border border-[#2a302a]/70 rounded-2xl p-5 sm:p-6 flex flex-col overflow-y-auto relative shadow-pop">
+        {/* Subtle Top Gradient Header matching screen_1.html */}
+        <div className="shrink-0 mb-4 pb-2">
+          <div className="text-2xl sm:text-3xl font-bold tracking-tight text-[#f2f4ef]">
+            {getGreeting()}
+          </div>
+          <div className="text-sm text-[#a3aaa0] mt-1 flex flex-wrap items-center gap-2">
+            <span>{formattedDate}</span>
+            <span>·</span>
+            <span className="font-mono text-[#f2f4ef] font-semibold">{openCount} open tasks</span>
+            <span>·</span>
+            <span className="font-mono text-[#c8ff29]">{formatDuration(plan.plannedMinutes)} planned</span>
+          </div>
 
-      {/* Main 2-Column Workspace with Drag-Resizable Split */}
-      <div
-        className={`flex flex-col xl:flex-row gap-6 xl:gap-0 items-start w-full relative ${
-          isWorkspaceDragging ? 'select-none transition-none' : 'transition-all duration-300 ease-out'
-        }`}
-      >
-        <div className="flex-1 min-w-0 space-y-6 w-full xl:pr-5">
-          {/* Quick Capture Bar */}
-          <TodayQuickCapture categories={cats} today={today} />
+          {/* Filter Pills */}
+          <div className="flex flex-wrap items-center gap-2 mt-4">
+            <button
+              onClick={() => setQueueTab('all')}
+              className={`px-3 py-1 rounded-full text-xs font-semibold cursor-pointer transition ${
+                queueTab === 'all'
+                  ? 'bg-[#f2f4ef] text-[#0a0c0a]'
+                  : 'bg-[#1d221d] text-[#a3aaa0] hover:text-[#f2f4ef]'
+              }`}
+            >
+              All {totalCount}
+            </button>
+            <button
+              onClick={() => setQueueTab('today')}
+              className={`px-3 py-1 rounded-full text-xs font-semibold cursor-pointer transition ${
+                queueTab === 'today'
+                  ? 'bg-[#f2f4ef] text-[#0a0c0a]'
+                  : 'bg-[#1d221d] text-[#a3aaa0] hover:text-[#f2f4ef]'
+              }`}
+            >
+              Due today {plan.today.length}
+            </button>
+            <button
+              onClick={() => setQueueTab('overdue')}
+              className={`px-3 py-1 rounded-full text-xs font-semibold cursor-pointer transition ${
+                queueTab === 'overdue'
+                  ? 'bg-[#f2f4ef] text-[#0a0c0a]'
+                  : 'bg-[#1d221d] text-[#a3aaa0] hover:text-[#f2f4ef]'
+              }`}
+            >
+              Overdue {plan.overdue.length}
+            </button>
+            <button
+              onClick={() => setQueueTab('done')}
+              className={`px-3 py-1 rounded-full text-xs font-semibold cursor-pointer transition ${
+                queueTab === 'done'
+                  ? 'bg-[#f2f4ef] text-[#0a0c0a]'
+                  : 'bg-[#1d221d] text-[#a3aaa0] hover:text-[#f2f4ef]'
+              }`}
+            >
+              Done {plan.done.length}
+            </button>
 
-          {/* "Do this next" Suggestion */}
-          {tasks !== undefined && plan.next && (
-            <section className="atelier-card rounded-3xl p-4 sm:p-5 border-l-4 border-l-accent flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-              <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                <span className="size-10 rounded-2xl bg-accent text-accent-fg grid place-items-center shrink-0 keycap">
-                  <Sparkles size={18} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[11px] font-mono uppercase tracking-wider text-fg-muted truncate">
-                    Do this next · <span className="text-accent-text">{plan.next.reason}</span>
-                  </div>
-                  <button
-                    onClick={() => openTaskEditor(plan.next!.task.id)}
-                    className="font-semibold text-base sm:text-lg text-fg hover:underline underline-offset-4 truncate block text-left mt-0.5 max-w-full"
-                  >
-                    {plan.next.task.title}
-                  </button>
-                </div>
-              </div>
+            {openCount > 0 && (
               <button
-                onClick={() => focusOnTask(plan.next!.task)}
-                className="shrink-0 h-9 px-4 rounded-xl bg-accent text-accent-fg text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-accent-hover keycap"
+                onClick={() => setScheduleOpen(true)}
+                className="ml-auto px-3 py-1 rounded-full bg-[#1d221d] hover:bg-[#2a302a] text-xs font-medium text-[#c8ff29] flex items-center gap-1 cursor-pointer transition border border-[#2a302a]"
               >
-                Focus
+                <Zap size={12} />
+                <span>Smart Schedule</span>
               </button>
-            </section>
-          )}
+            )}
+          </div>
+        </div>
 
-          {/* Today's Focus Tasks */}
-          <section className="atelier-card rounded-3xl overflow-hidden">
-            <div className="p-5 border-b border-line flex flex-wrap justify-between items-center gap-3 bg-surface-2/40">
-              <div className="flex items-center gap-3">
-                <div className="font-semibold text-base">Today's Focus Tasks</div>
-                <span className="text-xs text-fg-subtle font-mono tabular-nums">
-                  {openCount ? `${formatDuration(plan.plannedMinutes)} planned` : `${plan.done.length} done`}
-                </span>
+        {/* Up Next Banner Spotlight Card */}
+        {plan.next && (
+          <div className="shrink-0 mb-5 bg-[#1d221d] border border-[#2a302a] rounded-xl p-3.5 sm:p-4 flex items-center justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-mono uppercase tracking-wider text-[#c8ff29] font-bold">
+                Up next {plan.next.reason ? `· ${plan.next.reason}` : ''}
               </div>
+              <div
+                onClick={() => {
+                  setSelectedTaskId(plan.next!.task.id);
+                  openTaskEditor(plan.next!.task.id);
+                }}
+                className="font-bold text-base sm:text-lg text-[#f2f4ef] truncate mt-0.5 cursor-pointer hover:underline underline-offset-4"
+              >
+                {plan.next.task.title}
+              </div>
+            </div>
+            <button
+              onClick={() => handleStartTask(plan.next!.task)}
+              className="shrink-0 h-9 px-4 rounded-full bg-[#c8ff29] hover:bg-[#b8ef1d] text-[#0a0c0a] font-bold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer transition shadow-sm"
+            >
+              <Play size={13} fill="currentColor" />
+              <span>Start focus</span>
+            </button>
+          </div>
+        )}
 
-              <div className="flex flex-wrap items-center gap-2">
-                {totalCount > 0 && (
-                  <div className="flex items-center p-1 rounded-xl bg-surface border border-line text-xs">
-                    {(
-                      [
-                        ['all', `All (${totalCount})`],
-                        ['today', `Due today (${plan.today.length})`],
-                        ...(plan.overdue.length > 0 ? [['overdue', `Overdue (${plan.overdue.length})`]] : []),
-                        ['done', `Done (${plan.done.length})`],
-                      ] as [QueueTab, string][]
-                    ).map(([id, label]) => (
-                      <button
-                        key={id}
-                        onClick={() => setQueueTab(id)}
-                        className={`px-2.5 py-1 rounded-lg text-xs transition ${
-                          queueTab === id ? 'bg-inv text-on-inv font-semibold' : 'text-fg-muted hover:text-fg'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                )}
+        {/* Task Table Header */}
+        <div className="grid grid-cols-[1fr_120px_90px_100px] gap-3 px-3 py-2 text-[11px] uppercase tracking-wider font-mono text-[#7f877c] border-b border-[#2a302a]/60 shrink-0">
+          <span>Task</span>
+          <span>Category</span>
+          <span>Priority</span>
+          <span className="text-right">Due</span>
+        </div>
 
-                {openCount > 0 && (
-                  <button
-                    onClick={() => setScheduleOpen(true)}
-                    className="h-9 px-3 rounded-xl border border-line bg-surface hover:bg-hover text-xs font-medium text-fg flex items-center gap-1.5 transition keycap"
-                    title="Generate an AI-optimized schedule"
-                  >
-                    <Zap size={13} className="text-accent-text" /> Smart Schedule
-                  </button>
-                )}
-                <button
-                  onClick={onQuickAdd}
-                  className="h-9 px-3 rounded-xl bg-accent text-accent-fg text-xs font-semibold hover:bg-accent-hover flex items-center gap-1.5 transition keycap"
+        {/* Task Table Rows */}
+        <div className="flex-1 overflow-y-auto divide-y divide-[#2a302a]/40">
+          {taskRows.length === 0 ? (
+            <div className="text-center py-12 text-[#7f877c] text-sm">
+              No tasks in this view.
+            </div>
+          ) : (
+            taskRows.map(t => {
+              const cat = catMap.get(t.categoryId);
+              const isDone = t.status === 'Submitted/Done';
+              const isSelected = inspectorTask?.id === t.id;
+              const isTaskOverdue = t.dueDate && t.dueDate < today && !isDone;
+
+              return (
+                <div
+                  key={t.id}
+                  onClick={() => setSelectedTaskId(t.id)}
+                  className={`grid grid-cols-[1fr_120px_90px_100px] gap-3 px-3 py-3 rounded-lg items-center text-sm cursor-pointer transition ${
+                    isSelected
+                      ? 'bg-[#1d221d] text-[#f2f4ef]'
+                      : 'text-[#a3aaa0] hover:bg-[#161a16] hover:text-[#f2f4ef]'
+                  }`}
                 >
-                  <Plus size={14} /> Add Task
-                </button>
-              </div>
-            </div>
-
-            <div className="p-4 space-y-5">
-              {tasks === undefined ? (
-                <div className="space-y-2.5" aria-busy="true">
-                  <div className="skeleton h-[76px]" />
-                  <div className="skeleton h-[76px]" />
-                </div>
-              ) : openCount === 0 && plan.done.length === 0 ? (
-                <EmptyState
-                  icon={Inbox}
-                  title="Nothing on the books today"
-                  text="Enjoy the breathing room, or pull something forward."
-                  action={
+                  {/* Task Column with Checkbox */}
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <button
-                      onClick={onQuickAdd}
-                      className="h-9 px-4 rounded-xl bg-accent text-accent-fg text-sm font-semibold flex items-center gap-1.5 keycap"
-                    >
-                      <Plus size={15} /> Add a task
-                    </button>
-                  }
-                />
-              ) : (
-                <>
-                  {(queueTab === 'all' || queueTab === 'overdue') && plan.overdue.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-1.5 text-xs font-medium text-rose-500 mb-2.5 px-1">
-                        <AlarmClock size={13} /> Overdue · {plan.overdue.length}
-                      </div>
-                      <div className="space-y-2">{plan.overdue.map(t => card(t))}</div>
-                    </div>
-                  )}
-
-                  {(queueTab === 'all' || queueTab === 'today') && plan.today.length > 0 && (
-                    <div>
-                      {plan.overdue.length > 0 && queueTab === 'all' && (
-                        <div className="text-xs font-medium text-fg-muted mb-2.5 mt-2 px-1">Due today</div>
-                      )}
-                      <div className="space-y-2">{plan.today.map(t => card(t, true))}</div>
-                    </div>
-                  )}
-
-                  {(queueTab === 'all' || queueTab === 'done') && plan.done.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-1.5 text-xs font-medium text-fg-subtle mb-2.5 mt-2 px-1">
-                        <CheckCircle2 size={13} className="text-emerald-500" /> Done today · {plan.done.length}
-                      </div>
-                      <div className="space-y-2">{plan.done.map(t => card(t))}</div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </section>
-
-          {/* Coming up */}
-          {plan.upcoming.length > 0 && (
-            <section className="atelier-card rounded-3xl overflow-hidden">
-              <div className="p-4 px-5 border-b border-line flex items-center justify-between bg-surface-2/30">
-                <span className="font-semibold text-sm text-fg">Coming up</span>
-                <span className="text-xs font-mono text-fg-muted">{plan.upcoming.length} scheduled</span>
-              </div>
-              <div className="p-4 space-y-2">{plan.upcoming.map(t => card(t))}</div>
-            </section>
-          )}
-
-          {/* Active Goals */}
-          <GoalsSection />
-        </div>
-
-        {/* Workspace Drag-Resize Handle (xl+) */}
-        <div
-          onPointerDown={handleWorkspaceResizeDown}
-          onDoubleClick={() => {
-            setRightColWidth(360);
-            storage.set('focusspace-today-right-width', '360');
-          }}
-          className="hidden xl:flex self-stretch w-3.5 cursor-col-resize group relative z-20 items-center justify-center hover:bg-accent/20 active:bg-accent/30 transition select-none shrink-0"
-          title="Drag to resize workspace columns (Double-click to reset to 360px)"
-        >
-          <div className="w-[2px] h-36 rounded-full bg-line-strong/60 group-hover:bg-accent group-hover:h-52 transition-all" />
-        </div>
-
-        {/* Right Column: Pomodoro + Daily habits */}
-        <div
-          style={{ width: `${rightColWidth}px` }}
-          className="w-full xl:w-auto shrink-0 space-y-6 xl:pl-5"
-        >
-          <Pomodoro />
-
-          <section className="atelier-card rounded-3xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2 font-semibold text-base">
-                <Target size={16} className="text-accent-text" /> Daily habits
-              </div>
-              {habits.length > 0 && (
-                <div className="flex items-center gap-2 text-xs text-fg-muted">
-                  <span className="tabular-nums">
-                    {habitsDone} of {habits.length}
-                  </span>
-                  <Ring value={habitsDone / habits.length} size={24} stroke={3.5} />
-                </div>
-              )}
-            </div>
-
-            {habits.length === 0 ? (
-              <EmptyState
-                compact
-                icon={Target}
-                title="No active habits yet"
-                text="Add a habit from Settings to see one-tap check-ins here."
-              />
-            ) : (
-              <div className="space-y-2.5">
-                {habits.map(h => {
-                  const done = h.completions.includes(today);
-                  const streak = computeStreaks(h.completions, today).current;
-                  return (
-                    <button
-                      key={h.id}
-                      onClick={() => void toggleHabitDay(h.id, today)}
-                      aria-pressed={done}
-                      className={`w-full text-left p-3.5 rounded-2xl border transition-[background-color,border-color,box-shadow,opacity] duration-150 flex items-center justify-between gap-3 ${
-                        done
-                          ? 'border-line-strong bg-surface-2 keycap'
-                          : 'border-line bg-surface hover:bg-hover'
+                      type="button"
+                      onClick={async e => {
+                        e.stopPropagation();
+                        await handleToggleTaskStatus(t);
+                      }}
+                      className={`size-4 rounded border flex items-center justify-center shrink-0 transition ${
+                        isDone
+                          ? 'bg-[#c8ff29] border-[#c8ff29] text-[#0a0c0a]'
+                          : 'border-[#7f877c] hover:border-[#f2f4ef]'
                       }`}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span
-                          className="size-9 rounded-xl grid place-items-center shrink-0 transition-transform"
-                          style={{
-                            background: done ? h.color : `${h.color}18`,
-                            color: done ? '#0b0d10' : h.color,
-                          }}
-                        >
-                          {done ? <Check size={17} strokeWidth={2.5} /> : <Circle size={16} />}
-                        </span>
-                        <div className="min-w-0">
-                          <div className={`text-sm font-medium truncate ${done ? 'text-fg' : 'text-fg-soft'}`}>
-                            {h.name}
-                          </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <div className="flex items-center gap-1" aria-hidden="true">
-                              {last7Days.map(d => {
-                                const hit = h.completions.includes(d);
-                                return (
-                                  <span
-                                    key={d}
-                                    className="size-1.5 rounded-full"
-                                    style={{ background: hit ? h.color : 'var(--c-line-strong)' }}
-                                  />
-                                );
-                              })}
-                            </div>
-                            {h.targetLabel && (
-                              <span className="text-xs text-fg-subtle">· {h.targetLabel}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {streak > 0 && (
-                        <span
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface border border-line text-xs text-fg-muted tabular-nums shrink-0"
-                          title={`${streak}-day streak`}
-                        >
-                          <Flame size={12} className="text-amber-500" />
-                          {streak}
-                        </span>
-                      )}
+                      {isDone && <Check size={11} strokeWidth={3} />}
                     </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
+                    <span
+                      onClick={e => {
+                        e.stopPropagation();
+                        openTaskEditor(t.id);
+                      }}
+                      className={`truncate font-medium hover:underline underline-offset-2 ${
+                        isDone ? 'line-through text-[#7f877c]' : 'text-[#f2f4ef]'
+                      }`}
+                    >
+                      {t.title}
+                    </span>
+                  </div>
+
+                  {/* Category Column */}
+                  <div className="truncate text-xs flex items-center gap-1.5">
+                    {cat && (
+                      <span
+                        className="size-2 rounded-full shrink-0"
+                        style={{ backgroundColor: cat.color }}
+                      />
+                    )}
+                    <span className="truncate">{cat ? cat.name : '—'}</span>
+                  </div>
+
+                  {/* Priority Column */}
+                  <div className="text-xs">
+                    <span
+                      className={`font-medium ${
+                        t.priority === 'Urgent'
+                          ? 'text-[#ff6b6b] font-bold'
+                          : t.priority === 'High'
+                          ? 'text-amber-400'
+                          : 'text-[#a3aaa0]'
+                      }`}
+                    >
+                      {t.priority}
+                    </span>
+                  </div>
+
+                  {/* Due Column */}
+                  <div className="text-right text-xs font-mono">
+                    <span
+                      className={
+                        isTaskOverdue
+                          ? 'text-[#ff6b6b] font-semibold'
+                          : isDone
+                          ? 'text-[#7f877c]'
+                          : 'text-[#a3aaa0]'
+                      }
+                    >
+                      {isTaskOverdue ? 'Overdue' : t.dueDate ? relativeDay(t.dueDate) : '—'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
+
+        {/* Quick Add at bottom */}
+        <form onSubmit={handleInlineCreate} className="mt-3 pt-3 border-t border-[#2a302a]/60 shrink-0 flex gap-2">
+          <input
+            type="text"
+            value={inlineNewTask}
+            onChange={e => setInlineNewTask(e.target.value)}
+            placeholder="Add a task to Today and press Enter..."
+            className="flex-1 bg-[#1d221d] border border-[#2a302a] rounded-lg px-3 py-1.5 text-xs text-[#f2f4ef] placeholder-[#7f877c] outline-none focus:border-[#c8ff29]/60 transition"
+          />
+          <button
+            type="submit"
+            disabled={!inlineNewTask.trim()}
+            className="px-3 py-1.5 rounded-lg bg-[#c8ff29] hover:bg-[#b8ef1d] text-[#0a0c0a] font-bold text-xs cursor-pointer transition disabled:opacity-40"
+          >
+            <Plus size={14} />
+          </button>
+        </form>
       </div>
+
+      {/* Right Island: Island 3 (This Session Inspector, Scratchpad & Ambient Sound) */}
+      <aside className="w-full xl:w-[320px] shrink-0 bg-[#111411] border border-[#2a302a]/70 rounded-2xl p-5 flex flex-col gap-4 overflow-y-auto shadow-pop">
+        {/* Header */}
+        <div className="text-[11px] font-mono uppercase tracking-wider text-[#7f877c] font-bold">
+          This session
+        </div>
+
+        {inspectorTask ? (
+          <>
+            <div>
+              <div
+                onClick={() => openTaskEditor(inspectorTask.id)}
+                className="font-bold text-lg text-[#f2f4ef] truncate cursor-pointer hover:underline underline-offset-4"
+              >
+                {inspectorTask.title}
+              </div>
+              <div className="text-xs text-[#a3aaa0] mt-0.5 truncate">
+                {inspectorCat ? inspectorCat.name : 'General'} · #{inspectorTask.projectTag || 'Focus'} ·{' '}
+                {inspectorTask.estimatedDuration || 30}m
+              </div>
+            </div>
+
+            {/* Subtasks Section & Progress Bar */}
+            <div className="bg-[#1d221d] border border-[#2a302a] rounded-xl p-3.5 space-y-2.5">
+              <div className="flex justify-between items-center text-xs text-[#a3aaa0]">
+                <span>Subtasks</span>
+                <span className="font-mono text-[#f2f4ef]">
+                  {completedSubtasksCount}/{inspectorSubtasks.length}
+                </span>
+              </div>
+              <div className="h-1.5 bg-[#2a302a] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#c8ff29] rounded-full transition-all duration-300"
+                  style={{ width: `${subtaskProgressPct}%` }}
+                />
+              </div>
+
+              {inspectorSubtasks.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  {inspectorSubtasks.slice(0, 4).map(s => (
+                    <div
+                      key={s.id}
+                      onClick={() => handleToggleSubtask(s.id)}
+                      className="flex items-center gap-2 text-xs cursor-pointer text-[#a3aaa0] hover:text-[#f2f4ef]"
+                    >
+                      <button
+                        type="button"
+                        className={`size-3.5 rounded border flex items-center justify-center shrink-0 ${
+                          s.completed ? 'bg-[#c8ff29] border-[#c8ff29] text-[#0a0c0a]' : 'border-[#7f877c]'
+                        }`}
+                      >
+                        {s.completed && <Check size={10} strokeWidth={3} />}
+                      </button>
+                      <span className={`truncate ${s.completed ? 'line-through text-[#7f877c]' : ''}`}>
+                        {s.title}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Scratchpad with Live Auto-Save to Task Notes */}
+            <div className="flex-1 flex flex-col min-h-[140px]">
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="text-[11px] font-mono uppercase tracking-wider text-[#7f877c] font-bold">
+                  Scratchpad
+                </div>
+                <button
+                  onClick={toggleDictation}
+                  className={`text-[11px] flex items-center gap-1 cursor-pointer transition ${
+                    isListening ? 'text-rose-400 animate-pulse font-bold' : 'text-[#7f877c] hover:text-[#c8ff29]'
+                  }`}
+                >
+                  <Mic size={11} />
+                  <span>{isListening ? 'Listening...' : 'Dictate'}</span>
+                </button>
+              </div>
+              <textarea
+                value={inspectorTask.notes || ''}
+                onChange={handleScratchpadChange}
+                placeholder="Jot a thought. It saves to the task."
+                className="flex-1 w-full bg-[#0a0c0a] border border-[#2a302a] rounded-xl p-3 text-xs text-[#f2f4ef] placeholder-[#7f877c] outline-none focus:border-[#c8ff29]/60 transition resize-none leading-relaxed"
+              />
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-6 text-xs text-[#7f877c]">
+            No task active. Select or add a task to begin.
+          </div>
+        )}
+
+        {/* Ambient Audio Pill */}
+        <div className="pt-2 border-t border-[#2a302a]/60">
+          <button
+            onClick={() => soundscape.toggle()}
+            className="w-full flex items-center justify-between text-xs text-[#a3aaa0] hover:text-[#f2f4ef] cursor-pointer transition p-2 rounded-lg bg-[#0a0c0a] border border-[#2a302a]"
+          >
+            <div className="flex items-center gap-2">
+              {currentSoundscape.isPlaying ? (
+                <Volume2 size={13} className="text-[#c8ff29]" />
+              ) : (
+                <VolumeX size={13} className="text-[#7f877c]" />
+              )}
+              <span>Ambient: {currentSoundscape.type === 'off' ? 'Brown noise' : currentSoundscape.type}</span>
+            </div>
+            <span className="font-mono text-[11px]">
+              {currentSoundscape.isPlaying ? `${Math.round(currentSoundscape.volume * 100)}%` : 'Off'}
+            </span>
+          </button>
+        </div>
+
+        {/* Compact Daily Habits Mini-Checkin */}
+        {habits.length > 0 && (
+          <div className="pt-2 border-t border-[#2a302a]/60">
+            <div className="flex items-center justify-between text-xs text-[#7f877c] mb-2 font-mono uppercase tracking-wider">
+              <span>Daily habits</span>
+              <span>
+                {habitsDone}/{habits.length}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {habits.map(h => {
+                const done = h.completions.includes(today);
+                return (
+                  <button
+                    key={h.id}
+                    onClick={() => void toggleHabitDay(h.id, today)}
+                    className={`px-2 py-1.5 rounded-lg border text-left text-xs truncate flex items-center gap-1.5 cursor-pointer transition ${
+                      done
+                        ? 'border-[#c8ff29]/60 bg-[#c8ff29]/10 text-[#f2f4ef]'
+                        : 'border-[#2a302a] bg-[#0a0c0a] text-[#7f877c] hover:text-[#f2f4ef]'
+                    }`}
+                  >
+                    <span
+                      className="size-1.5 rounded-full shrink-0"
+                      style={{ backgroundColor: h.color }}
+                    />
+                    <span className="truncate">{h.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </aside>
 
       <SmartScheduleModal
         open={scheduleOpen}
@@ -473,194 +558,3 @@ export function Today({ onQuickAdd, onNavigate }: { onQuickAdd: () => void; onNa
     </div>
   );
 }
-
-function GoalsSection() {
-  const goals = useLiveQuery(() => db.goals.toArray(), []) ?? [];
-  const categories = useLiveQuery(() => db.categories.toArray(), []) ?? [];
-  if (goals.length === 0) return null;
-  return (
-    <section className="atelier-card rounded-3xl p-5">
-      <div className="flex items-center gap-2 font-semibold mb-4">
-        <Target size={16} className="text-accent-text" /> Active Goals
-      </div>
-      <div className="grid sm:grid-cols-2 gap-4">
-        {goals.map(g => {
-          const pct = Math.min(100, Math.max(0, (g.currentValue / g.targetValue) * 100));
-          const cat = g.categoryId ? categories.find(c => c.id === g.categoryId) : undefined;
-          return (
-            <div key={g.id} className="p-3.5 rounded-2xl border border-line bg-surface-2">
-              <div className="flex justify-between items-start mb-2 gap-2">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-sm font-semibold text-fg truncate">{g.title}</span>
-                    {g.goalType && g.goalType !== 'manual' && (
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-accent/15 text-accent-text border border-accent/25 shrink-0 flex items-center gap-0.5">
-                        <Zap size={9} />
-                        {g.goalType === 'tasks-completed' ? 'Tasks' : g.goalType === 'focus-hours' ? 'Focus' : 'Streak'}
-                      </span>
-                    )}
-                  </div>
-                  {cat && (
-                    <div className="text-[11px] text-fg-subtle flex items-center gap-1 mt-0.5">
-                      <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-                      <span>{cat.name}</span>
-                    </div>
-                  )}
-                </div>
-                <span className="text-xs font-mono text-fg-muted tabular-nums shrink-0">
-                  {g.currentValue} / {g.targetValue} {g.metricLabel}
-                </span>
-              </div>
-              <div className="h-2 rounded-full bg-[var(--ring-track)] overflow-hidden">
-                <div className="h-full rounded-full bg-accent transition-all duration-500" style={{ width: `${pct}%` }} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function TodayQuickCapture({ categories, today }: { categories: Category[]; today: string }) {
-  const [input, setInput] = useState('');
-  const [isFocused, setIsFocused] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [dictationTarget, setDictationTarget] = useState<DictationTarget | null>(null);
-
-  useEffect(() => {
-    if (inputRef.current) {
-      setDictationTarget(createInputTarget(inputRef.current));
-    }
-  }, []);
-
-  const dictation = useDictation({
-    target: dictationTarget,
-  });
-
-  const parsed = useMemo(() => parseTaskInput(input, categories, today), [input, categories, today]);
-  const hasTokens = Object.keys(parsed.tokens).length > 0;
-
-  const handleCreate = async () => {
-    const raw = input.trim();
-    if (!raw) return;
-    const title = (hasTokens ? parsed.title : raw).trim();
-    if (!title) return;
-    const cat = parsed.categoryId ? (categories.find(c => c.id === parsed.categoryId) ?? categories[0]) : categories[0];
-    if (!cat) return;
-
-    const task: Task = {
-      id: uid(),
-      title,
-      categoryId: cat.id,
-      projectTag: parsed.projectTag ?? '',
-      priority: parsed.priority ?? 'Medium',
-      status: 'To Do',
-      estimatedDuration: parsed.estimatedDuration ?? 30,
-      dueDate: parsed.dueDate ?? today,
-      dueTime: parsed.dueTime ?? '',
-      subtasks: [],
-      notes: '',
-      colorCode: cat.color,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    try {
-      await db.tasks.add(task);
-      toast(`Captured "${title}" into ${cat.name}`, 'success');
-      setInput('');
-    } catch {
-      toast('Could not save task.', 'error');
-    }
-  };
-
-  return (
-    <div className={`atelier-card rounded-3xl border transition-[border-color,box-shadow] p-3.5 sm:p-4 ${isFocused ? 'border-line-strong shadow-card' : 'border-line'}`}>
-      <div className="flex items-center gap-2.5">
-        <span className="size-9 rounded-2xl bg-surface-2 border border-line grid place-items-center text-fg-subtle shrink-0">
-          <Plus size={16} />
-        </span>
-        <input
-          ref={inputRef}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          onKeyDown={e => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              void handleCreate();
-            }
-          }}
-          placeholder="Quick capture task... (@category #tag !urgent ~30m)"
-          className="flex-1 min-w-0 bg-transparent text-sm text-fg outline-none placeholder:text-fg-subtle"
-        />
-        <MicButton
-          state={dictation.state}
-          onClick={dictation.toggle}
-          title="Voice type task offline"
-        />
-        <button
-          onClick={() => void handleCreate()}
-          disabled={!input.trim()}
-          className="h-8 sm:h-9 px-3.5 rounded-xl bg-accent text-accent-fg text-xs font-semibold hover:bg-accent-hover disabled:opacity-30 transition keycap shrink-0"
-        >
-          Capture
-        </button>
-      </div>
-
-      {dictation.state !== 'idle' && (
-        <div className="mt-3">
-          <DictationHud
-            state={dictation.state}
-            audioLevel={dictation.audioLevel}
-            errorMessage={dictation.errorMessage}
-            modelProgress={dictation.modelProgress}
-            onStop={dictation.stop}
-          />
-        </div>
-      )}
-
-      {hasTokens && (
-        <div className="mt-3 pt-2.5 border-t border-line/60 flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="text-[10px] font-mono text-fg-subtle uppercase tracking-wider mr-1">Parsed:</span>
-          {parsed.tokens.priority && (
-            <span className="px-2 py-0.5 rounded-md font-medium text-[11px] bg-amber-500/15 text-amber-500 border border-amber-500/30">
-              {parsed.tokens.priority.label}
-            </span>
-          )}
-          {parsed.tokens.category && (
-            <span className="px-2 py-0.5 rounded-md font-medium text-[11px] bg-accent/15 text-accent-text border border-accent/30 flex items-center gap-1">
-              <Tag size={10} /> {parsed.tokens.category.label}
-            </span>
-          )}
-          {parsed.tokens.projectTag && (
-            <span className="px-2 py-0.5 rounded-md font-medium text-[11px] bg-surface-3 text-fg-muted border border-line flex items-center gap-1">
-              <Hash size={10} /> {parsed.tokens.projectTag.label}
-            </span>
-          )}
-          {parsed.tokens.duration && (
-            <span className="px-2 py-0.5 rounded-md font-mono text-[11px] bg-surface-3 text-fg-soft border border-line flex items-center gap-1">
-              <Clock size={10} /> {parsed.tokens.duration.label}
-            </span>
-          )}
-          {parsed.tokens.date && (
-            <span className="px-2 py-0.5 rounded-md font-mono text-[11px] bg-sky-500/15 text-sky-400 border border-sky-500/30 flex items-center gap-1">
-              <Calendar size={10} /> {parsed.tokens.date.label}
-            </span>
-          )}
-          {parsed.tokens.time && (
-            <span className="px-2 py-0.5 rounded-md font-mono text-[11px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-              <Clock size={10} /> {parsed.tokens.time.label}
-            </span>
-          )}
-          <span className="text-xs text-fg-subtle ml-auto truncate max-w-[140px] italic">
-            "{parsed.title}"
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
-

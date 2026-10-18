@@ -20,6 +20,8 @@ import { ReloadPrompt } from './components/ReloadPrompt';
 import { Review } from './components/Review';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { Today } from './components/Today';
+import { PlanInspector } from './components/PlanInspector';
+import { FocusTransportBar } from './components/FocusTransportBar';
 import { FloatingHUDPortal } from './components/FloatingHUD';
 import { ErrorBoundary } from './components/ui';
 import { OnboardingWelcome, useWelcomeFlow, type WelcomeTask, type WelcomeHabit } from './components/OnboardingWelcome';
@@ -45,9 +47,10 @@ import { QuitConfirmModal } from './components/QuitConfirmModal';
 import { ScreenTimeModal } from './components/ScreenTimeModal';
 import { screenTimer } from './lib/screenTimer';
 
-const STATIC_VIEWS = ['home', 'calendar', 'review', 'analytics', 'journal', 'pages', 'settings'];
+const STATIC_VIEWS = ['home', 'plan', 'calendar', 'review', 'analytics', 'journal', 'pages', 'settings'];
 const VIEW_TITLES: Record<string, string> = {
-  home: 'Home',
+  home: 'Today',
+  plan: 'Plan',
   calendar: 'Calendar',
   review: 'Weekly Review',
   analytics: 'Analytics',
@@ -569,6 +572,7 @@ export default function App() {
       if (mod && key === 'k') { e.preventDefault(); setQuick(false); setShortcuts(false); setSearch(s => !s); return; }
       if (mod && (key === 'j' || e.key === '6')) { e.preventDefault(); go('journal'); return; }
       if (mod && e.key === '1') { e.preventDefault(); go('home'); return; }
+      if (mod && key === 'p') { e.preventDefault(); go('plan'); return; }
       if (mod && e.key === '2') { e.preventDefault(); go('calendar'); return; }
       if (mod && e.key === '3') { e.preventDefault(); go('pages'); return; }
       if (mod && e.key === '4') { e.preventDefault(); go('analytics'); return; }
@@ -699,6 +703,7 @@ export default function App() {
                 <div key={nav.n} className="view-in">
                   <ErrorBoundary onReset={goHome}>
                     {active === 'home' ? <Today onQuickAdd={openQuick} onNavigate={go} />
+                      : active === 'plan' ? <PlanInspector onNavigate={go} />
                       : isCategory ? (
                         <CategoryView
                           categoryId={active} tab={nav.tab} pageId={nav.pageId} query={nav.query} onQuickAdd={openQuick}
@@ -718,7 +723,7 @@ export default function App() {
               </main>
 
               {/* In Split/Cockpit mode, keep the Pomodoro Timer persistently docked on the right across secondary views */}
-              {layoutMode === 'cockpit' && active !== 'home' && (
+              {layoutMode === 'cockpit' && active !== 'home' && active !== 'plan' && (
                 <aside className="hidden 2xl:flex w-[350px] shrink-0 border-l border-line bg-surface/60 p-4 flex-col gap-4 overflow-y-auto">
                   <div className="flex items-center justify-between">
                     <span className="index-chip text-fg-muted">Docked Pomodoro Timer</span>
@@ -732,6 +737,15 @@ export default function App() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Persistent Spotify-Style Bottom Focus Transport Bar */}
+      <div className="shrink-0 px-2 sm:px-3 pb-2 pt-0">
+        <FocusTransportBar
+          activeTask={activeTask}
+          onTriggerVoice={triggerUniversalVoice}
+          onNavigateTask={(taskId) => openTaskEditor(taskId)}
+        />
       </div>
 
       {/* Global Overlays, Modals, and Portals */}

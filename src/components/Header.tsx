@@ -1,8 +1,25 @@
-import { Activity, Columns3, Keyboard, LayoutGrid, Maximize2, Menu, Moon, Orbit, PanelLeftClose, PanelLeftOpen, Pause, Play, Plus, Search, Sparkles, Sun } from 'lucide-react';
-import { MODE_LABELS, formatClock, timer, useTimer } from '../lib/timer';
+import React from 'react';
+import {
+  Activity,
+  Columns3,
+  Keyboard,
+  LayoutGrid,
+  Maximize2,
+  Menu,
+  Moon,
+  Orbit,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
+  Search,
+  Sparkles,
+  Sun,
+} from 'lucide-react';
 import type { LayoutMode } from '../types';
 import { FloatingHUDTrigger } from './FloatingHUD';
 import { getElectronAPI } from '../lib/runtime';
+import { useScreenTimer, formatScreenTimeClock } from '../lib/screenTimer';
+import { FocusSpaceLogo } from './FocusSpaceLogo';
 
 const THEME_META: Record<string, { label: string; short: string }> = {
   nocturne: { label: 'Nocturne Solaris', short: 'Nocturne' },
@@ -12,27 +29,6 @@ const THEME_META: Record<string, { label: string; short: string }> = {
 };
 
 const THEMES = ['nocturne', 'onyx', 'solaris', 'bauhaus'];
-
-function HeaderTimerPill() {
-  const s = useTimer();
-  return (
-    <div className="hidden 2xl:flex items-center gap-3 px-3 py-1 rounded-xl border border-line bg-surface-2 shrink-0">
-      <span className="text-xs text-fg-muted">{MODE_LABELS[s.mode]}</span>
-      <button
-        onClick={() => timer.toggle()}
-        title={s.running ? 'Pause timer (Space)' : 'Start timer (Space)'}
-        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono transition ${
-          s.running
-            ? 'bg-accent text-accent-fg font-semibold shadow-xs'
-            : 'text-fg-soft hover:bg-hover'
-        }`}
-      >
-        {s.running ? <Pause size={12} /> : <Play size={12} fill="currentColor" />}
-        <span className="tabular-nums">{formatClock(s.remainingMs)}</span>
-      </button>
-    </div>
-  );
-}
 
 export function Header({
   title,
@@ -71,6 +67,15 @@ export function Header({
 }) {
   const currentTheme = THEMES.includes(theme) ? theme : 'nocturne';
   const next = THEMES[(THEMES.indexOf(currentTheme) + 1) % THEMES.length];
+  const screenTime = useScreenTimer();
+
+  const handleCycleTheme = () => {
+    setTheme(next);
+    const api = getElectronAPI();
+    if (api?.setTitleBarTheme) {
+      void api.setTitleBarTheme(next);
+    }
+  };
 
   return (
     <header
@@ -79,144 +84,132 @@ export function Header({
           onToggleMaximize?.();
         }
       }}
-      className={`h-16 shrink-0 flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 ${
+      className={`h-14 sm:h-16 shrink-0 flex items-center justify-between gap-3 px-3 sm:px-4 ${
         getElectronAPI()?.isElectron ? 'pr-[140px]' : ''
-      } bg-surface/90 backdrop-blur-xl sticky top-0 z-30 border-b border-line window-drag-region select-none overflow-hidden ${
-        layoutMode === 'orbital' ? 'rounded-2xl border shadow-card mb-1' : ''
-      }`}
+      } bg-[#050605] text-[#f2f4ef] window-drag-region select-none overflow-hidden relative z-30`}
     >
-      {/* Left: Mobile Menu / Desktop Toggle + Breadcrumb Title (Defensively constrained against overflow) */}
-      <div className="flex items-center gap-2 sm:gap-2.5 text-sm text-fg-muted min-w-0 shrink">
+      {/* Left: Brand + Breadcrumb + Sidebar Toggle */}
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
         <button
           onClick={onMenu}
           aria-label="Open navigation"
-          className="md:hidden size-8.5 grid place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover keycap cursor-pointer window-no-drag shrink-0"
+          className="md:hidden size-8 grid place-items-center rounded-lg border border-[#2a302a] bg-[#111411] text-[#a3aaa0] hover:text-[#f2f4ef] hover:bg-[#1a1e1a] cursor-pointer window-no-drag shrink-0"
         >
-          <Menu size={17} />
+          <Menu size={16} />
         </button>
         {onToggleSidebar && (
           <button
             onClick={onToggleSidebar}
             aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            title={isSidebarCollapsed ? 'Expand sidebar permanently' : 'Collapse sidebar (Hover near left edge to pop up)'}
-            className="hidden md:grid size-8.5 place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover keycap cursor-pointer transition window-no-drag shrink-0"
+            title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="hidden md:grid size-8 place-items-center rounded-lg border border-[#2a302a] bg-[#111411] text-[#a3aaa0] hover:text-[#f2f4ef] hover:bg-[#1a1e1a] cursor-pointer transition window-no-drag shrink-0"
           >
-            {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+            {isSidebarCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
           </button>
         )}
-        <span className="hidden sm:inline text-fg-subtle shrink-0">Workspace</span>
-        <span className="hidden sm:inline text-fg-subtle shrink-0">/</span>
-        <span className="font-semibold text-base text-fg truncate max-w-[140px] sm:max-w-[200px] md:max-w-xs">{title}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-bold text-base tracking-tight text-[#f2f4ef] shrink-0">FocusSpace</span>
+          <span className="hidden sm:inline text-[#7f877c] text-xs">/</span>
+          <span className="hidden sm:inline font-medium text-xs text-[#a3aaa0] truncate max-w-[160px] md:max-w-xs">{title}</span>
+        </div>
       </div>
 
-      {/* Center: Quick Timer Control Pill (Only on 2XL wide screens to ensure zero collision) */}
-      <div className="window-no-drag">
-        <HeaderTimerPill />
+      {/* Center: Spotify-Style Centered Omni-Search Pill */}
+      <div className="window-no-drag flex-1 max-w-xl mx-2 flex justify-center">
+        <button
+          onClick={onSearch}
+          aria-label="Search or capture a task (Ctrl + K)"
+          title="Search or capture a task (@category #tag !urgent ~30m)"
+          className="w-full max-w-[480px] h-9 sm:h-10 px-4 rounded-full border border-[#2a302a] bg-[#111411] hover:border-[#3d453d] text-[#a3aaa0] hover:text-[#f2f4ef] flex items-center justify-between text-xs sm:text-sm transition-all cursor-pointer shadow-xs group"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <Search size={14} className="text-[#7f877c] group-hover:text-[#c8ff29] transition-colors shrink-0" />
+            <span className="truncate">Search or capture a task (@category #tag !urgent ~30m)</span>
+          </div>
+          <kbd className="hidden sm:inline font-mono text-[11px] px-2 py-0.5 rounded bg-[#1d221d] border border-[#2a302a] text-[#a3aaa0] shrink-0 ml-2">
+            Ctrl K
+          </kbd>
+        </button>
       </div>
 
-      {/* Right: Utility Tools + Windows Top-Right Control Cluster */}
-      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 window-no-drag min-w-0">
-        {/* Search */}
-        <button
-          onClick={onSearch}
-          aria-label="Search and commands"
-          className="hidden xl:flex items-center gap-2 h-9 px-3 rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:border-line-strong text-sm keycap shrink-0"
-        >
-          <Search size={15} />
-          <span>Search</span>
-          <kbd className="hidden 2xl:inline ml-1 font-mono text-[10px] border border-line bg-surface rounded px-1.5 py-0.5 text-fg-soft">Ctrl K</kbd>
-        </button>
-        <button
-          onClick={onSearch}
-          aria-label="Search and commands"
-          className="xl:hidden size-9 grid place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover keycap shrink-0"
-        >
-          <Search size={16} />
-        </button>
-
-        {/* Quick Add */}
-        <button
-          onClick={onQuickAdd}
-          aria-label="Quick add task"
-          className="h-9 px-2.5 sm:px-3.5 rounded-xl bg-accent text-accent-fg hover:bg-accent-hover text-sm font-semibold flex items-center gap-1.5 keycap shrink-0"
-        >
-          <Plus size={16} />
-          <span className="hidden sm:inline">Quick Add</span>
-        </button>
-
-        {/* Screen Time & Digital Wellbeing */}
+      {/* Right: Screen Time, Quick Add, Theme, and Controls */}
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 window-no-drag">
+        {/* Screen Time Badge */}
         {onOpenScreenTime && (
           <button
             onClick={onOpenScreenTime}
             title="Screen Time & Digital Wellbeing"
             aria-label="Screen Time & Digital Wellbeing"
-            className="size-9 grid place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover transition-colors keycap cursor-pointer shrink-0"
+            className="hidden lg:flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-[#2a302a] bg-[#111411] text-[#a3aaa0] hover:text-[#f2f4ef] hover:border-[#3d453d] font-mono text-xs transition-colors cursor-pointer shrink-0"
           >
-            <Activity size={16} className="text-accent-text" />
+            <Activity size={13} className="text-[#c8ff29]" />
+            <span>{formatScreenTimeClock(screenTime.todaySeconds)} today</span>
           </button>
         )}
 
-        {/* Layout Switcher (Hidden on narrow screens to prevent collision) */}
-        {setLayoutMode && (
-          <button
-            onClick={() => setLayoutMode(layoutMode === 'orbital' ? 'cockpit' : 'orbital')}
-            title={`Navigation layout: ${layoutMode === 'orbital' ? 'Floating Layout' : 'Split View (Docked Timer)'}. Click to switch.`}
-            aria-label="Switch layout style"
-            className="hidden lg:inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover text-xs font-semibold keycap shrink-0"
-          >
-            {layoutMode === 'orbital' ? <Orbit size={14} className="text-accent-text" /> : <Columns3 size={14} className="text-accent-text" />}
-            <span className="hidden 2xl:inline">{layoutMode === 'orbital' ? 'Floating' : 'Split View'}</span>
-          </button>
-        )}
-
-        {/* Shortcuts Modal */}
-        {onShortcuts && (
-          <button
-            onClick={onShortcuts}
-            title="Keyboard Shortcuts (Ctrl + /)"
-            aria-label="Keyboard Shortcuts"
-            className="hidden md:grid size-9 place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover transition-colors keycap shrink-0"
-          >
-            <Keyboard size={16} />
-          </button>
-        )}
+        {/* Quick Add Button */}
+        <button
+          onClick={onQuickAdd}
+          aria-label="Quick add task"
+          title="Quick Add Task (Ctrl + N)"
+          className="h-8 px-2.5 sm:px-3 rounded-lg bg-[#c8ff29] text-[#0a0c0a] hover:bg-[#b8ef1d] text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shrink-0"
+        >
+          <Plus size={14} strokeWidth={2.5} />
+          <span className="hidden sm:inline">Add</span>
+        </button>
 
         {/* Floating HUD Trigger */}
-        <FloatingHUDTrigger className="hidden sm:grid size-9 rounded-xl shrink-0" />
+        <FloatingHUDTrigger className="hidden md:grid size-8 rounded-lg shrink-0 border-[#2a302a] bg-[#111411] text-[#a3aaa0] hover:text-[#f2f4ef]" />
 
         {/* Theme Switcher */}
         <button
           title={`Theme: ${THEME_META[currentTheme]?.label}. Switch to ${THEME_META[next]?.label}`}
           aria-label={`Theme: ${THEME_META[currentTheme]?.label}. Switch to ${THEME_META[next]?.label}`}
-          onClick={() => setTheme(next)}
-          className="h-9 px-2.5 sm:px-3 rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover flex items-center gap-1.5 text-xs font-semibold keycap shrink-0"
+          onClick={handleCycleTheme}
+          className="size-8 grid place-items-center rounded-lg border border-[#2a302a] bg-[#111411] text-[#a3aaa0] hover:text-[#f2f4ef] hover:bg-[#1a1e1a] transition-colors cursor-pointer shrink-0"
         >
           {currentTheme === 'solaris' ? (
-            <Sun size={15} className="text-amber-600" />
+            <Sun size={14} className="text-amber-500" />
           ) : currentTheme === 'bauhaus' ? (
-            <LayoutGrid size={15} className="text-fg" />
+            <LayoutGrid size={14} className="text-[#f2f4ef]" />
           ) : currentTheme === 'nocturne' ? (
-            <Moon size={15} className="text-accent-text" />
+            <Moon size={14} className="text-[#c8ff29]" />
           ) : (
-            <Sparkles size={15} className="text-accent-text" />
+            <Sparkles size={14} className="text-[#c8ff29]" />
           )}
-          <span className="hidden xl:inline">{THEME_META[currentTheme]?.short}</span>
         </button>
 
+        {/* Shortcuts */}
+        {onShortcuts && (
+          <button
+            onClick={onShortcuts}
+            title="Keyboard Shortcuts (Ctrl + /)"
+            aria-label="Keyboard Shortcuts"
+            className="hidden xl:grid size-8 place-items-center rounded-lg border border-[#2a302a] bg-[#111411] text-[#a3aaa0] hover:text-[#f2f4ef] hover:bg-[#1a1e1a] transition-colors cursor-pointer shrink-0"
+          >
+            <Keyboard size={14} />
+          </button>
+        )}
+
+        {/* Fullscreen F11 */}
         {getElectronAPI() && (
           <button
             onClick={() => void getElectronAPI()?.toggleFullscreen()}
             title="Toggle Fullscreen (F11)"
             aria-label="Toggle Fullscreen"
-            className="hidden xl:grid size-9 place-items-center rounded-xl border border-line bg-surface-2 text-fg-muted hover:text-fg hover:bg-hover transition-colors keycap shrink-0 cursor-pointer"
+            className="hidden xl:grid size-8 place-items-center rounded-lg border border-[#2a302a] bg-[#111411] text-[#a3aaa0] hover:text-[#f2f4ef] hover:bg-[#1a1e1a] transition-colors cursor-pointer shrink-0"
           >
-            <Maximize2 size={15} />
+            <Maximize2 size={13} />
           </button>
         )}
 
-        {/* Windows 11 native caption controls (Minimize, Snap Layouts / Maximize, Close)
-            are rendered directly by Windows DWM via titleBarOverlay in electron/main.cjs.
-            onMinimize, onToggleMaximize, and onClose props remain bound in the interface. */}
+        {/* User Avatar Circle */}
+        <div
+          title="FocusSpace Profile"
+          className="size-8 rounded-full bg-[#1d221d] border border-[#2a302a] grid place-items-center text-[#f2f4ef] font-bold text-xs select-none shrink-0"
+        >
+          S
+        </div>
       </div>
     </header>
   );

@@ -175,10 +175,10 @@ function applyNavigationLock(webContents) {
 
 function getTitleBarOverlayOptions(themeName = 'nocturne') {
   const palettes = {
-    nocturne: { color: '#0d0c0b', symbolColor: '#f2ece4', height: 48 },
-    onyx: { color: '#0a0c0a', symbolColor: '#ededed', height: 48 },
-    solaris: { color: '#fffdf9', symbolColor: '#161412', height: 48 },
-    bauhaus: { color: '#ffffff', symbolColor: '#0d0f0d', height: 48 },
+    nocturne: { color: '#0d0c0b', symbolColor: '#f2ece4', height: 44 },
+    onyx: { color: '#0a0c0a', symbolColor: '#ededed', height: 44 },
+    solaris: { color: '#fffdf9', symbolColor: '#161412', height: 44 },
+    bauhaus: { color: '#ffffff', symbolColor: '#0d0f0d', height: 44 },
   };
   return palettes[themeName] || palettes.nocturne;
 }

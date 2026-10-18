@@ -142,6 +142,14 @@ class UnifiedSoundscapeEngine {
     this.updateSnapshot();
   }
 
+  toggle(): void {
+    if (this.snapshot.isPlaying) {
+      this.stop();
+    } else {
+      this.play();
+    }
+  }
+
   setVolume(volume: number): void {
     const clamped = Math.max(0, Math.min(1, volume));
     storage.set(STORAGE_VOL_KEY, String(clamped));
