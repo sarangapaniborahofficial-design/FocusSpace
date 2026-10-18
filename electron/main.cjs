@@ -195,8 +195,7 @@ function createMainWindow() {
     icon: path.join(__dirname, '../public/icon-512.png'),
     autoHideMenuBar: true,
     fullscreen: false,
-    titleBarStyle: 'hidden',
-    titleBarOverlay: getTitleBarOverlayOptions('nocturne'),
+    frame: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,

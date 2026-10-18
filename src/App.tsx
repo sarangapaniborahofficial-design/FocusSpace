@@ -21,6 +21,7 @@ import { Review } from './components/Review';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { Today } from './components/Today';
 import { PlanInspector } from './components/PlanInspector';
+import { SessionInspector } from './components/SessionInspector';
 import { FocusTransportBar } from './components/FocusTransportBar';
 import { FloatingHUDPortal } from './components/FloatingHUD';
 import { ErrorBoundary } from './components/ui';
@@ -93,6 +94,7 @@ export default function App() {
   const [screenTimeOpen, setScreenTimeOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [unsavedReason, setUnsavedReason] = useState<string | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const timerState = useTimer();
   const activeTask = useLiveQuery(
@@ -650,103 +652,123 @@ export default function App() {
   const title = VIEW_TITLES[active] ?? categories.find(c => c.id === active)?.name ?? 'Home';
 
   return (
-    <div className="h-screen w-screen overflow-hidden flex flex-col bg-canvas text-fg select-none">
-      {/* Top Workspace & Views Area */}
-      <div className={`flex-1 min-h-0 flex flex-col ${layoutMode === 'orbital' ? 'p-2 sm:p-3' : 'p-0'}`}>
-        <div
-          className={`w-full h-full bg-[var(--app-bg)] backdrop-blur-md text-fg flex overflow-hidden relative transition-[border-radius,box-shadow,gap,padding] duration-200 ease-out ${
-            layoutMode === 'orbital'
-              ? 'max-w-[1680px] mx-auto rounded-[28px] shadow-pop border border-line sm:gap-3 sm:p-3'
-              : 'w-full max-w-none rounded-none border-none'
-          }`}
-        >
-          <Sidebar
-            collapsed={collapsed}
-            setCollapsed={setCollapsed}
-            active={active}
-            setActive={go}
-            categories={categories}
-            mobileOpen={drawer}
-            onCloseMobile={() => setDrawer(false)}
-            activePageId={nav.pageId}
-            onOpenPage={openPageIn}
-            layoutMode={layoutMode}
-            onOpenScreenTime={() => setScreenTimeOpen(true)}
-          />
+    <div className="h-screen w-screen overflow-hidden flex flex-col bg-canvas text-fg p-2 gap-2 select-none">
+      {/* Row 1 — Full-Width Top Titlebar */}
+      <Header
+        title={title}
+        onMenu={() => setDrawer(true)}
+        onQuickAdd={openQuick}
+        onSearch={openSearch}
+        onShortcuts={() => setShortcuts(true)}
+        theme={theme}
+        setTheme={setTheme}
+        layoutMode={layoutMode}
+        setLayoutMode={setLayoutMode}
+        onMinimize={handleMinimize}
+        onToggleMaximize={handleToggleMaximize}
+        onClose={handleClose}
+        isMaximized={isMaximized}
+        onOpenScreenTime={() => setScreenTimeOpen(true)}
+        onToggleSidebar={() => {
+          const next = !collapsed;
+          setCollapsed(next);
+          storage.set('focusspace-sidebar', next ? 'collapsed' : 'expanded');
+        }}
+        isSidebarCollapsed={collapsed}
+      />
 
-          <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-transparent">
-            <Header
-              title={title}
-              onMenu={() => setDrawer(true)}
-              onQuickAdd={openQuick}
-              onSearch={openSearch}
-              onShortcuts={() => setShortcuts(true)}
-              theme={theme}
-              setTheme={setTheme}
-              layoutMode={layoutMode}
-              setLayoutMode={setLayoutMode}
-              onMinimize={handleMinimize}
-              onToggleMaximize={handleToggleMaximize}
-              onClose={handleClose}
-              isMaximized={isMaximized}
-              onOpenScreenTime={() => setScreenTimeOpen(true)}
-              onToggleSidebar={() => {
-                const next = !collapsed;
-                setCollapsed(next);
-                storage.set('focusspace-sidebar', next ? 'collapsed' : 'expanded');
-              }}
-              isSidebarCollapsed={collapsed}
-            />
-
-            <div className="flex-1 min-h-0 flex overflow-hidden gap-3">
-              <main className="flex-1 min-w-0 overflow-y-auto">
-                <div key={nav.n} className="view-in">
-                  <ErrorBoundary onReset={goHome}>
-                    {active === 'home' ? <Today onQuickAdd={openQuick} onNavigate={go} />
-                      : active === 'plan' ? <PlanInspector onNavigate={go} />
-                      : isCategory ? (
-                        <CategoryView
-                          categoryId={active} tab={nav.tab} pageId={nav.pageId} query={nav.query} onQuickAdd={openQuick}
-                          onTab={tab => go(active, { tab })} onOpenPage={pageId => go(active, { pageId })} onBackToPages={() => go(active, { tab: 'pages' })}
-                        />
-                      )
-                      : active === 'calendar' ? <Calendar />
-                      : active === 'review' ? <Review onNavigate={go} onQuickAdd={openQuick} />
-                      : active === 'analytics' ? <Analytics onNavigate={go} />
-                      : active === 'journal' ? <Journal />
-                      : active === 'pages' ? (
-                        nav.pageId ? <PageView pageId={nav.pageId} onBack={() => go('pages')} /> : <PagesList onOpenPage={pageId => go('pages', { pageId })} />
-                      )
-                      : <Settings theme={theme} setTheme={setTheme} layoutMode={layoutMode} setLayoutMode={setLayoutMode} onReplayWelcome={() => triggerWelcome('full-daily')} />}
-                  </ErrorBoundary>
-                </div>
-              </main>
-
-              {/* In Split/Cockpit mode, keep the Pomodoro Timer persistently docked on the right across secondary views */}
-              {layoutMode === 'cockpit' && active !== 'home' && active !== 'plan' && (
-                <aside className="hidden 2xl:flex w-[350px] shrink-0 border-l border-line bg-surface/60 p-4 flex-col gap-4 overflow-y-auto">
-                  <div className="flex items-center justify-between">
-                    <span className="index-chip text-fg-muted">Docked Pomodoro Timer</span>
-                    <span className="size-2 rounded-full bg-accent animate-pulse" />
-                  </div>
-                  <ErrorBoundary fallbackTitle="Docked Pomodoro Timer">
-                    <Pomodoro />
-                  </ErrorBoundary>
-                </aside>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Persistent Spotify-Style Bottom Focus Transport Bar */}
-      <div className="shrink-0 px-2 sm:px-3 pb-2 pt-0">
-        <FocusTransportBar
-          activeTask={activeTask}
-          onTriggerVoice={triggerUniversalVoice}
-          onNavigateTask={(taskId) => openTaskEditor(taskId)}
+      {/* Row 2 — The 3-Island Middle Row */}
+      <div className="flex-1 min-h-0 flex gap-2 overflow-hidden">
+        {/* Island 1: Sidebar */}
+        <Sidebar
+          collapsed={collapsed}
+          setCollapsed={setCollapsed}
+          active={active}
+          setActive={go}
+          categories={categories}
+          mobileOpen={drawer}
+          onCloseMobile={() => setDrawer(false)}
+          activePageId={nav.pageId}
+          onOpenPage={openPageIn}
+          layoutMode={layoutMode}
+          onOpenScreenTime={() => setScreenTimeOpen(true)}
         />
+
+        {/* Island 2: Main Center Stage */}
+        <main className="flex-1 min-w-0 h-full rounded-2xl bg-surface border border-line overflow-y-auto flex flex-col">
+          <div key={nav.n} className="flex-1 flex flex-col min-h-0">
+            <ErrorBoundary onReset={goHome}>
+              {active === 'home' ? (
+                <Today
+                  onQuickAdd={openQuick}
+                  onNavigate={go}
+                  onSelectTask={setSelectedTaskId}
+                  selectedTaskId={selectedTaskId}
+                />
+              ) : active === 'plan' ? (
+                <PlanInspector onNavigate={go} />
+              ) : isCategory ? (
+                <CategoryView
+                  categoryId={active}
+                  tab={nav.tab}
+                  pageId={nav.pageId}
+                  query={nav.query}
+                  onQuickAdd={openQuick}
+                  onTab={tab => go(active, { tab })}
+                  onOpenPage={pageId => go(active, { pageId })}
+                  onBackToPages={() => go(active, { tab: 'pages' })}
+                />
+              ) : active === 'calendar' ? (
+                <Calendar />
+              ) : active === 'review' ? (
+                <Review onNavigate={go} onQuickAdd={openQuick} />
+              ) : active === 'analytics' ? (
+                <Analytics onNavigate={go} />
+              ) : active === 'journal' ? (
+                <Journal />
+              ) : active === 'pages' ? (
+                nav.pageId ? (
+                  <PageView pageId={nav.pageId} onBack={() => go('pages')} />
+                ) : (
+                  <PagesList onOpenPage={pageId => go('pages', { pageId })} />
+                )
+              ) : (
+                <Settings
+                  theme={theme}
+                  setTheme={setTheme}
+                  layoutMode={layoutMode}
+                  setLayoutMode={setLayoutMode}
+                  onReplayWelcome={() => triggerWelcome('full-daily')}
+                />
+              )}
+            </ErrorBoundary>
+          </div>
+        </main>
+
+        {/* Island 3: Right Session Inspector */}
+        {(active === 'home' || (layoutMode === 'cockpit' && active !== 'plan')) && (
+          active === 'home' ? (
+            <SessionInspector selectedTaskId={selectedTaskId} />
+          ) : (
+            <aside className="w-[320px] xl:w-[340px] shrink-0 h-full rounded-2xl bg-surface border border-line overflow-y-auto p-5 flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <span className="index-chip text-fg-muted font-mono uppercase text-[11px]">Docked Pomodoro Timer</span>
+                <span className="size-2 rounded-full bg-accent animate-pulse" />
+              </div>
+              <ErrorBoundary fallbackTitle="Docked Pomodoro Timer">
+                <Pomodoro />
+              </ErrorBoundary>
+            </aside>
+          )
+        )}
       </div>
+
+      {/* Row 3 — Full-Width Bottom Transport Bar */}
+      <FocusTransportBar
+        activeTask={activeTask}
+        onTriggerVoice={triggerUniversalVoice}
+        onNavigateTask={(taskId) => openTaskEditor(taskId)}
+      />
 
       {/* Global Overlays, Modals, and Portals */}
       <TaskEditor />

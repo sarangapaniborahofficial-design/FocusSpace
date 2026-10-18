@@ -181,14 +181,10 @@ export function Sidebar({
         style={{
           width: isHiddenDesktop ? 0 : isMobile ? undefined : `${sidebarWidth}px`,
         }}
-        className={`fixed inset-y-0 left-0 z-50 shrink-0 bg-surface text-fg-soft flex flex-col relative ${
+        className={`fixed inset-y-0 left-0 z-50 shrink-0 bg-surface text-fg-soft flex flex-col relative h-full rounded-2xl border border-line overflow-hidden ${
           isDragging
             ? 'transition-none select-none'
             : 'transition-[width,transform,opacity] duration-300 ease-out'
-        } ${
-          layoutMode === 'orbital'
-            ? 'border border-line md:rounded-2xl shadow-card'
-            : 'border-r border-line'
         } ${
           isMobile
             ? mobileOpen
@@ -215,7 +211,7 @@ export function Sidebar({
             <div className="w-[2px] h-12 rounded-full bg-line-strong/60 group-hover:bg-accent group-hover:h-20 transition-all" />
           </div>
         )}
-        <div className="h-20 flex items-center px-5 border-b border-line/70">
+        <div className="h-14 flex items-center px-4 border-b border-line shrink-0">
           <button
             onClick={() => setActive('home')}
             className="flex items-center gap-3 min-w-0 group"
