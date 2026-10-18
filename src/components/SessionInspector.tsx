@@ -326,9 +326,9 @@ export function SessionInspector({
               </button>
             </div>
 
-            {/* Ambient Sound Menu Popover */}
+            {/* Ambient Sound Menu Dropdown */}
             {soundMenuOpen && (
-              <div className="absolute bottom-8 left-0 w-48 rounded-xl bg-surface border border-line shadow-2xl p-1.5 z-50 select-none space-y-0.5 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute top-full mt-1.5 left-0 w-52 rounded-xl bg-surface border border-line shadow-2xl p-1.5 z-50 select-none space-y-0.5 animate-in fade-in zoom-in-95 duration-150">
                 <div className="text-[10px] font-mono uppercase tracking-wider text-fg-muted px-2 py-1 font-semibold">
                   Ambient Soundscape
                 </div>
