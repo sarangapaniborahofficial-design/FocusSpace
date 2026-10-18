@@ -15,7 +15,7 @@
  *   - chat artifacts: <artifactDir>/review.txt
  */
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -33,6 +33,27 @@ const BINARY_EXTENSIONS = new Set([
   '.exe', '.dll', '.woff', '.woff2', '.ttf', '.eot'
 ]);
 
+function scanDirectoryFallback(rootDir) {
+  const results = [];
+  function walk(currentDir) {
+    try {
+      const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.name === '.git' || entry.name === 'node_modules') continue;
+        const full = path.join(currentDir, entry.name);
+        const rel = path.relative(rootDir, full).replace(/\\/g, '/');
+        if (entry.isDirectory()) {
+          walk(full);
+        } else if (entry.isFile()) {
+          results.push(rel);
+        }
+      }
+    } catch {}
+  }
+  walk(rootDir);
+  return results;
+}
+
 export function generateReview(silent = false) {
   if (!silent) {
     console.log('[*] FocusSpace -- Generating Option 2 Code Review Export (review.txt)...');
@@ -40,16 +61,16 @@ export function generateReview(silent = false) {
 
   let trackedFiles = [];
   try {
-    const stdout = execSync('git ls-files --cached --others --exclude-standard', {
+    const stdout = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
       cwd: PROJECT_ROOT,
       encoding: 'utf-8',
+      windowsHide: true,
+      shell: false,
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
     trackedFiles = stdout.split(/\r?\n/).filter(Boolean);
-  } catch (err) {
-    if (!silent) {
-      console.error('[!] Failed to execute git ls-files:', err.message);
-    }
-    return false;
+  } catch {
+    trackedFiles = scanDirectoryFallback(PROJECT_ROOT);
   }
 
   const eligibleFiles = trackedFiles.filter((relPath) => {
@@ -200,9 +221,12 @@ export function generateReview(silent = false) {
       'ROADMAP.md',
     ];
     // Use native Windows tar.exe to create a standard .zip archive with zero binary assets
-    execSync(`tar.exe -a -cf "${primaryZip}" ${zipItems.join(' ')}`, {
+    // windowsHide: true + shell: false guarantees zero cmd.exe or Windows Terminal popups
+    execFileSync('tar.exe', ['-a', '-cf', primaryZip, ...zipItems], {
       cwd: PROJECT_ROOT,
-      stdio: 'ignore',
+      windowsHide: true,
+      shell: false,
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     if (fs.existsSync(primaryZip)) {

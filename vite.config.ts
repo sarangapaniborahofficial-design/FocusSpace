@@ -14,15 +14,9 @@ function autoReviewPlugin(): Plugin {
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(async () => {
       try {
-        const { spawn } = await import('node:child_process');
-        const scriptPath = path.resolve(currentDir, 'scripts/generate-review.mjs');
-        if (fs.existsSync(scriptPath)) {
-          const child = spawn(process.execPath, [scriptPath, '--silent'], {
-            stdio: 'ignore',
-            detached: true,
-          });
-          child.unref();
-        }
+        // @ts-expect-error .mjs script without explicit declaration file
+        const { generateReview } = await import('./scripts/generate-review.mjs');
+        generateReview(true);
       } catch {}
     }, 1500);
   };
@@ -33,7 +27,7 @@ function autoReviewPlugin(): Plugin {
       triggerReview();
     },
     handleHotUpdate({ file }) {
-      if (!file.includes('review.txt') && !file.includes('.git')) {
+      if (!file.includes('review') && !file.includes('.git')) {
         triggerReview();
       }
     },
