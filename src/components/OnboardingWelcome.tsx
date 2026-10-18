@@ -83,44 +83,13 @@ export function formatMinutes(mins: number): string {
  * - Subsequent logins on the same day (new tab/window session): opens the compact 1-slide re-entry card ('quick-return').
  * - Same-tab reload: skips automatically so mid-work refreshes never interrupt flow.
  */
-export function useWelcomeFlow(today: string = isoTodayLocal()) {
-  const [open, setOpen] = useState<boolean>(() => {
-    const lastDate = safeStorage.get(WELCOME_DATE_KEY);
-    if (lastDate !== today) return true;
-    try {
-      return window.sessionStorage.getItem(WELCOME_SESSION_KEY) !== '1';
-    } catch {
-      return false;
-    }
-  });
-
-  const [variant, setVariant] = useState<WelcomeVariant>(() => {
-    const lastDate = safeStorage.get(WELCOME_DATE_KEY);
-    return lastDate !== today ? 'full-daily' : 'quick-return';
-  });
-
-  const completeWelcome = useCallback(() => {
-    safeStorage.set(WELCOME_DATE_KEY, today);
-    safeStorage.set(WELCOME_EVER_KEY, 'true');
-    try {
-      window.sessionStorage.setItem(WELCOME_SESSION_KEY, '1');
-    } catch {
-      /* ignore sessionStorage errors */
-    }
-    setOpen(false);
-  }, [today]);
-
-  const triggerWelcome = useCallback((mode: WelcomeVariant = 'full-daily') => {
-    setVariant(mode);
-    setOpen(true);
-  }, []);
-
+export function useWelcomeFlow(_today: string = isoTodayLocal()) {
   return {
-    welcomeOpen: open,
-    welcomeVariant: variant,
-    setWelcomeVariant: setVariant,
-    completeWelcome,
-    triggerWelcome,
+    welcomeOpen: false,
+    welcomeVariant: 'quick-return' as WelcomeVariant,
+    setWelcomeVariant: () => {},
+    completeWelcome: () => {},
+    triggerWelcome: () => {},
   };
 }
 

@@ -6,7 +6,7 @@
  * Provides infinite, seam-free acoustic soundscapes for deep focus and flow.
  */
 
-export type AmbientTrack = 'rain' | 'ocean' | 'lofi' | 'binaural' | 'whitenoise' | 'off';
+export type AmbientTrack = 'rain' | 'ocean' | 'lofi' | 'binaural' | 'whitenoise' | 'off' | (string & {});
 
 export interface AmbientTrackInfo {
   id: AmbientTrack;
@@ -31,6 +31,7 @@ export interface AmbientSoundState {
   playing: boolean;
   volume: number; // 0..1
   isDucked?: boolean;
+  customTrackName?: string | null;
 }
 
 const AMBIENT_BUS_CHANNEL = 'focusspace-ambient-bus';
@@ -43,6 +44,10 @@ class AmbientSynthesizer {
   private isRunning = false;
   private isDucked = false;
   private isAudioOwner = false;
+  private customAudioEl: HTMLAudioElement | null = null;
+  private customAudioSource: MediaElementAudioSourceNode | null = null;
+  private customTrackName: string | null = null;
+  private customBlobUrl: string | null = null;
   private windowId = Math.random().toString(36).slice(2);
   private channel: BroadcastChannel | null = null;
   private activeNodes: Array<{ stop?: () => void; disconnect: () => void }> = [];
@@ -72,6 +77,7 @@ class AmbientSynthesizer {
       playing: false,
       volume: this.currentVolume,
       isDucked: false,
+      customTrackName: null,
     };
 
     if (typeof window !== 'undefined') {
@@ -87,6 +93,7 @@ class AmbientSynthesizer {
               this.currentTrack = data.track;
               this.currentVolume = data.volume;
               this.isRunning = data.playing;
+              this.customTrackName = data.customTrackName ?? null;
               // If another window is playing audio, stop our local audio nodes to prevent double playback
               if (data.playing && !this.isAudioOwner) {
                 this.stopNodes();
@@ -95,6 +102,7 @@ class AmbientSynthesizer {
             } else if (data.type === 'STOP_ALL') {
               this.isRunning = false;
               this.isAudioOwner = false;
+              this.customTrackName = null;
               this.stopNodes();
               this.updateSnapshot();
             }
@@ -128,15 +136,20 @@ class AmbientSynthesizer {
           track: this.currentTrack,
           volume: this.currentVolume,
           playing: this.isRunning,
+          customTrackName: this.customTrackName,
         });
       } catch {}
     }
   }
 
   private applyEffectiveGain() {
-    if (!this.masterGain || !this.ctx) return;
     const effective = this.isDucked ? this.currentVolume * 0.25 : this.currentVolume;
-    this.masterGain.gain.setTargetAtTime(effective, this.ctx.currentTime, 0.08);
+    if (this.masterGain && this.ctx) {
+      this.masterGain.gain.setTargetAtTime(effective, this.ctx.currentTime, 0.08);
+    }
+    if (this.customAudioEl && !this.customAudioSource) {
+      this.customAudioEl.volume = effective;
+    }
   }
 
   private initContext() {
@@ -161,7 +174,8 @@ class AmbientSynthesizer {
       this.snapshot.track === this.currentTrack &&
       this.snapshot.playing === this.isRunning &&
       this.snapshot.volume === this.currentVolume &&
-      this.snapshot.isDucked === this.isDucked
+      this.snapshot.isDucked === this.isDucked &&
+      this.snapshot.customTrackName === this.customTrackName
     ) {
       return;
     }
@@ -170,6 +184,7 @@ class AmbientSynthesizer {
       playing: this.isRunning,
       volume: this.currentVolume,
       isDucked: this.isDucked,
+      customTrackName: this.customTrackName,
     };
     this.listeners.forEach((fn: any) => {
       try {
@@ -267,9 +282,49 @@ class AmbientSynthesizer {
     this.broadcastState();
   }
 
+  playCustomTrack(trackId: string, trackName: string, blob: Blob) {
+    this.initContext();
+    this.stopNodes();
+    this.currentTrack = trackId;
+    this.customTrackName = trackName;
+    this.isRunning = true;
+    this.isAudioOwner = true;
+
+    try {
+      this.customBlobUrl = URL.createObjectURL(blob);
+      const audio = new Audio();
+      audio.src = this.customBlobUrl;
+      audio.loop = true;
+      audio.crossOrigin = 'anonymous';
+
+      if (this.ctx && this.masterGain) {
+        try {
+          const source = this.ctx.createMediaElementSource(audio);
+          source.connect(this.masterGain);
+          this.customAudioSource = source;
+        } catch {
+          audio.volume = this.isDucked ? this.currentVolume * 0.25 : this.currentVolume;
+        }
+      } else {
+        audio.volume = this.isDucked ? this.currentVolume * 0.25 : this.currentVolume;
+      }
+
+      void audio.play().catch(err => {
+        console.warn('Custom audio playback failed:', err);
+      });
+      this.customAudioEl = audio;
+    } catch (err) {
+      console.warn('Failed to load custom audio:', err);
+    }
+
+    this.updateSnapshot();
+    this.broadcastState();
+  }
+
   stop() {
     this.isRunning = false;
     this.isAudioOwner = false;
+    this.customTrackName = null;
     this.stopNodes();
     this.updateSnapshot();
     this.broadcastState();
@@ -287,6 +342,26 @@ class AmbientSynthesizer {
       } catch {}
     }
     this.activeNodes = [];
+
+    if (this.customAudioEl) {
+      try {
+        this.customAudioEl.pause();
+        this.customAudioEl.currentTime = 0;
+      } catch {}
+      this.customAudioEl = null;
+    }
+    if (this.customAudioSource) {
+      try {
+        this.customAudioSource.disconnect();
+      } catch {}
+      this.customAudioSource = null;
+    }
+    if (this.customBlobUrl) {
+      try {
+        URL.revokeObjectURL(this.customBlobUrl);
+      } catch {}
+      this.customBlobUrl = null;
+    }
   }
 
   // --- Rain Generator ---

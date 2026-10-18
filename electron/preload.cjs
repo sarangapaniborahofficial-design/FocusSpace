@@ -15,6 +15,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pickDirectory: () =>
     ipcRenderer.invoke('dialog:pick-directory'),
 
+  // Sovereign Master Key & AES-256-GCM Vault
+  sovereignStatus: () =>
+    ipcRenderer.invoke('sovereign:status'),
+  sovereignInitKey: () =>
+    ipcRenderer.invoke('sovereign:init-key'),
+  sovereignImportKey: (keyHex) =>
+    ipcRenderer.invoke('sovereign:import-key', { keyHex }),
+  sovereignGetKey: () =>
+    ipcRenderer.invoke('sovereign:get-key'),
+  sovereignExportKey: () =>
+    ipcRenderer.invoke('sovereign:export-key'),
+  sovereignEncryptVault: (payloadJson) =>
+    ipcRenderer.invoke('sovereign:encrypt-vault', { payloadJson }),
+  sovereignDecryptVault: () =>
+    ipcRenderer.invoke('sovereign:decrypt-vault'),
+
   // Floating HUD Controls
   showHud: (expanded = false) =>
     ipcRenderer.invoke('hud:show', { expanded }),

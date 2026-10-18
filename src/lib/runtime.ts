@@ -36,6 +36,21 @@ export interface ElectronAPI {
   launchNativeApp: (path: string) => Promise<{ launched: boolean }>;
   pickAppFile: () => Promise<string | null>;
   getSystemApps: () => Promise<SystemAppsResponse>;
+  // Sovereign Master Key & AES-256-GCM Vault
+  sovereignStatus: () => Promise<SovereignStatus>;
+  sovereignInitKey: () => Promise<{ keyHex: string; fingerprint: string }>;
+  sovereignImportKey: (keyHex?: string) => Promise<{ success: boolean; fingerprint?: string; error?: string }>;
+  sovereignGetKey: () => Promise<{ keyHex: string | null }>;
+  sovereignExportKey: () => Promise<{ exported: boolean; path?: string; error?: string }>;
+  sovereignEncryptVault: (payloadJson: string) => Promise<{ success: boolean; path: string; sizeBytes: number }>;
+  sovereignDecryptVault: () => Promise<{ success: boolean; payloadJson?: string; error?: string }>;
+}
+
+export interface SovereignStatus {
+  hasKeyFile: boolean;
+  keyFingerprint: string | null;
+  keyPath: string;
+  hasEncryptedVault: boolean;
 }
 
 export interface SystemAppUsage {

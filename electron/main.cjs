@@ -11,6 +11,8 @@ const {
   session,
 } = require('electron');
 const path = require('path');
+const os = require('os');
+const crypto = require('crypto');
 const fs = require('fs/promises');
 const nodeFs = require('fs');
 
@@ -148,6 +150,26 @@ app.on('before-quit', () => {
 
 function getBackupDir() {
   return path.join(app.getPath('userData'), 'Backups');
+}
+
+function getSovereignDir() {
+  return path.join(os.homedir(), '.focusspace-sovereign');
+}
+
+function getSovereignKeyPath() {
+  return path.join(getSovereignDir(), 'focusspace.sovereign.key');
+}
+
+function getSovereignVaultDir() {
+  return path.join(getSovereignDir(), 'Vault');
+}
+
+function getEncryptedVaultPath() {
+  return path.join(getSovereignVaultDir(), 'latest-vault.fsenc');
+}
+
+function computeKeyFingerprint(keyBuf) {
+  return crypto.createHash('sha256').update(keyBuf).digest('hex').slice(0, 12).toUpperCase();
 }
 
 function getAppUrl(query = '') {
@@ -651,6 +673,194 @@ app.whenReady().then(() => {
       throw new Error(`Invalid snapshot filename: ${filename}`);
     }
     return fs.readFile(path.join(getBackupDir(), filename), 'utf8');
+  });
+
+  // --- 2.5 Sovereign Master Key & AES-256-GCM Encryption Engine ---
+  ipcMain.handle('sovereign:status', async () => {
+    try {
+      const keyPath = getSovereignKeyPath();
+      const vaultPath = getEncryptedVaultPath();
+      const hasKeyFile = nodeFs.existsSync(keyPath);
+      let keyFingerprint = null;
+      if (hasKeyFile) {
+        try {
+          const rawKey = (await fs.readFile(keyPath, 'utf8')).trim();
+          const keyBuf = Buffer.from(rawKey, 'hex');
+          if (keyBuf.length === 32) {
+            keyFingerprint = computeKeyFingerprint(keyBuf);
+          }
+        } catch {}
+      }
+      const hasEncryptedVault = nodeFs.existsSync(vaultPath);
+      return {
+        hasKeyFile,
+        keyFingerprint,
+        keyPath,
+        hasEncryptedVault,
+      };
+    } catch {
+      return {
+        hasKeyFile: false,
+        keyFingerprint: null,
+        keyPath: getSovereignKeyPath(),
+        hasEncryptedVault: false,
+      };
+    }
+  });
+
+  ipcMain.handle('sovereign:init-key', async () => {
+    const sovereignDir = getSovereignDir();
+    await fs.mkdir(sovereignDir, { recursive: true, mode: 0o700 });
+    const keyBuf = crypto.randomBytes(32);
+    const keyHex = keyBuf.toString('hex');
+    const keyPath = getSovereignKeyPath();
+    await fs.writeFile(keyPath, keyHex, { encoding: 'utf8', mode: 0o600 });
+    const fingerprint = computeKeyFingerprint(keyBuf);
+    return { keyHex, fingerprint };
+  });
+
+  ipcMain.handle('sovereign:import-key', async (_, args = {}) => {
+    let keyHex = args.keyHex;
+    if (!keyHex || typeof keyHex !== 'string' || !keyHex.trim()) {
+      const parentWin = mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined;
+      const res = await dialog.showOpenDialog(parentWin, {
+        title: 'Locate Sovereign Keyfile (.key)',
+        filters: [
+          { name: 'Sovereign Key (*.key)', extensions: ['key'] },
+          { name: 'All Files (*.*)', extensions: ['*'] },
+        ],
+        properties: ['openFile'],
+      });
+      if (res.canceled || !res.filePaths || res.filePaths.length === 0) {
+        return { success: false, error: 'Cancelled' };
+      }
+      keyHex = await fs.readFile(res.filePaths[0], 'utf8');
+    }
+
+    keyHex = keyHex.trim();
+    if (!/^[0-9a-fA-F]{64}$/.test(keyHex)) {
+      return { success: false, error: 'Invalid key: must be a 64-character hexadecimal string (32 bytes).' };
+    }
+
+    const sovereignDir = getSovereignDir();
+    await fs.mkdir(sovereignDir, { recursive: true, mode: 0o700 });
+    const keyBuf = Buffer.from(keyHex, 'hex');
+    const keyPath = getSovereignKeyPath();
+    await fs.writeFile(keyPath, keyHex.toLowerCase(), { encoding: 'utf8', mode: 0o600 });
+    const fingerprint = computeKeyFingerprint(keyBuf);
+    return { success: true, fingerprint };
+  });
+
+  ipcMain.handle('sovereign:get-key', async () => {
+    const keyPath = getSovereignKeyPath();
+    if (!nodeFs.existsSync(keyPath)) {
+      return { keyHex: null };
+    }
+    try {
+      const keyHex = (await fs.readFile(keyPath, 'utf8')).trim();
+      return { keyHex };
+    } catch {
+      return { keyHex: null };
+    }
+  });
+
+  ipcMain.handle('sovereign:export-key', async () => {
+    const keyPath = getSovereignKeyPath();
+    if (!nodeFs.existsSync(keyPath)) {
+      return { exported: false, error: 'Sovereign key not found on this machine.' };
+    }
+    const keyHex = (await fs.readFile(keyPath, 'utf8')).trim();
+    const parentWin = mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined;
+    const res = await dialog.showSaveDialog(parentWin, {
+      title: 'Export Sovereign Master Key',
+      defaultPath: 'focusspace.sovereign.key',
+      filters: [
+        { name: 'Sovereign Key (*.key)', extensions: ['key'] },
+        { name: 'All Files (*.*)', extensions: ['*'] },
+      ],
+    });
+    if (res.canceled || !res.filePath) {
+      return { exported: false, error: 'Cancelled' };
+    }
+    await fs.writeFile(res.filePath, keyHex, { encoding: 'utf8', mode: 0o600 });
+    return { exported: true, path: res.filePath };
+  });
+
+  ipcMain.handle('sovereign:encrypt-vault', async (_, { payloadJson }) => {
+    if (!payloadJson || typeof payloadJson !== 'string') {
+      throw new Error('Invalid payload JSON for vault encryption');
+    }
+    const keyPath = getSovereignKeyPath();
+    if (!nodeFs.existsSync(keyPath)) {
+      throw new Error('Sovereign keyfile missing. Initialize or import a master key first.');
+    }
+    const rawKey = (await fs.readFile(keyPath, 'utf8')).trim();
+    if (!/^[0-9a-fA-F]{64}$/.test(rawKey)) {
+      throw new Error('Corrupt Sovereign keyfile (not 64-hex bytes)');
+    }
+    const keyBuf = Buffer.from(rawKey, 'hex');
+
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', keyBuf, iv);
+    let ciphertext = cipher.update(payloadJson, 'utf8', 'hex');
+    ciphertext += cipher.final('hex');
+    const authTag = cipher.getAuthTag();
+
+    const encoded = `${iv.toString('hex')}:${authTag.toString('hex')}:${ciphertext}`;
+
+    const vaultDir = getSovereignVaultDir();
+    await fs.mkdir(vaultDir, { recursive: true, mode: 0o700 });
+    const finalPath = getEncryptedVaultPath();
+    const tempPath = path.join(vaultDir, `latest-vault.fsenc.tmp-${Date.now()}`);
+
+    await fs.writeFile(tempPath, encoded, 'utf8');
+    try {
+      await fs.rename(tempPath, finalPath);
+    } catch {
+      await fs.unlink(finalPath).catch(() => {});
+      await fs.rename(tempPath, finalPath);
+    }
+
+    return {
+      success: true,
+      path: finalPath,
+      sizeBytes: Buffer.byteLength(encoded, 'utf8'),
+    };
+  });
+
+  ipcMain.handle('sovereign:decrypt-vault', async () => {
+    const keyPath = getSovereignKeyPath();
+    const vaultPath = getEncryptedVaultPath();
+    if (!nodeFs.existsSync(keyPath)) {
+      return { success: false, error: 'Sovereign keyfile missing.' };
+    }
+    if (!nodeFs.existsSync(vaultPath)) {
+      return { success: false, error: 'No encrypted vault snapshot found.' };
+    }
+    const rawKey = (await fs.readFile(keyPath, 'utf8')).trim();
+    if (!/^[0-9a-fA-F]{64}$/.test(rawKey)) {
+      return { success: false, error: 'Invalid Sovereign keyfile format.' };
+    }
+    const keyBuf = Buffer.from(rawKey, 'hex');
+
+    const encryptedData = await fs.readFile(vaultPath, 'utf8');
+    const parts = encryptedData.trim().split(':');
+    if (parts.length !== 3) {
+      return { success: false, error: 'Corrupt encrypted vault payload format.' };
+    }
+    const [ivHex, authTagHex, cipherHex] = parts;
+    const iv = Buffer.from(ivHex, 'hex');
+    const authTag = Buffer.from(authTagHex, 'hex');
+
+    try {
+      const decipher = crypto.createDecipheriv('aes-256-gcm', keyBuf, iv);
+      decipher.setAuthTag(authTag);
+      let decrypted = decipher.update(cipherHex, 'hex', 'utf8');
+      decrypted += decipher.final('utf8');
+      return { success: true, payloadJson: decrypted };
+    } catch (err) {
+      return { success: false, error: `Decryption failed: ${err.message || 'Authentication tag mismatch'}` };
+    }
   });
 
   // --- 3. Secure External URI & App Launcher (Zero cmd.exe, Zero Shell Injection) ---

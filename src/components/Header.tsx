@@ -17,6 +17,8 @@ import {
   X,
 } from 'lucide-react';
 import type { LayoutMode } from '../types';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../db/db';
 import { FloatingHUDTrigger } from './FloatingHUD';
 import { getElectronAPI } from '../lib/runtime';
 import { useScreenTimer, formatScreenTimeClock } from '../lib/screenTimer';
@@ -48,6 +50,7 @@ export function Header({
   onClose,
   isMaximized = false,
   onOpenScreenTime,
+  onOpenProfile,
 }: {
   title: string;
   onMenu: () => void;
@@ -65,10 +68,42 @@ export function Header({
   onClose?: () => void;
   isMaximized?: boolean;
   onOpenScreenTime?: () => void;
+  onOpenProfile?: () => void;
 }) {
   const currentTheme = THEMES.includes(theme) ? theme : 'nocturne';
   const next = THEMES[(THEMES.indexOf(currentTheme) + 1) % THEMES.length];
   const screenTime = useScreenTimer();
+
+  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
+  const [userName, setUserName] = React.useState(() => {
+    try {
+      return localStorage.getItem('focusspace-user-name') || 'Saran';
+    } catch {
+      return 'Saran';
+    }
+  });
+
+  const avatarBlobRecord = useLiveQuery(() => db.fileBlobs.get('__profile_avatar__'), []);
+
+  React.useEffect(() => {
+    if (avatarBlobRecord?.blob) {
+      const url = URL.createObjectURL(avatarBlobRecord.blob);
+      setAvatarUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setAvatarUrl(null);
+    }
+  }, [avatarBlobRecord]);
+
+  React.useEffect(() => {
+    const updateProfile = () => {
+      try {
+        setUserName(localStorage.getItem('focusspace-user-name') || 'Saran');
+      } catch {}
+    };
+    window.addEventListener('focusspace:profile-updated', updateProfile);
+    return () => window.removeEventListener('focusspace:profile-updated', updateProfile);
+  }, []);
 
   const handleCycleTheme = () => {
     setTheme(next);
@@ -208,12 +243,18 @@ export function Header({
         )}
 
         {/* User Avatar Pill */}
-        <div
-          title="FocusSpace Profile"
-          className="size-8 rounded-full bg-surface-2 border border-line grid place-items-center text-fg font-bold text-xs select-none shrink-0"
+        <button
+          onClick={onOpenProfile}
+          title={`${userName} (Profile & Studio)`}
+          aria-label="Open Profile and Studio"
+          className="size-8 rounded-full bg-surface-2 hover:bg-hover border border-line overflow-hidden grid place-items-center text-fg font-bold text-xs select-none shrink-0 cursor-pointer transition"
         >
-          S
-        </div>
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={userName} className="size-full object-cover" />
+          ) : (
+            <span>{(userName.trim()[0] || 'S').toUpperCase()}</span>
+          )}
+        </button>
 
         {/* Electron Window Control Buttons [ — ] [ ◻ ] [ ✕ ] */}
         {getElectronAPI() && (

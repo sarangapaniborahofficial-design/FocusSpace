@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
+import { getSovereignStatus } from '../lib/sovereign';
 import { FocusSpaceLogo } from './FocusSpaceLogo';
 import {
   Activity,
@@ -71,6 +72,39 @@ export function Sidebar({
   const tasks = useLiveQuery(() => db.tasks.toArray(), []) ?? [];
   const [isHovered, setIsHovered] = useState(false);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const [userName, setUserName] = useState(() => {
+    try {
+      return localStorage.getItem('focusspace-user-name') || 'Saran';
+    } catch {
+      return 'Saran';
+    }
+  });
+  const avatarBlobRecord = useLiveQuery(() => db.fileBlobs.get('__profile_avatar__'), []);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [hasSovereignKey, setHasSovereignKey] = useState(false);
+
+  useEffect(() => {
+    if (avatarBlobRecord?.blob) {
+      const url = URL.createObjectURL(avatarBlobRecord.blob);
+      setAvatarUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setAvatarUrl(null);
+    }
+  }, [avatarBlobRecord]);
+
+  useEffect(() => {
+    const updateProfile = () => {
+      try {
+        setUserName(localStorage.getItem('focusspace-user-name') || 'Saran');
+      } catch {}
+      void getSovereignStatus().then(st => setHasSovereignKey(st.hasKeyFile)).catch(() => {});
+    };
+    updateProfile();
+    window.addEventListener('focusspace:profile-updated', updateProfile);
+    return () => window.removeEventListener('focusspace:profile-updated', updateProfile);
+  }, []);
 
   // Resizable Sidebar Width (200px - 440px) with LocalStorage persistence
   const [sidebarWidth, setSidebarWidth] = useState(() => {
@@ -334,13 +368,48 @@ export function Sidebar({
               onClick={install}
             />
           )}
-          <NavItem
-            compact={false}
-            icon={Settings}
-            label="Settings"
-            active={active === 'settings'}
-            onClick={() => setActive('settings')}
-          />
+          {/* Tactile User Profile Card */}
+          <button
+            onClick={() => setActive('profile')}
+            aria-label="Profile and Studio"
+            className={`w-full p-2 rounded-xl border transition cursor-pointer flex items-center gap-2.5 text-left group ${
+              active === 'profile' || active === 'settings'
+                ? 'bg-accent/10 border-accent/40 text-fg'
+                : 'bg-surface border-line hover:bg-hover text-fg'
+            }`}
+          >
+            <div className="size-8 rounded-full border border-line bg-surface-2 overflow-hidden grid place-items-center shrink-0">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={userName} className="size-full object-cover" />
+              ) : (
+                <span className="text-xs font-bold font-mono text-accent">
+                  {(userName.trim()[0] || 'U').toUpperCase()}
+                </span>
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-xs font-bold text-fg truncate group-hover:text-accent transition-colors">
+                  {userName}
+                </span>
+                {hasSovereignKey && (
+                  <span
+                    title="Sovereign Key Active"
+                    className="size-1.5 rounded-full bg-emerald-500 shrink-0"
+                  />
+                )}
+              </div>
+              <div className="flex items-center justify-between gap-1 text-[10px] text-fg-muted">
+                <span className="truncate">Profile & Studio</span>
+                {hasSovereignKey && (
+                  <span className="font-mono text-[9px] text-emerald-500 font-semibold shrink-0">
+                    🔒 Active
+                  </span>
+                )}
+              </div>
+            </div>
+          </button>
           <button
             onClick={togglePermanentCollapse}
             aria-label={collapsed ? 'Pin and expand sidebar' : 'Collapse sidebar'}

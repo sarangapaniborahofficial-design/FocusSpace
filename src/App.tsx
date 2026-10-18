@@ -13,6 +13,11 @@ import { PagesList } from './components/PagesList';
 import { Pomodoro } from './components/Pomodoro';
 import { QuickAddModal } from './components/QuickAddModal';
 import { Settings } from './components/Settings';
+import { ProfileStudio } from './components/ProfileStudio';
+import { SovereignGate } from './components/SovereignGate';
+import { getSovereignStatus, restoreFromSovereignVault, isKeyfileRequired } from './lib/sovereign';
+import { toast } from './lib/toast';
+import { HardDrive, RefreshCw } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { TaskEditor } from './components/TaskEditor';
 import { Toaster } from './components/Toaster';
@@ -24,7 +29,6 @@ import { PlanInspector } from './components/PlanInspector';
 import { SessionInspector } from './components/SessionInspector';
 import { FloatingHUDPortal } from './components/FloatingHUD';
 import { ErrorBoundary } from './components/ui';
-import { OnboardingWelcome, useWelcomeFlow, type WelcomeTask, type WelcomeHabit } from './components/OnboardingWelcome';
 import { openTaskEditor } from './lib/taskEditor';
 import { formatClock, getTimerState, timer, useTimer } from './lib/timer';
 import { soundscape, useSoundscape, type SoundscapeType } from './lib/soundscape';
@@ -47,7 +51,7 @@ import { QuitConfirmModal } from './components/QuitConfirmModal';
 import { ScreenTimeModal } from './components/ScreenTimeModal';
 import { screenTimer } from './lib/screenTimer';
 
-const STATIC_VIEWS = ['home', 'plan', 'calendar', 'review', 'analytics', 'journal', 'pages', 'settings'];
+const STATIC_VIEWS = ['home', 'plan', 'calendar', 'review', 'analytics', 'journal', 'pages', 'settings', 'profile'];
 const VIEW_TITLES: Record<string, string> = {
   home: 'Today',
   plan: 'Plan',
@@ -57,6 +61,7 @@ const VIEW_TITLES: Record<string, string> = {
   journal: 'Daily Journal',
   pages: 'Knowledge Pages',
   settings: 'Settings',
+  profile: 'Profile & Studio',
 };
 const THEMES = ['nocturne', 'onyx', 'solaris', 'bauhaus'];
 const normalizeTheme = (raw: string | null): string => {
@@ -94,6 +99,52 @@ export default function App() {
   const [isMaximized, setIsMaximized] = useState(false);
   const [unsavedReason, setUnsavedReason] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  const [sovereignLocked, setSovereignLocked] = useState(false);
+  const [restorePromptOpen, setRestorePromptOpen] = useState(false);
+  const [restoringVault, setRestoringVault] = useState(false);
+
+  const wallpaperBlobRecord = useLiveQuery(() => db.fileBlobs.get('__custom_wallpaper__'), []);
+  const [wallpaperUrl, setWallpaperUrl] = useState<string | null>(null);
+  const [wallpaperBlur, setWallpaperBlur] = useState<number>(() => {
+    try {
+      const v = localStorage.getItem('focusspace-wallpaper-blur');
+      return v !== null ? Number(v) : 8;
+    } catch {
+      return 8;
+    }
+  });
+  const [surfaceOpacity, setSurfaceOpacity] = useState<number>(() => {
+    try {
+      const v = localStorage.getItem('focusspace-surface-opacity');
+      return v !== null ? Number(v) : 95;
+    } catch {
+      return 95;
+    }
+  });
+
+  useEffect(() => {
+    if (wallpaperBlobRecord?.blob) {
+      const url = URL.createObjectURL(wallpaperBlobRecord.blob);
+      setWallpaperUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setWallpaperUrl(null);
+    }
+  }, [wallpaperBlobRecord]);
+
+  useEffect(() => {
+    const handleWallpaperUpdated = () => {
+      try {
+        const b = localStorage.getItem('focusspace-wallpaper-blur');
+        if (b !== null) setWallpaperBlur(Number(b));
+        const o = localStorage.getItem('focusspace-surface-opacity');
+        if (o !== null) setSurfaceOpacity(Number(o));
+      } catch {}
+    };
+    window.addEventListener('focusspace:wallpaper-updated', handleWallpaperUpdated);
+    return () => window.removeEventListener('focusspace:wallpaper-updated', handleWallpaperUpdated);
+  }, []);
 
   const timerState = useTimer();
   const activeTask = useLiveQuery(
@@ -141,88 +192,8 @@ export default function App() {
 
   const categoryList = useLiveQuery(() => db.categories.toArray(), []);
   const categories = categoryList ?? [];
-
   const today = isoToday();
-  const { welcomeOpen, welcomeVariant, completeWelcome, triggerWelcome } = useWelcomeFlow(today);
   const currentSoundscape = useSoundscape();
-
-  const allTasks = useLiveQuery<Task[]>(() => (welcomeOpen ? db.tasks.toArray() : Promise.resolve<Task[]>([])), [welcomeOpen]) ?? [];
-  const allHabits = useLiveQuery<Habit[]>(() => (welcomeOpen ? db.habits.toArray() : Promise.resolve<Habit[]>([])), [welcomeOpen]) ?? [];
-  const allFocusLogs = useLiveQuery<FocusLog[]>(() => (welcomeOpen ? db.focusLogs.toArray() : Promise.resolve<FocusLog[]>([])), [welcomeOpen]) ?? [];
-
-  const catMap = useMemo(() => new Map(categories.map(c => [c.id, c.name])), [categories]);
-  const welcomeTasks: WelcomeTask[] = useMemo(() => {
-    return allTasks.map(t => ({
-      id: t.id,
-      title: t.title,
-      categoryName: catMap.get(t.categoryId) ?? 'General',
-      projectTag: t.projectTag ?? 'Task',
-      priority: t.priority,
-      estimatedDuration: t.estimatedDuration || 30,
-      done: t.status === 'Submitted/Done',
-    }));
-  }, [allTasks, catMap]);
-
-  const welcomeHabits: WelcomeHabit[] = useMemo(() => {
-    return allHabits.filter(h => h.active).map(h => {
-      const { current } = computeStreaks(h.completions, today);
-      return {
-        id: h.id,
-        name: h.name,
-        color: h.color,
-        streak: current,
-        doneToday: h.completions.includes(today),
-      };
-    });
-  }, [allHabits, today]);
-
-  const focusMinutesToday = useMemo(() => {
-    return allFocusLogs
-      .filter(l => l.startedAt?.slice(0, 10) === today && l.mode === 'focus')
-      .reduce((sum, l) => sum + (l.durationMinutes || 0), 0);
-  }, [allFocusLogs, today]);
-
-  const handleWelcomeAddTask = useCallback(async (raw: string) => {
-    const parsed = parseTaskInput(raw, categories, today);
-    const targetCat = categories.find(c => c.id === parsed.categoryId) ?? categories[0];
-    if (!targetCat) return;
-    const now = new Date().toISOString();
-    const task: Task = {
-      id: uid(),
-      title: parsed.title,
-      categoryId: targetCat.id,
-      projectTag: parsed.projectTag ?? targetCat.name,
-      priority: parsed.priority ?? 'Medium',
-      status: 'To Do',
-      estimatedDuration: parsed.estimatedDuration ?? 30,
-      dueDate: parsed.dueDate ?? today,
-      dueTime: parsed.dueTime ?? '',
-      subtasks: [],
-      notes: '',
-      colorCode: targetCat.color,
-      createdAt: now,
-      updatedAt: now,
-    };
-    await db.tasks.add(task);
-  }, [categories, today]);
-
-  const handleWelcomeToggleHabit = useCallback(async (habitId: string) => {
-    await toggleHabitDay(habitId, today);
-  }, [today]);
-
-  const handleWelcomeSelectSoundscape = useCallback((id: SoundscapeType) => {
-    soundscape.setType(id);
-  }, []);
-
-  const handleWelcomeStartFocusTask = useCallback((taskId: string) => {
-    const t = allTasks.find(x => x.id === taskId);
-    if (t) {
-      timer.setTask(t);
-      if (!getTimerState().running) {
-        timer.toggle();
-      }
-    }
-  }, [allTasks]);
 
   const active = nav.view;
   const isCategory = categories.some(c => c.id === active);
@@ -242,7 +213,25 @@ export default function App() {
   const boot = useCallback(() => {
     setDbError(null);
     seedDatabase()
-      .then(() => setReady(true))
+      .then(async () => {
+        setReady(true);
+        if (isElectron()) {
+          try {
+            const status = await getSovereignStatus();
+            if (isKeyfileRequired() && !status.hasKeyFile) {
+              setSovereignLocked(true);
+            }
+            if (status.hasKeyFile && status.hasEncryptedVault) {
+              const taskCount = await db.tasks.count();
+              if (taskCount === 0) {
+                setRestorePromptOpen(true);
+              }
+            }
+          } catch (e) {
+            console.warn('[Sovereign Boot] Status check error:', e);
+          }
+        }
+      })
       .catch(err => setDbError(err instanceof Error ? err.message : 'Unknown error'));
   }, []);
 
@@ -651,7 +640,25 @@ export default function App() {
   const title = VIEW_TITLES[active] ?? categories.find(c => c.id === active)?.name ?? 'Home';
 
   return (
-    <div className="h-screen w-screen overflow-hidden flex flex-col bg-canvas text-fg p-2.5 gap-2.5 select-none">
+    <div
+      style={{
+        '--surface-opacity': wallpaperUrl ? `${surfaceOpacity}%` : '100%',
+      } as React.CSSProperties}
+      className={`h-screen w-screen overflow-hidden flex flex-col ${wallpaperUrl ? 'bg-canvas/50 backdrop-blur-xs' : 'bg-canvas'} text-fg p-2.5 gap-2.5 select-none relative`}
+    >
+      {/* Custom Wallpaper Layer */}
+      {wallpaperUrl && (
+        <div
+          aria-hidden="true"
+          className="fixed inset-0 pointer-events-none z-0 bg-cover bg-center transition-all duration-300"
+          style={{
+            backgroundImage: `url(${wallpaperUrl})`,
+            filter: `blur(${wallpaperBlur}px)`,
+            transform: 'scale(1.05)',
+          }}
+        />
+      )}
+
       {/* Row 1 — Full-Width Top Titlebar */}
       <Header
         title={title}
@@ -668,6 +675,7 @@ export default function App() {
         onClose={handleClose}
         isMaximized={isMaximized}
         onOpenScreenTime={() => setScreenTimeOpen(true)}
+        onOpenProfile={() => go('profile')}
         onToggleSidebar={() => {
           const next = !collapsed;
           setCollapsed(next);
@@ -731,13 +739,22 @@ export default function App() {
                 ) : (
                   <PagesList onOpenPage={pageId => go('pages', { pageId })} />
                 )
-              ) : (
-                <Settings
+              ) : active === 'profile' || active === 'settings' ? (
+                <ProfileStudio
                   theme={theme}
                   setTheme={setTheme}
                   layoutMode={layoutMode}
                   setLayoutMode={setLayoutMode}
-                  onReplayWelcome={() => triggerWelcome('full-daily')}
+                  defaultTab={active === 'settings' ? 'workspace' : 'profile'}
+                  onNavigate={go}
+                />
+              ) : (
+                <ProfileStudio
+                  theme={theme}
+                  setTheme={setTheme}
+                  layoutMode={layoutMode}
+                  setLayoutMode={setLayoutMode}
+                  onNavigate={go}
                 />
               )}
             </ErrorBoundary>
@@ -754,7 +771,7 @@ export default function App() {
       <TaskEditor />
       <QuickAddModal open={quick} onClose={closeQuick} defaultCategory={isCategory ? active : undefined} />
       <ShortcutsModal open={shortcuts} onClose={() => setShortcuts(false)} />
-      {search && <CommandPalette categories={categories} onClose={closeSearch} onNavigate={go} onNewTask={openQuick} onOpenTask={openTask} onOpenPage={openPage} onCycleTheme={cycleTheme} onOpenShortcuts={() => setShortcuts(true)} onReplayWelcome={() => triggerWelcome('full-daily')} />}
+      {search && <CommandPalette categories={categories} onClose={closeSearch} onNavigate={go} onNewTask={openQuick} onOpenTask={openTask} onOpenPage={openPage} onCycleTheme={cycleTheme} onOpenShortcuts={() => setShortcuts(true)} />}
       {isVoiceEnabled() && (
         <>
           <DictationHud
@@ -774,23 +791,6 @@ export default function App() {
         </>
       )}
       <FloatingHUDPortal />
-      <OnboardingWelcome
-        open={welcomeOpen}
-        variant={welcomeVariant}
-        theme={theme as Theme}
-        setTheme={t => setTheme(t)}
-        layoutMode={layoutMode}
-        setLayoutMode={setLayoutMode}
-        onComplete={completeWelcome}
-        tasks={welcomeTasks}
-        habits={welcomeHabits}
-        focusMinutesToday={focusMinutesToday}
-        soundscape={currentSoundscape.type}
-        onSelectSoundscape={handleWelcomeSelectSoundscape}
-        onAddQuickTask={handleWelcomeAddTask}
-        onToggleHabit={handleWelcomeToggleHabit}
-        onStartFocusTask={handleWelcomeStartFocusTask}
-      />
       <QuitConfirmModal
         open={quitModalOpen}
         unsavedReason={unsavedReason}
@@ -802,6 +802,62 @@ export default function App() {
       <ScreenTimeModal open={screenTimeOpen} onClose={() => setScreenTimeOpen(false)} />
       <Toaster />
       {!isElectron() && <ReloadPrompt />}
+
+      {/* Sovereign Key Missing Gate (Dead-Man's Switch) */}
+      {sovereignLocked && (
+        <SovereignGate onUnlocked={() => setSovereignLocked(false)} />
+      )}
+
+      {/* Sovereign Vault Auto-Restore Prompt on Fresh Boot */}
+      {restorePromptOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-surface border border-line p-6 shadow-2xl space-y-4 animate-scale-in">
+            <div className="size-12 rounded-2xl bg-accent text-accent-fg grid place-items-center keycap">
+              <HardDrive size={22} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-fg">Sovereign Key & Vault Detected</h3>
+              <p className="text-xs text-fg-muted mt-1 leading-relaxed">
+                A valid Sovereign Key and encrypted vault backup were found in{' '}
+                <code className="text-[11px] font-mono text-fg bg-surface-2 px-1 py-0.5 rounded">~/.focusspace-sovereign/Vault</code>.
+                Would you like to restore your workspace from this backup?
+              </p>
+            </div>
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                disabled={restoringVault}
+                onClick={async () => {
+                  setRestoringVault(true);
+                  try {
+                    const res = await restoreFromSovereignVault();
+                    if (res.success) {
+                      toast(`Workspace restored! (${res.imported.tasks} tasks imported)`, 'success');
+                      setRestorePromptOpen(false);
+                    } else {
+                      toast(res.error || 'Restore failed', 'error');
+                    }
+                  } catch (e: any) {
+                    toast(e?.message || 'Restore error', 'error');
+                  } finally {
+                    setRestoringVault(false);
+                  }
+                }}
+                className="h-9 px-4 rounded-xl bg-accent text-accent-fg font-semibold keycap text-xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw size={13} className={restoringVault ? 'animate-spin' : ''} />
+                <span>{restoringVault ? 'Restoring…' : 'Restore Encrypted Vault'}</span>
+              </button>
+              <button
+                disabled={restoringVault}
+                onClick={() => setRestorePromptOpen(false)}
+                className="h-9 px-4 rounded-xl border border-line bg-surface hover:bg-hover text-xs font-medium text-fg-muted hover:text-fg cursor-pointer transition"
+              >
+                Start Fresh
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
