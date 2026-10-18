@@ -143,7 +143,7 @@ export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMod
       <div className="p-4 space-y-2">{categories.map(c => <div key={c.id} className="flex items-center gap-3 rounded-2xl border border-line bg-surface-2 p-3"><span className="size-3 rounded-full" style={{background:c.color}}/><div className="flex-1 min-w-0"><div className="text-sm truncate">{c.name}</div><div className="text-[11px] text-fg-subtle">{c.id}</div></div><button onClick={()=>openEdit(c)} className="text-xs text-fg-muted hover:text-fg px-2 py-1.5 rounded-xl hover:bg-hover">Edit</button><button onClick={()=>{setDeleteTarget(c);setMoveTo(categories.find(x=>x.id!==c.id)?.id??'')}} className="text-fg-subtle hover:text-red-300 p-2 rounded-xl hover:bg-hover" title="Delete"><Trash2 size={15}/></button></div>)}</div>
     </section>
 
-    <DockPreferencesCard />
+    <BrowserPreferencesCard />
     <DataVaultCard />
     <IcsExportCard />
     <HabitsCard />
@@ -181,7 +181,7 @@ export function Settings({ theme, setTheme, layoutMode = 'orbital', setLayoutMod
   </div>;
 }
 
-function DockPreferencesCard() {
+function BrowserPreferencesCard() {
   const [preferredBrowser, setPreferredBrowser] = useState(() => storage.get('focusspace-default-browser') || 'system');
   const [isFullscreen, setIsFullscreen] = useState(false);
 

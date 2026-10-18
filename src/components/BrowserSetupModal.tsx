@@ -66,7 +66,7 @@ export function BrowserSetupModal({
             <div>
               <h3 className="text-sm font-bold text-fg">Choose Preferred Web Browser</h3>
               <p className="text-[11px] text-fg-subtle">
-                Select which browser FocusSpace uses to launch your web apps from the dock.
+                Select which browser FocusSpace uses to open web applications and external links.
               </p>
             </div>
           </div>

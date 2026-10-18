@@ -18,7 +18,6 @@ import {
 } from 'lucide-react';
 import type { LayoutMode } from '../types';
 import { FloatingHUDTrigger } from './FloatingHUD';
-import { PinnedAppsPill } from './PinnedAppsPill';
 import { getElectronAPI } from '../lib/runtime';
 import { useScreenTimer, formatScreenTimeClock } from '../lib/screenTimer';
 import { FocusSpaceLogo } from './FocusSpaceLogo';
@@ -89,7 +88,7 @@ export function Header({
       className="h-12 shrink-0 rounded-2xl bg-surface border border-line px-4 flex items-center justify-between gap-3 window-drag-region select-none relative z-30"
     >
       {/* Left: Brand + Breadcrumb + Sidebar Toggle */}
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink window-no-drag">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0 window-no-drag">
         <button
           onClick={onMenu}
           aria-label="Open navigation"
@@ -109,23 +108,23 @@ export function Header({
           </button>
         )}
 
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 shrink-0">
           <div className="size-6 rounded-lg bg-accent text-accent-fg grid place-items-center shrink-0 keycap">
             <FocusSpaceLogo size={14} />
           </div>
-          <span className="font-bold text-sm tracking-tight text-fg shrink-0">FocusSpace</span>
+          <span className="font-bold text-sm tracking-tight text-fg shrink-0 select-none">FocusSpace</span>
           <span className="hidden sm:inline text-fg-muted/60 text-xs">/</span>
-          <span className="hidden sm:inline font-medium text-xs text-fg-muted truncate max-w-[140px] md:max-w-xs">{title}</span>
+          <span className="hidden sm:inline font-medium text-xs text-fg-muted truncate max-w-[110px] xl:max-w-[160px]">{title}</span>
         </div>
       </div>
 
-      {/* Center: Spotify-Style Centered Omni-Search Pill */}
-      <div className="window-no-drag flex-1 max-w-lg mx-2 flex justify-center">
+      {/* Center: Centered Omni-Search Pill */}
+      <div className="window-no-drag flex-1 max-w-md mx-3 min-w-0 flex justify-center">
         <button
           onClick={onSearch}
           aria-label="Search or capture a task (Ctrl + K)"
           title="Search or capture a task (@category #tag !urgent ~30m)"
-          className="w-full max-w-[440px] h-8 px-3 rounded-full border border-line bg-surface-2 hover:bg-hover text-fg-muted hover:text-fg flex items-center justify-between text-xs transition-all cursor-pointer shadow-xs group"
+          className="w-full max-w-[420px] h-8 px-3 rounded-full border border-line bg-surface-2 hover:bg-hover text-fg-muted hover:text-fg flex items-center justify-between text-xs transition-all cursor-pointer shadow-xs group"
         >
           <div className="flex items-center gap-2 min-w-0">
             <Search size={13} className="text-fg-muted group-hover:text-accent-text transition-colors shrink-0" />
@@ -135,11 +134,6 @@ export function Header({
             Ctrl K
           </kbd>
         </button>
-      </div>
-
-      {/* Pinned Workspace Apps Pill */}
-      <div className="window-no-drag hidden md:flex items-center shrink-0">
-        <PinnedAppsPill />
       </div>
 
       {/* Right: Screen Time, Quick Add, Theme, Controls & Window Buttons */}

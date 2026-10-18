@@ -94,13 +94,6 @@ export function CommandPalette({ categories, onClose, onNavigate, onNewTask, onO
     const allLinksMap = new Map<string, LaunchLink>();
     categories.forEach(c => (c.launchLinks ?? []).forEach(l => allLinksMap.set(`${l.label}-${l.url}`, l)));
     tasks.forEach(t => (t.launchLinks ?? []).forEach(l => allLinksMap.set(`${l.label}-${l.url}`, l)));
-    try {
-      const saved = storage.get('focusspace-global-appdock');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) parsed.forEach((l: LaunchLink) => allLinksMap.set(`${l.label}-${l.url}`, l));
-      }
-    } catch { /* fallback */ }
 
     const appItems: Item[] = q
       ? Array.from(allLinksMap.values())
