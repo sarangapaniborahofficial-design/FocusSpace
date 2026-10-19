@@ -59,6 +59,39 @@ export interface Page {
    */
   legacyMarkdown?: string;
   legacyConfirmedAt?: string;
+  customDatabases?: CustomDatabase[];
+}
+
+/* ---------- Custom Databases / Tables (stored on Page entity) ---------- */
+
+export type DatabaseColumnType = 'text' | 'number' | 'select' | 'date' | 'checkbox';
+
+export interface DatabaseColumn {
+  id: string;
+  name: string;
+  type: DatabaseColumnType;
+  options?: string[];
+  width?: number;
+}
+
+export interface DatabaseRow {
+  id: string;
+  cells: Record<string, any>;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type DatabaseViewType = 'table' | 'board' | 'list';
+
+export interface CustomDatabase {
+  id: string;
+  title: string;
+  viewType: DatabaseViewType;
+  columns: DatabaseColumn[];
+  rows: DatabaseRow[];
+  groupByColumnId?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /** One journal entry per page per day. Newest entries are shown first; past entries stay editable. */

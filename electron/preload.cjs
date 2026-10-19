@@ -98,4 +98,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // System-wide Active Application Usage
   getSystemApps: () =>
     ipcRenderer.invoke('screentime:get-system-apps'),
+
+  // Local AI Administrative Agent (Ollama localhost bridge)
+  checkLocalAiStatus: () =>
+    ipcRenderer.invoke('ai:check-status'),
+  localAiChat: (payload) =>
+    ipcRenderer.invoke('ai:local-chat', payload),
 });

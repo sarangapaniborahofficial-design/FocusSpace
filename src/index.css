@@ -267,6 +267,39 @@ body.hud-window {
 body.hud-window::before {
   display: none !important;
 }
+
+/* Custom Wallpaper Atmosphere & Frosted Glassmorphism */
+:root {
+  --surface-opacity: 100%;
+}
+
+.has-custom-wallpaper {
+  background: transparent !important;
+}
+
+body.has-custom-wallpaper {
+  background-color: transparent !important;
+}
+
+body.has-custom-wallpaper::before {
+  opacity: 0.15;
+}
+
+.has-custom-wallpaper .bg-surface {
+  background-color: color-mix(in srgb, var(--c-surface) var(--surface-opacity, 92%), transparent) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.has-custom-wallpaper .bg-surface-2 {
+  background-color: color-mix(in srgb, var(--c-surface-2) var(--surface-opacity, 94%), transparent) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.has-custom-wallpaper .bg-canvas {
+  background-color: transparent !important;
+}
 body::before {
   content: "";
   position: fixed;

@@ -44,6 +44,9 @@ export interface ElectronAPI {
   sovereignExportKey: () => Promise<{ exported: boolean; path?: string; error?: string }>;
   sovereignEncryptVault: (payloadJson: string) => Promise<{ success: boolean; path: string; sizeBytes: number }>;
   sovereignDecryptVault: () => Promise<{ success: boolean; payloadJson?: string; error?: string }>;
+  // Local AI Administrative Agent (Ollama localhost bridge)
+  checkLocalAiStatus?: () => Promise<{ available: boolean; models: string[] }>;
+  localAiChat?: (payload: { prompt: string; model?: string; systemPrompt?: string }) => Promise<{ response?: string; model?: string; durationMs?: number; error?: string }>;
 }
 
 export interface SovereignStatus {
@@ -125,3 +128,32 @@ export function isWeb(): boolean {
 export function isVoiceEnabled(): boolean {
   return true;
 }
+
+/**
+ * Checks if local Ollama runtime is available on 127.0.0.1:11434.
+ */
+export async function checkLocalAiStatus(): Promise<{ available: boolean; models: string[] }> {
+  if (typeof window !== 'undefined' && window.electronAPI?.checkLocalAiStatus) {
+    try {
+      return await window.electronAPI.checkLocalAiStatus();
+    } catch {
+      return { available: false, models: [] };
+    }
+  }
+  return { available: false, models: [] };
+}
+
+/**
+ * Sends a prompt to local Ollama runtime via Electron IPC.
+ */
+export async function queryLocalAi(payload: { prompt: string; model?: string; systemPrompt?: string }): Promise<{ response?: string; model?: string; durationMs?: number; error?: string }> {
+  if (typeof window !== 'undefined' && window.electronAPI?.localAiChat) {
+    try {
+      return await window.electronAPI.localAiChat(payload);
+    } catch (err: any) {
+      return { error: err.message || 'Failed to communicate with local AI bridge' };
+    }
+  }
+  return { error: 'Electron desktop environment required for localhost Ollama integration' };
+}
+

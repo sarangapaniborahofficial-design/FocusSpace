@@ -49,6 +49,7 @@ import { isAudioConfigured } from './voice/audioDevices';
 import { AudioDeviceSetupModal } from './components/AudioDeviceSetupModal';
 import { QuitConfirmModal } from './components/QuitConfirmModal';
 import { ScreenTimeModal } from './components/ScreenTimeModal';
+import { AiAdminDrawer } from './components/AiAdminDrawer';
 import { screenTimer } from './lib/screenTimer';
 
 const STATIC_VIEWS = ['home', 'plan', 'calendar', 'review', 'analytics', 'journal', 'pages', 'settings', 'profile'];
@@ -99,6 +100,7 @@ export default function App() {
   const [isMaximized, setIsMaximized] = useState(false);
   const [unsavedReason, setUnsavedReason] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [aiAdminOpen, setAiAdminOpen] = useState(false);
 
   const [sovereignLocked, setSovereignLocked] = useState(false);
   const [restorePromptOpen, setRestorePromptOpen] = useState(false);
@@ -127,9 +129,14 @@ export default function App() {
     if (wallpaperBlobRecord?.blob) {
       const url = URL.createObjectURL(wallpaperBlobRecord.blob);
       setWallpaperUrl(url);
-      return () => URL.revokeObjectURL(url);
+      document.body.classList.add('has-custom-wallpaper');
+      return () => {
+        URL.revokeObjectURL(url);
+        document.body.classList.remove('has-custom-wallpaper');
+      };
     } else {
       setWallpaperUrl(null);
+      document.body.classList.remove('has-custom-wallpaper');
     }
   }, [wallpaperBlobRecord]);
 
@@ -550,6 +557,11 @@ export default function App() {
         triggerUniversalVoice();
         return;
       }
+      if (mod && e.shiftKey && key === 'a') {
+        e.preventDefault();
+        setAiAdminOpen(s => !s);
+        return;
+      }
       if (mod && (e.key === '/' || e.key === '?')) {
         e.preventDefault();
         setSearch(false);
@@ -577,6 +589,7 @@ export default function App() {
       }
 
       if (e.key === 'Escape') {
+        if (aiAdminOpen) { setAiAdminOpen(false); return; }
         if (quick) { setQuick(false); return; }
         if (search) { setSearch(false); return; }
         if (shortcuts) { setShortcuts(false); return; }
@@ -644,7 +657,7 @@ export default function App() {
       style={{
         '--surface-opacity': wallpaperUrl ? `${surfaceOpacity}%` : '100%',
       } as React.CSSProperties}
-      className={`h-screen w-screen overflow-hidden flex flex-col ${wallpaperUrl ? 'bg-canvas/50 backdrop-blur-xs' : 'bg-canvas'} text-fg p-2.5 gap-2.5 select-none relative`}
+      className={`h-screen w-screen overflow-hidden flex flex-col ${wallpaperUrl ? 'has-custom-wallpaper bg-transparent' : 'bg-canvas'} text-fg p-2.5 gap-2.5 select-none relative isolate`}
     >
       {/* Custom Wallpaper Layer */}
       {wallpaperUrl && (
@@ -660,32 +673,35 @@ export default function App() {
       )}
 
       {/* Row 1 — Full-Width Top Titlebar */}
-      <Header
-        title={title}
-        onMenu={() => setDrawer(true)}
-        onQuickAdd={openQuick}
-        onSearch={openSearch}
-        onShortcuts={() => setShortcuts(true)}
-        theme={theme}
-        setTheme={setTheme}
-        layoutMode={layoutMode}
-        setLayoutMode={setLayoutMode}
-        onMinimize={handleMinimize}
-        onToggleMaximize={handleToggleMaximize}
-        onClose={handleClose}
-        isMaximized={isMaximized}
-        onOpenScreenTime={() => setScreenTimeOpen(true)}
-        onOpenProfile={() => go('profile')}
-        onToggleSidebar={() => {
-          const next = !collapsed;
-          setCollapsed(next);
-          storage.set('focusspace-sidebar', next ? 'collapsed' : 'expanded');
-        }}
-        isSidebarCollapsed={collapsed}
-      />
+      <div className="relative z-10 shrink-0">
+        <Header
+          title={title}
+          onMenu={() => setDrawer(true)}
+          onQuickAdd={openQuick}
+          onSearch={openSearch}
+          onShortcuts={() => setShortcuts(true)}
+          theme={theme}
+          setTheme={setTheme}
+          layoutMode={layoutMode}
+          setLayoutMode={setLayoutMode}
+          onMinimize={handleMinimize}
+          onToggleMaximize={handleToggleMaximize}
+          onClose={handleClose}
+          isMaximized={isMaximized}
+          onOpenScreenTime={() => setScreenTimeOpen(true)}
+          onOpenProfile={() => go('profile')}
+          onOpenAiAdmin={() => setAiAdminOpen(true)}
+          onToggleSidebar={() => {
+            const next = !collapsed;
+            setCollapsed(next);
+            storage.set('focusspace-sidebar', next ? 'collapsed' : 'expanded');
+          }}
+          isSidebarCollapsed={collapsed}
+        />
+      </div>
 
       {/* Row 2 — The 3-Island Modular Grid extending full height to bottom */}
-      <div className="flex-1 min-h-0 flex gap-2.5 overflow-hidden">
+      <div className="flex-1 min-h-0 flex gap-2.5 overflow-hidden relative z-10">
         {/* Island 1: Sidebar */}
         <Sidebar
           collapsed={collapsed}
@@ -800,6 +816,7 @@ export default function App() {
         }}
       />
       <ScreenTimeModal open={screenTimeOpen} onClose={() => setScreenTimeOpen(false)} />
+      <AiAdminDrawer isOpen={aiAdminOpen} onClose={() => setAiAdminOpen(false)} />
       <Toaster />
       {!isElectron() && <ReloadPrompt />}
 

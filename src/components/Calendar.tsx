@@ -5,13 +5,15 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin, { Draggable } from '@fullcalendar/interaction';
 import type { EventDropArg } from '@fullcalendar/core';
-import { CalendarDays, Clock3, Layers, Plus, Search, Upload, X } from 'lucide-react';
+import { CalendarDays, Clock3, Layers, Plus, Search, Upload, X, Zap, Play, RotateCcw } from 'lucide-react';
 import { db } from '../db/db';
 import { useMediaQuery } from '../lib/hooks';
 import { importIcsToDatabase } from '../lib/icsImport';
 import { openTaskEditor } from '../lib/taskEditor';
+import { timer, getTimerState, focusOnTask } from '../lib/timer';
+import { generateSmartSchedule, applySmartScheduleTimeBlocks } from '../lib/smartScheduler';
 import { toast } from '../lib/toast';
-import { uid, WEEK_STARTS_ON } from '../lib/utils';
+import { uid, WEEK_STARTS_ON, addDays, isoToday } from '../lib/utils';
 import type { Category, Task } from '../types';
 
 interface CalendarEventLike {
@@ -52,12 +54,26 @@ export function Calendar() {
   const categories = useLiveQuery(() => db.categories.toArray(), []) ?? [];
   const focusLogs = useLiveQuery(() => db.focusLogs.toArray(), []) ?? [];
   const externalRef = useRef<HTMLDivElement | null>(null);
+  const calendarRef = useRef<FullCalendar | null>(null);
+  const [selectedCatId, setSelectedCatId] = useState<string | 'all'>('all');
   const [query, setQuery] = useState('');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [trackView, setTrackView] = useState<'both' | 'planned' | 'actual'>('both');
   const [clickSlot, setClickSlot] = useState<{ date: string; time: string } | null>(null);
   const [quickTitle, setQuickTitle] = useState('');
   const isNarrow = useMediaQuery('(max-width: 767px)');
+
+  const handleAutoPackDay = async () => {
+    const today = isoToday();
+    const plan = generateSmartSchedule(tasks, today);
+    const newlyScheduled = plan.blocks.filter(b => b.slotType !== 'fixed-anchor');
+    if (newlyScheduled.length === 0) {
+      toast('No unscheduled tasks found to auto-pack.', 'info');
+      return;
+    }
+    await applySmartScheduleTimeBlocks(plan, today);
+    toast(`Auto-packed ${newlyScheduled.length} tasks into today's schedule!`, 'success');
+  };
 
   useEffect(() => {
     if (!selectedTask && !clickSlot) return;
@@ -80,8 +96,9 @@ export function Calendar() {
     const q = query.trim().toLowerCase();
     return tasks
       .filter(t => !t.dueDate || !t.dueTime)
+      .filter(t => selectedCatId === 'all' || t.categoryId === selectedCatId)
       .filter(t => !q || t.title.toLowerCase().includes(q) || t.projectTag.toLowerCase().includes(q));
-  }, [tasks, query]);
+  }, [tasks, query, selectedCatId]);
 
   useEffect(() => {
     if (!externalRef.current) return;
@@ -142,19 +159,21 @@ export function Calendar() {
 
   const plannedEvents = useMemo(
     () =>
-      scheduled.map(task => ({
-        id: task.id,
-        title: task.title,
-        start: `${task.dueDate}T${task.dueTime}:00`,
-        duration: durationString(task.estimatedDuration),
-        backgroundColor: categoryColor(task, categories),
-        borderColor: categoryColor(task, categories),
-        textColor: '#09090b',
-        editable: true,
-        classNames: task.status === 'Submitted/Done' ? ['focusspace-event-done'] : [],
-        extendedProps: { taskId: task.id, categoryId: task.categoryId, isPlanned: true },
-      })),
-    [scheduled, categories]
+      scheduled
+        .filter(t => selectedCatId === 'all' || t.categoryId === selectedCatId)
+        .map(task => ({
+          id: task.id,
+          title: task.title,
+          start: `${task.dueDate}T${task.dueTime}:00`,
+          duration: durationString(task.estimatedDuration),
+          backgroundColor: categoryColor(task, categories),
+          borderColor: categoryColor(task, categories),
+          textColor: '#09090b',
+          editable: true,
+          classNames: task.status === 'Submitted/Done' ? ['focusspace-event-done'] : [],
+          extendedProps: { taskId: task.id, categoryId: task.categoryId, isPlanned: true },
+        })),
+    [scheduled, categories, selectedCatId]
   );
 
   const actualEvents = useMemo(() => {
@@ -193,6 +212,17 @@ export function Calendar() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* ⚡ Auto-Pack Day button */}
+          <button
+            type="button"
+            onClick={handleAutoPackDay}
+            className="h-8 px-3 rounded-xl bg-accent text-accent-fg text-xs font-semibold flex items-center gap-1.5 hover:bg-accent-hover keycap shadow-xs transition"
+            title="Automatically slot unscheduled tasks into open calendar gaps around fixed appointments"
+          >
+            <Zap size={13} />
+            <span>⚡ Auto-Pack Day</span>
+          </button>
+
           {/* Dual-Track Toggle */}
           <div className="flex items-center gap-1 p-1 rounded-xl bg-surface-2 border border-line text-xs">
             <button
@@ -246,12 +276,96 @@ export function Calendar() {
 
       <div className="flex-1 min-h-[620px] grid xl:grid-cols-[290px_minmax(0,1fr)] gap-4">
         <aside ref={externalRef} className="atelier-card rounded-3xl overflow-hidden flex flex-col min-h-[280px]">
-          <div className="p-4 border-b border-line">
-            <div className="font-medium">Unscheduled</div>
-            <div className="text-xs text-fg-soft mt-1">Drag a task to a date/time.</div>
-            <div className="relative mt-3">
+          <div className="p-4 border-b border-line space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="font-semibold text-sm">Unscheduled Tasks</div>
+              <span className="text-[11px] font-mono text-fg-muted bg-surface px-2 py-0.5 rounded-full border border-line">
+                {unscheduled.length}
+              </span>
+            </div>
+
+            {/* Category Filter Pills Strip */}
+            <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+              <button
+                type="button"
+                onClick={() => setSelectedCatId('all')}
+                className={`px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0 transition ${
+                  selectedCatId === 'all'
+                    ? 'bg-accent text-accent-fg font-semibold'
+                    : 'bg-surface border border-line text-fg-muted hover:text-fg'
+                }`}
+              >
+                All
+              </button>
+              {categories.map(c => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setSelectedCatId(c.id)}
+                  className={`px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0 flex items-center gap-1 transition ${
+                    selectedCatId === c.id
+                      ? 'bg-accent text-accent-fg font-semibold'
+                      : 'bg-surface border border-line text-fg-muted hover:text-fg'
+                  }`}
+                >
+                  <span className="size-1.5 rounded-full" style={{ backgroundColor: c.color }} />
+                  <span className="truncate max-w-[80px]">{c.name}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Quick Date Jumper */}
+            <div className="flex items-center gap-1 pt-1.5 border-t border-line">
+              <button
+                type="button"
+                onClick={() => calendarRef.current?.getApi().today()}
+                className="px-2 py-1 rounded-md text-[11px] font-medium bg-surface border border-line text-fg hover:bg-hover transition"
+                title="Go to today"
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const tomorrow = addDays(isoToday(), 1);
+                  calendarRef.current?.getApi().gotoDate(tomorrow);
+                }}
+                className="px-2 py-1 rounded-md text-[11px] font-medium bg-surface border border-line text-fg hover:bg-hover transition"
+                title="Go to tomorrow"
+              >
+                Tomorrow
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextWeek = addDays(isoToday(), 7);
+                  calendarRef.current?.getApi().gotoDate(nextWeek);
+                }}
+                className="px-2 py-1 rounded-md text-[11px] font-medium bg-surface border border-line text-fg hover:bg-hover transition"
+                title="Go to next week"
+              >
+                +1 Wk
+              </button>
+              <input
+                type="date"
+                onChange={e => {
+                  if (e.target.value) {
+                    calendarRef.current?.getApi().gotoDate(e.target.value);
+                  }
+                }}
+                className="h-6 px-1 text-[11px] rounded bg-surface border border-line text-fg outline-none ml-auto"
+                title="Jump to date"
+              />
+            </div>
+
+            <div className="relative pt-1">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-soft" />
-              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Find a task…" className="w-full h-9 rounded-lg bg-surface border border-line pl-9 pr-3 text-sm outline-none focus:border-accent" />
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Find a task…"
+                className="w-full h-8 rounded-lg bg-surface border border-line pl-9 pr-3 text-xs outline-none focus:border-accent"
+              />
             </div>
           </div>
           <div className="p-2 overflow-y-auto space-y-2">
@@ -290,6 +404,7 @@ export function Calendar() {
         <section className="rounded-2xl border border-line bg-surface/70 overflow-hidden min-h-[620px] flex flex-col">
           <div className="calendar-shell flex-1 min-h-[620px] p-2 sm:p-3">
             <FullCalendar
+              ref={calendarRef}
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
               initialView={isNarrow ? 'timeGridDay' : 'timeGridWeek'}
               firstDay={WEEK_STARTS_ON}
@@ -400,15 +515,100 @@ export function Calendar() {
               </div>
               <button onClick={() => setSelectedTask(null)} className="text-fg-soft hover:text-fg"><X size={18} /></button>
             </div>
-            <div className="p-5 space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-fg-soft">Date</span><span>{selectedTask.dueDate || '—'}</span></div>
-              <div className="flex justify-between"><span className="text-fg-soft">Time</span><span>{selectedTask.dueTime || '—'}</span></div>
-              <div className="flex justify-between"><span className="text-fg-soft">Duration</span><span>{selectedTask.estimatedDuration || 30} min</span></div>
-              <div className="flex justify-between"><span className="text-fg-soft">Status</span><span>{selectedTask.status}</span></div>
-              <div className="pt-2 text-xs text-fg-soft">Move or resize the event on the calendar to change its schedule.</div>
+            <div className="p-5 space-y-3.5 text-xs">
+              <div className="flex justify-between items-center"><span className="text-fg-soft font-medium">Date & Time</span><span className="font-mono">{selectedTask.dueDate || '—'} at {selectedTask.dueTime || '—'}</span></div>
+              <div className="flex justify-between items-center"><span className="text-fg-soft font-medium">Current Status</span><span className="font-medium text-fg">{selectedTask.status}</span></div>
+
+              {/* Duration Quick-Pick Pills */}
+              <div className="space-y-1.5 pt-1">
+                <label className="text-xs text-fg-soft font-medium">Duration Quick-Pick</label>
+                <div className="grid grid-cols-6 gap-1">
+                  {[15, 25, 45, 60, 90, 120].map(mins => (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={async () => {
+                        await db.tasks.update(selectedTask.id, { estimatedDuration: mins, updatedAt: new Date().toISOString() });
+                        setSelectedTask({ ...selectedTask, estimatedDuration: mins });
+                        toast(`Duration set to ${mins}m`, 'success');
+                      }}
+                      className={`py-1 rounded-md text-xs font-mono font-medium transition ${
+                        (selectedTask.estimatedDuration || 30) === mins
+                          ? 'bg-accent text-accent-fg font-semibold'
+                          : 'bg-surface-2 border border-line text-fg hover:bg-hover'
+                      }`}
+                    >
+                      {mins}m
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Priority Selector Pills */}
+              <div className="space-y-1.5 pt-1">
+                <label className="text-xs text-fg-soft font-medium">Priority</label>
+                <div className="grid grid-cols-4 gap-1">
+                  {(['Low', 'Medium', 'High', 'Urgent'] as const).map(p => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={async () => {
+                        await db.tasks.update(selectedTask.id, { priority: p, updatedAt: new Date().toISOString() });
+                        setSelectedTask({ ...selectedTask, priority: p });
+                        toast(`Priority set to ${p}`, 'success');
+                      }}
+                      className={`py-1 rounded-md text-xs font-medium transition ${
+                        selectedTask.priority === p
+                          ? 'bg-accent text-accent-fg font-semibold'
+                          : 'bg-surface-2 border border-line text-fg hover:bg-hover'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="px-5 pb-5">
-              <button onClick={() => { openTaskEditor(selectedTask.id); setSelectedTask(null); }} className="w-full h-10 rounded-lg bg-accent text-accent-fg text-sm font-medium hover:bg-accent-hover">Edit details</button>
+
+            <div className="px-5 pb-5 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    focusOnTask({ id: selectedTask.id, title: selectedTask.title });
+                    if (!getTimerState().running) timer.toggle();
+                    setSelectedTask(null);
+                    toast(`Started focus session for "${selectedTask.title}"`, 'success');
+                  }}
+                  className="h-9 rounded-xl bg-accent text-accent-fg text-xs font-semibold hover:bg-accent-hover flex items-center justify-center gap-1.5 keycap transition"
+                >
+                  <Play size={13} />
+                  <span>Start Focus Now</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await db.tasks.update(selectedTask.id, {
+                      dueTime: '',
+                      updatedAt: new Date().toISOString(),
+                    });
+                    setSelectedTask(null);
+                    toast(`Unscheduled "${selectedTask.title}"`, 'info');
+                  }}
+                  className="h-9 rounded-xl border border-line bg-surface-2 text-xs font-medium text-fg hover:bg-hover flex items-center justify-center gap-1.5 transition"
+                >
+                  <RotateCcw size={13} />
+                  <span>Unschedule</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => { openTaskEditor(selectedTask.id); setSelectedTask(null); }}
+                className="w-full h-8 rounded-lg border border-line bg-surface text-fg text-xs font-medium hover:bg-hover transition"
+              >
+                Edit details
+              </button>
             </div>
           </div>
         </div>

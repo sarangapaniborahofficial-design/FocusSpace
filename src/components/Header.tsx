@@ -51,6 +51,7 @@ export function Header({
   isMaximized = false,
   onOpenScreenTime,
   onOpenProfile,
+  onOpenAiAdmin,
 }: {
   title: string;
   onMenu: () => void;
@@ -69,6 +70,7 @@ export function Header({
   isMaximized?: boolean;
   onOpenScreenTime?: () => void;
   onOpenProfile?: () => void;
+  onOpenAiAdmin?: () => void;
 }) {
   const currentTheme = THEMES.includes(theme) ? theme : 'nocturne';
   const next = THEMES[(THEMES.indexOf(currentTheme) + 1) % THEMES.length];
@@ -196,6 +198,20 @@ export function Header({
           <Plus size={13} strokeWidth={2.5} />
           <span className="hidden sm:inline">Add</span>
         </button>
+
+        {/* AI Admin Assistant */}
+        {onOpenAiAdmin && (
+          <button
+            type="button"
+            onClick={onOpenAiAdmin}
+            aria-label="Open AI Admin Assistant"
+            title="AI Admin Assistant (Ctrl + Shift + A)"
+            className="h-8 px-2.5 rounded-xl border border-line bg-surface-2 hover:bg-hover text-fg text-xs font-medium flex items-center gap-1.5 transition cursor-pointer shrink-0"
+          >
+            <Sparkles size={13} className="text-accent" />
+            <span className="hidden lg:inline">AI Admin</span>
+          </button>
+        )}
 
         {/* Floating HUD Trigger */}
         <FloatingHUDTrigger className="hidden md:grid size-8 rounded-xl shrink-0 border-line bg-surface-2 hover:bg-hover text-fg-muted hover:text-fg" />

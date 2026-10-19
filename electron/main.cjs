@@ -863,6 +863,104 @@ app.whenReady().then(() => {
     }
   });
 
+  // --- 2.5 Local AI Administrative Engine IPC (Strictly Localhost 127.0.0.1 Ollama Bridge) ---
+  ipcMain.handle('ai:check-status', async () => {
+    return new Promise((resolve) => {
+      const http = require('http');
+      const req = http.request(
+        {
+          hostname: '127.0.0.1',
+          port: 11434,
+          path: '/api/tags',
+          method: 'GET',
+          timeout: 2000,
+        },
+        (res) => {
+          let data = '';
+          res.on('data', (chunk) => { data += chunk; });
+          res.on('end', () => {
+            try {
+              if (res.statusCode === 200) {
+                const parsed = JSON.parse(data);
+                const models = (parsed.models || []).map((m) => m.name || m.model);
+                resolve({ available: true, models });
+              } else {
+                resolve({ available: false, models: [] });
+              }
+            } catch {
+              resolve({ available: false, models: [] });
+            }
+          });
+        }
+      );
+      req.on('error', () => resolve({ available: false, models: [] }));
+      req.on('timeout', () => {
+        req.destroy();
+        resolve({ available: false, models: [] });
+      });
+      req.end();
+    });
+  });
+
+  ipcMain.handle('ai:local-chat', async (_, args = {}) => {
+    const { prompt, model = 'llama3', systemPrompt } = args;
+    if (!prompt || typeof prompt !== 'string') {
+      return { error: 'Invalid prompt provided to ai:local-chat' };
+    }
+
+    return new Promise((resolve) => {
+      const http = require('http');
+      const start = Date.now();
+      const payload = JSON.stringify({
+        model: typeof model === 'string' ? model : 'llama3',
+        prompt: systemPrompt ? `${systemPrompt}\n\nUser: ${prompt}` : prompt,
+        stream: false,
+      });
+
+      const req = http.request(
+        {
+          hostname: '127.0.0.1',
+          port: 11434,
+          path: '/api/generate',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload),
+          },
+          timeout: 30000,
+        },
+        (res) => {
+          let data = '';
+          res.on('data', (chunk) => { data += chunk; });
+          res.on('end', () => {
+            try {
+              if (res.statusCode === 200) {
+                const parsed = JSON.parse(data);
+                resolve({
+                  response: parsed.response || '',
+                  model: parsed.model || model,
+                  durationMs: Date.now() - start,
+                });
+              } else {
+                resolve({ error: `Ollama returned status ${res.statusCode}` });
+              }
+            } catch (err) {
+              resolve({ error: `Failed to parse Ollama response: ${err.message}` });
+            }
+          });
+        }
+      );
+
+      req.on('error', (err) => resolve({ error: `Could not reach local Ollama at 127.0.0.1:11434 (${err.message})` }));
+      req.on('timeout', () => {
+        req.destroy();
+        resolve({ error: 'Local Ollama request timed out (30s).' });
+      });
+      req.write(payload);
+      req.end();
+    });
+  });
+
   // --- 3. Secure External URI & App Launcher (Zero cmd.exe, Zero Shell Injection) ---
   ipcMain.handle('shell:open-external', async (_, { url }) => {
     if (!url || typeof url !== 'string') {

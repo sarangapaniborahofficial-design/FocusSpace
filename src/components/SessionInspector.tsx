@@ -31,7 +31,7 @@ import {
   type AmbientTrack,
 } from '../lib/ambientSound';
 import { pipHUD, usePipHUD } from '../lib/pipHud';
-import { isoToday, uid } from '../lib/utils';
+import { isoToday, uid, storage } from '../lib/utils';
 import { useDictation } from '../voice/useDictation';
 import type { Task, Subtask } from '../types';
 
@@ -171,8 +171,62 @@ export function SessionInspector({
     });
   };
 
+  // Resizable Cockpit Width (260px - 520px, default 340px)
+  const [cockpitWidth, setCockpitWidth] = useState(() => {
+    const v = parseInt(storage.get('focusspace-cockpit-width') || '340', 10);
+    return isNaN(v) ? 340 : Math.max(260, Math.min(520, v));
+  });
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleResizePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    const startX = e.clientX;
+    const startWidth = cockpitWidth;
+
+    const onPointerMove = (ev: PointerEvent) => {
+      const delta = startX - ev.clientX; // dragging left increases width
+      const newWidth = Math.max(260, Math.min(520, startWidth + delta));
+      setCockpitWidth(newWidth);
+    };
+
+    const onPointerUp = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      setIsDragging(false);
+      const delta = startX - ev.clientX;
+      const finalWidth = Math.max(260, Math.min(520, startWidth + delta));
+      storage.set('focusspace-cockpit-width', String(finalWidth));
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  };
+
   return (
-    <aside className="w-[320px] xl:w-[350px] shrink-0 h-full rounded-2xl bg-surface border border-line overflow-y-auto p-4 flex flex-col gap-3.5 select-none">
+    <aside
+      style={{ width: `${cockpitWidth}px` }}
+      className={`relative shrink-0 h-full rounded-2xl bg-surface border border-line overflow-y-auto p-4 flex flex-col gap-3.5 select-none ${
+        isDragging ? 'transition-none select-none' : 'transition-[width] duration-150 ease-out'
+      }`}
+    >
+      {/* Left edge drag-resize handle */}
+      <div
+        onPointerDown={handleResizePointerDown}
+        onDoubleClick={() => {
+          setCockpitWidth(340);
+          storage.set('focusspace-cockpit-width', '340');
+        }}
+        className="absolute top-0 bottom-0 -left-1.5 w-3 cursor-col-resize group z-30 flex items-center justify-center hover:bg-accent/20 active:bg-accent/30 transition select-none"
+        title="Drag to resize cockpit width (Double-click to reset to 340px)"
+      >
+        <div className="w-[2px] h-12 rounded-full bg-line-strong/60 group-hover:bg-accent group-hover:h-20 transition-all" />
+      </div>
+
       {/* Top Section Header */}
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-mono uppercase tracking-wider text-fg-muted font-bold">

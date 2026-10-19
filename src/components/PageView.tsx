@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeft, Check, Circle, Flame, ListChecks, Pencil, Plus, Sparkles, Target, Trash2, X, CalendarDays, BookOpen, GitFork } from 'lucide-react';
+import { ArrowLeft, Check, Circle, Flame, ListChecks, Pencil, Plus, Sparkles, Target, Trash2, X, CalendarDays, BookOpen, GitFork, Table, ChevronDown } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { db } from '../db/db';
 import { computeStreaks } from '../lib/analytics';
@@ -11,7 +11,14 @@ import { changeStatus } from '../lib/tasks';
 import { generateDailySummaryDoc } from '../lib/journalSummary';
 import { toast } from '../lib/toast';
 import { dateLabel, isoToday, relativeDay } from '../lib/utils';
-import type { Habit, JournalEntry, Page, PageLink, Task } from '../types';
+import type { Habit, JournalEntry, Page, PageLink, Task, CustomDatabase } from '../types';
+import {
+  CustomDatabaseView,
+  createProjectTrackerDatabase,
+  createStudyTrackerDatabase,
+  createReadingLogDatabase,
+  createBlankDatabase,
+} from './CustomDatabaseView';
 import { Attachments } from './PageAttachments';
 import { RichTextEditor } from './RichTextEditor';
 import { RichTextView, toggleTaskAtPath } from './RichTextView';
@@ -108,11 +115,97 @@ function PageEditor({ page, onBack, onNavigate }: { page: Page; onBack: () => vo
     if (snapshot) toast(`Deleted “${title.trim() || 'Untitled'}”`, 'info', { action: { label: 'Undo', run: () => { void restorePage(snapshot); } } });
   };
 
+  const [addDbMenuOpen, setAddDbMenuOpen] = useState(false);
+  const addDbMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onOutside = (e: MouseEvent) => {
+      if (addDbMenuRef.current && !addDbMenuRef.current.contains(e.target as Node)) {
+        setAddDbMenuOpen(false);
+      }
+    };
+    if (addDbMenuOpen) document.addEventListener('mousedown', onOutside);
+    return () => document.removeEventListener('mousedown', onOutside);
+  }, [addDbMenuOpen]);
+
+  const handleUpdateDatabase = async (updatedDb: CustomDatabase) => {
+    const list = (page.customDatabases || []).map(d => (d.id === updatedDb.id ? updatedDb : d));
+    await db.pages.update(page.id, { customDatabases: list, updatedAt: new Date().toISOString() });
+  };
+
+  const handleDeleteDatabase = async (dbId: string) => {
+    const list = (page.customDatabases || []).filter(d => d.id !== dbId);
+    await db.pages.update(page.id, { customDatabases: list, updatedAt: new Date().toISOString() });
+  };
+
+  const handleAddDatabase = async (templateFn: () => CustomDatabase) => {
+    const newDb = templateFn();
+    const list = [...(page.customDatabases || []), newDb];
+    await db.pages.update(page.id, { customDatabases: list, updatedAt: new Date().toISOString() });
+    setAddDbMenuOpen(false);
+    toast(`Added "${newDb.title}" database!`, 'success');
+  };
+
   return (
     <div className="p-5 lg:p-7 max-w-3xl mx-auto">
       <div className="flex items-center justify-between gap-3 mb-6">
         <button onClick={onBack} className="flex items-center gap-2 text-sm text-fg-muted hover:text-fg min-w-0"><ArrowLeft size={16} /><span className="truncate">{category ? `${category.name} / ` : ''}Pages</span></button>
-        <button onClick={() => setConfirmingDelete(true)} aria-label="Delete page" title="Delete page" className="size-9 grid place-items-center rounded-lg text-fg-subtle hover:text-fg-soft hover:bg-hover"><Trash2 size={16} /></button>
+        <div className="flex items-center gap-2">
+          {/* Add Database dropdown */}
+          <div className="relative" ref={addDbMenuRef}>
+            <button
+              type="button"
+              onClick={() => setAddDbMenuOpen(v => !v)}
+              className="h-8 px-3 rounded-xl border border-line bg-surface hover:bg-hover text-xs font-semibold text-fg flex items-center gap-1.5 shadow-xs transition"
+            >
+              <Table size={13} className="text-accent" />
+              <span>+ Add Database / Table</span>
+              <ChevronDown size={11} className="text-fg-muted" />
+            </button>
+
+            {addDbMenuOpen && (
+              <div className="absolute right-0 top-9 z-50 w-64 rounded-xl bg-surface border border-line shadow-2xl p-1.5 space-y-1">
+                <div className="px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-fg-muted font-bold">
+                  Choose Template
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleAddDatabase(createProjectTrackerDatabase)}
+                  className="w-full text-left px-2.5 py-2 rounded-lg text-xs hover:bg-hover transition flex flex-col gap-0.5"
+                >
+                  <span className="font-semibold text-fg">🚀 Project & Sprint Tracker</span>
+                  <span className="text-[11px] text-fg-muted">Task, Status, Priority, Due Date, Done</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleAddDatabase(createStudyTrackerDatabase)}
+                  className="w-full text-left px-2.5 py-2 rounded-lg text-xs hover:bg-hover transition flex flex-col gap-0.5"
+                >
+                  <span className="font-semibold text-fg">📚 Course & Study Tracker</span>
+                  <span className="text-[11px] text-fg-muted">Topic, Module, Confidence, Last Reviewed, Mastered</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleAddDatabase(createReadingLogDatabase)}
+                  className="w-full text-left px-2.5 py-2 rounded-lg text-xs hover:bg-hover transition flex flex-col gap-0.5"
+                >
+                  <span className="font-semibold text-fg">📖 Reading & Media Log</span>
+                  <span className="text-[11px] text-fg-muted">Title, Category, Rating, Notes, Completed</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleAddDatabase(createBlankDatabase)}
+                  className="w-full text-left px-2.5 py-2 rounded-lg text-xs hover:bg-hover transition flex flex-col gap-0.5"
+                >
+                  <span className="font-semibold text-fg">📋 Blank Table</span>
+                  <span className="text-[11px] text-fg-muted">Name, Status, Notes, Done</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button onClick={() => setConfirmingDelete(true)} aria-label="Delete page" title="Delete page" className="size-8 grid place-items-center rounded-lg text-fg-subtle hover:text-fg-soft hover:bg-hover border border-line"><Trash2 size={15} /></button>
+        </div>
       </div>
 
       <div className="flex items-center gap-3 mb-2">
@@ -158,7 +251,27 @@ function PageEditor({ page, onBack, onNavigate }: { page: Page; onBack: () => vo
 
       {page.legacyMarkdown && <LegacyBanner pageId={page.id} />}
 
-      <RelatedSection pageId={page.id} links={links} />
+      {/* Custom Databases & Tables Section */}
+      {page.customDatabases && page.customDatabases.length > 0 && (
+        <section aria-labelledby="databases-heading" className="my-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 id="databases-heading" className="font-medium text-sm flex items-center gap-2">
+              <Table size={15} className="text-accent" />
+              <span>Databases & Tables</span>
+            </h2>
+          </div>
+          <div className="space-y-4">
+            {page.customDatabases.map(cdb => (
+              <CustomDatabaseView
+                key={cdb.id}
+                database={cdb}
+                onUpdate={handleUpdateDatabase}
+                onDelete={() => void handleDeleteDatabase(cdb.id)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       <section aria-labelledby="journal-heading" className="mt-2">
         <div className="flex items-center justify-between mb-3">
