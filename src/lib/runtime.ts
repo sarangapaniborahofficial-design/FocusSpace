@@ -5,6 +5,8 @@
  * Electron injects `window.electronAPI` into the window via preload.cjs.
  */
 
+import type { SnapLayoutId } from './snapLayouts';
+
 export interface ElectronAPI {
   isElectron: boolean;
   writeSnapshot: (filename: string, payload: string, secondaryDir?: string) => Promise<{ success: boolean; path: string; secondaryPath?: string | null }>;
@@ -23,6 +25,7 @@ export interface ElectronAPI {
   isFullscreen: () => Promise<boolean>;
   minimizeWindow: () => Promise<boolean>;
   toggleMaximizeWindow: () => Promise<boolean>;
+  snapToLayout?: (layout: SnapLayoutId) => Promise<boolean>;
   isWindowMaximized: () => Promise<boolean>;
   closeWindow: () => Promise<boolean>;
   setTitleBarTheme?: (themeName: string) => Promise<void>;
@@ -156,4 +159,19 @@ export async function queryLocalAi(payload: { prompt: string; model?: string; sy
   }
   return { error: 'Electron desktop environment required for localhost Ollama integration' };
 }
+
+/**
+ * Snaps the native Electron window to a predefined Windows 11 split-view partition.
+ */
+export async function snapWindowToLayout(layout: SnapLayoutId): Promise<boolean> {
+  if (typeof window !== 'undefined' && window.electronAPI?.snapToLayout) {
+    try {
+      return await window.electronAPI.snapToLayout(layout);
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
 

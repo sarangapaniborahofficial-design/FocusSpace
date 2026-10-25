@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Activity,
   Keyboard,
@@ -20,7 +20,9 @@ import type { LayoutMode } from '../types';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { FloatingHUDTrigger } from './FloatingHUD';
-import { getElectronAPI } from '../lib/runtime';
+import { getElectronAPI, snapWindowToLayout } from '../lib/runtime';
+import { SnapLayoutsFlyout } from './SnapLayoutsFlyout';
+import type { SnapLayoutId } from '../lib/snapLayouts';
 import { useScreenTimer, formatScreenTimeClock } from '../lib/screenTimer';
 import { FocusSpaceLogo } from './FocusSpaceLogo';
 
@@ -105,6 +107,55 @@ export function Header({
     };
     window.addEventListener('focusspace:profile-updated', updateProfile);
     return () => window.removeEventListener('focusspace:profile-updated', updateProfile);
+  }, []);
+
+  const [isSnapOpen, setIsSnapOpen] = useState(false);
+  const snapHoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const snapLeaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMaximizeMouseEnter = () => {
+    if (snapLeaveTimerRef.current) {
+      clearTimeout(snapLeaveTimerRef.current);
+      snapLeaveTimerRef.current = null;
+    }
+    if (!isSnapOpen && !snapHoverTimerRef.current) {
+      snapHoverTimerRef.current = setTimeout(() => {
+        setIsSnapOpen(true);
+        snapHoverTimerRef.current = null;
+      }, 280);
+    }
+  };
+
+  const handleMaximizeMouseLeave = () => {
+    if (snapHoverTimerRef.current) {
+      clearTimeout(snapHoverTimerRef.current);
+      snapHoverTimerRef.current = null;
+    }
+    snapLeaveTimerRef.current = setTimeout(() => {
+      setIsSnapOpen(false);
+      snapLeaveTimerRef.current = null;
+    }, 320);
+  };
+
+  const handleMaximizeClick = () => {
+    if (snapHoverTimerRef.current) {
+      clearTimeout(snapHoverTimerRef.current);
+      snapHoverTimerRef.current = null;
+    }
+    setIsSnapOpen(false);
+    onToggleMaximize?.();
+  };
+
+  const handleSelectSnapLayout = async (layoutId: SnapLayoutId) => {
+    setIsSnapOpen(false);
+    await snapWindowToLayout(layoutId);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (snapHoverTimerRef.current) clearTimeout(snapHoverTimerRef.current);
+      if (snapLeaveTimerRef.current) clearTimeout(snapLeaveTimerRef.current);
+    };
   }, []);
 
   const handleCycleTheme = () => {
@@ -283,14 +334,26 @@ export function Header({
             >
               <Minus size={13} />
             </button>
-            <button
-              onClick={onToggleMaximize}
-              title={isMaximized ? 'Restore' : 'Maximize'}
-              aria-label={isMaximized ? 'Restore' : 'Maximize'}
-              className="size-7 grid place-items-center rounded-lg text-fg-muted hover:text-fg hover:bg-hover transition cursor-pointer"
+            <div
+              className="relative"
+              onMouseEnter={handleMaximizeMouseEnter}
+              onMouseLeave={handleMaximizeMouseLeave}
             >
-              <Square size={11} />
-            </button>
+              <button
+                onClick={handleMaximizeClick}
+                title={isMaximized ? 'Restore' : 'Maximize (Hover for Snap Layouts)'}
+                aria-label={isMaximized ? 'Restore' : 'Maximize'}
+                className="size-7 grid place-items-center rounded-lg text-fg-muted hover:text-fg hover:bg-hover transition cursor-pointer"
+              >
+                <Square size={11} />
+              </button>
+              {isSnapOpen && (
+                <SnapLayoutsFlyout
+                  onSelectLayout={handleSelectSnapLayout}
+                  onClose={() => setIsSnapOpen(false)}
+                />
+              )}
+            </div>
             <button
               onClick={onClose}
               title="Close"

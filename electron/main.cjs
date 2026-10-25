@@ -9,6 +9,7 @@ const {
   protocol,
   dialog,
   session,
+  screen,
 } = require('electron');
 const path = require('path');
 const os = require('os');
@@ -205,12 +206,67 @@ function getTitleBarOverlayOptions(themeName = 'nocturne') {
   return palettes[themeName] || palettes.nocturne;
 }
 
+function calculateSnapBounds(layout, workArea) {
+  const x = Math.round(workArea.x);
+  const y = Math.round(workArea.y);
+  const width = Math.max(320, Math.round(workArea.width));
+  const height = Math.max(240, Math.round(workArea.height));
+
+  const halfW = Math.floor(width / 2);
+  const remW = width - halfW;
+  const halfH = Math.floor(height / 2);
+  const remH = height - halfH;
+
+  switch (layout) {
+    case 'two-col-left':
+      return { x, y, width: halfW, height };
+    case 'two-col-right':
+      return { x: x + halfW, y, width: remW, height };
+
+    case 'split-70': {
+      const w70 = Math.floor(width * 0.7);
+      return { x, y, width: w70, height };
+    }
+    case 'split-30': {
+      const w70 = Math.floor(width * 0.7);
+      return { x: x + w70, y, width: width - w70, height };
+    }
+
+    case 'three-col-left': {
+      const w25 = Math.floor(width * 0.25);
+      return { x, y, width: w25, height };
+    }
+    case 'three-col-center': {
+      const w25 = Math.floor(width * 0.25);
+      const w50 = Math.floor(width * 0.5);
+      return { x: x + w25, y, width: w50, height };
+    }
+    case 'three-col-right': {
+      const w25 = Math.floor(width * 0.25);
+      const w50 = Math.floor(width * 0.5);
+      return { x: x + w25 + w50, y, width: width - (w25 + w50), height };
+    }
+
+    case 'quad-top-left':
+      return { x, y, width: halfW, height: halfH };
+    case 'quad-top-right':
+      return { x: x + halfW, y, width: remW, height: halfH };
+    case 'quad-bottom-left':
+      return { x, y: y + halfH, width: halfW, height: remH };
+    case 'quad-bottom-right':
+      return { x: x + halfW, y: y + halfH, width: remW, height: remH };
+
+    default:
+      return { x, y, width, height };
+  }
+}
+
 function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 840,
-    minWidth: 960,
-    minHeight: 640,
+    minWidth: 440,
+    minHeight: 380,
     title: 'FocusSpace',
     backgroundColor: '#00000000',
     backgroundMaterial: 'mica',
@@ -561,6 +617,31 @@ app.whenReady().then(() => {
       }
     }
     return false;
+  });
+
+  ipcMain.handle('window:snap-to-layout', (_event, { layout } = {}) => {
+    if (!mainWindow || mainWindow.isDestroyed() || !layout) return false;
+    try {
+      const currentDisplay = screen.getDisplayMatching(mainWindow.getBounds());
+      const workArea = currentDisplay.workArea;
+      const targetBounds = calculateSnapBounds(layout, workArea);
+
+      if (mainWindow.isMaximized()) {
+        mainWindow.unmaximize();
+      }
+
+      mainWindow.setMinimumSize(
+        Math.min(targetBounds.width, 360),
+        Math.min(targetBounds.height, 300)
+      );
+
+      mainWindow.setBounds(targetBounds, true);
+      mainWindow.webContents.send('window:maximize-changed', false);
+      return true;
+    } catch (err) {
+      console.error('[Snap Layout] Failed to snap window:', err);
+      return false;
+    }
   });
 
   ipcMain.handle('window:is-maximized', () => {
