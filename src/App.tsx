@@ -673,7 +673,7 @@ export default function App() {
       )}
 
       {/* Row 1 — Full-Width Top Titlebar */}
-      <div className="relative z-10 shrink-0">
+      <div className="relative z-40 shrink-0">
         <Header
           title={title}
           onMenu={() => setDrawer(true)}

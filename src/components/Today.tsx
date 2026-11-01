@@ -217,7 +217,7 @@ export function Today({
         )}
 
         {/* Task Table Header */}
-        <div className="grid grid-cols-[1fr_120px_90px_100px] gap-3 px-3 py-2 text-[11px] uppercase tracking-wider font-mono text-fg-muted border-b border-line shrink-0">
+        <div className="grid grid-cols-[1fr_110px_80px_85px] gap-2.5 px-3 py-2 text-[11px] uppercase tracking-wider font-mono text-fg-muted border-b border-line shrink-0">
           <span>Task</span>
           <span>Category</span>
           <span>Priority</span>
@@ -241,7 +241,7 @@ export function Today({
                 <div
                   key={t.id}
                   onClick={() => onSelectTask?.(t.id)}
-                  className={`grid grid-cols-[1fr_120px_90px_100px] gap-3 px-3 py-2.5 rounded-xl items-center text-sm cursor-pointer transition ${
+                  className={`grid grid-cols-[1fr_110px_80px_85px] gap-2.5 px-3 py-2.5 rounded-xl items-center text-sm cursor-pointer transition ${
                     isSelected
                       ? 'bg-surface-2 text-fg font-medium'
                       : 'text-fg-soft hover:bg-hover hover:text-fg'

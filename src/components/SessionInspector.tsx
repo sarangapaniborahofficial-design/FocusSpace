@@ -171,62 +171,10 @@ export function SessionInspector({
     });
   };
 
-  // Resizable Cockpit Width (260px - 520px, default 340px)
-  const [cockpitWidth, setCockpitWidth] = useState(() => {
-    const v = parseInt(storage.get('focusspace-cockpit-width') || '340', 10);
-    return isNaN(v) ? 340 : Math.max(260, Math.min(520, v));
-  });
-  const [isDragging, setIsDragging] = useState(false);
-
-  const handleResizePointerDown = (e: React.PointerEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-    const startX = e.clientX;
-    const startWidth = cockpitWidth;
-
-    const onPointerMove = (ev: PointerEvent) => {
-      const delta = startX - ev.clientX; // dragging left increases width
-      const newWidth = Math.max(260, Math.min(520, startWidth + delta));
-      setCockpitWidth(newWidth);
-    };
-
-    const onPointerUp = (ev: PointerEvent) => {
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      setIsDragging(false);
-      const delta = startX - ev.clientX;
-      const finalWidth = Math.max(260, Math.min(520, startWidth + delta));
-      storage.set('focusspace-cockpit-width', String(finalWidth));
-    };
-
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-  };
-
   return (
     <aside
-      style={{ width: `${cockpitWidth}px` }}
-      className={`relative shrink-0 h-full rounded-2xl bg-surface border border-line overflow-y-auto p-4 flex flex-col gap-3.5 select-none ${
-        isDragging ? 'transition-none select-none' : 'transition-[width] duration-150 ease-out'
-      }`}
+      className="relative shrink-0 w-[340px] h-full rounded-2xl bg-surface border border-line overflow-y-auto p-4 flex flex-col gap-3.5 select-none"
     >
-      {/* Left edge drag-resize handle */}
-      <div
-        onPointerDown={handleResizePointerDown}
-        onDoubleClick={() => {
-          setCockpitWidth(340);
-          storage.set('focusspace-cockpit-width', '340');
-        }}
-        className="absolute top-0 bottom-0 -left-1.5 w-3 cursor-col-resize group z-30 flex items-center justify-center hover:bg-accent/20 active:bg-accent/30 transition select-none"
-        title="Drag to resize cockpit width (Double-click to reset to 340px)"
-      >
-        <div className="w-[2px] h-12 rounded-full bg-line-strong/60 group-hover:bg-accent group-hover:h-20 transition-all" />
-      </div>
-
       {/* Top Section Header */}
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-mono uppercase tracking-wider text-fg-muted font-bold">
@@ -248,13 +196,15 @@ export function SessionInspector({
                   key={mode}
                   type="button"
                   onClick={() => timer.setMode(mode)}
-                  className={`py-1 px-1.5 rounded-md text-[11px] text-center font-medium transition cursor-pointer truncate ${
+                  title={`${label} (${timerState.durations[mode]}m)`}
+                  className={`py-1 px-1 rounded-md text-[11px] text-center font-medium transition cursor-pointer flex items-center justify-center gap-1 ${
                     isActive
                       ? 'bg-surface-2 text-fg font-semibold shadow-xs border border-line'
                       : 'text-fg-muted hover:text-fg'
                   }`}
                 >
-                  {label} {timerState.durations[mode]}m
+                  <span className="truncate">{label}</span>
+                  <span className="font-mono text-[10px] opacity-75 shrink-0">{timerState.durations[mode]}m</span>
                 </button>
               );
             })}
@@ -423,7 +373,7 @@ export function SessionInspector({
           </div>
 
           {/* Volume Slider */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
             <input
               type="range"
               min="0"
@@ -433,7 +383,7 @@ export function SessionInspector({
               onChange={e => ambientSound.setVolume(parseFloat(e.target.value))}
               title={`Volume: ${Math.round(ambientState.volume * 100)}%`}
               aria-label="Ambient volume"
-              className="w-12 sm:w-14 h-1 accent-accent rounded-lg cursor-pointer shrink-0"
+              className="w-12 h-1 accent-accent rounded-lg cursor-pointer shrink-0"
             />
           </div>
 
@@ -442,7 +392,7 @@ export function SessionInspector({
             type="button"
             onClick={toggleDictation}
             title={isListening ? 'Stop dictation' : 'Start voice dictation'}
-            className={`h-7 px-2 rounded-lg border text-xs flex items-center gap-1 transition cursor-pointer shrink-0 ${
+            className={`h-7 px-2.5 rounded-lg border text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0 ${
               isListening
                 ? 'bg-rose-500/20 text-rose-500 border-rose-500/40 font-semibold animate-pulse'
                 : 'bg-surface border-line text-fg-muted hover:text-fg hover:bg-hover'
@@ -563,7 +513,8 @@ export function SessionInspector({
                   key={h.id}
                   type="button"
                   onClick={() => void toggleHabitDay(h.id, today)}
-                  className={`px-2 py-1.5 rounded-lg border text-left text-xs truncate flex items-center gap-1.5 cursor-pointer transition ${
+                  title={h.name}
+                  className={`px-2 py-1.5 rounded-lg border text-left text-xs min-w-0 flex items-center gap-1.5 cursor-pointer transition ${
                     done
                       ? 'border-accent/40 bg-accent/15 text-accent-text font-semibold'
                       : 'border-line bg-surface text-fg hover:text-fg hover:bg-hover'
@@ -573,7 +524,7 @@ export function SessionInspector({
                     className="size-1.5 rounded-full shrink-0"
                     style={{ backgroundColor: h.color }}
                   />
-                  <span className="truncate">{h.name}</span>
+                  <span className="truncate flex-1">{h.name}</span>
                 </button>
               );
             })}
