@@ -54,7 +54,7 @@ export function SnapLayoutsFlyout({ onSelectLayout, onClose }: SnapLayoutsFlyout
       ref={flyoutRef}
       role="dialog"
       aria-label="Windows 11 Snap Layouts"
-      className="absolute right-0 top-full mt-2.5 z-50 w-72 rounded-2xl bg-surface border border-line-strong p-3.5 shadow-2xl select-none"
+      className="absolute right-0 top-full mt-2.5 z-[100] w-72 rounded-2xl bg-surface border border-line-strong p-3.5 shadow-2xl select-none before:content-[''] before:absolute before:-top-3.5 before:inset-x-0 before:h-4"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}

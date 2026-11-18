@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Headphones,
   Mic,
+  PanelRightClose,
   Pause,
   PictureInPicture2,
   Play,
@@ -45,8 +46,10 @@ const AMBIENT_OPTIONS: { id: AmbientTrack; label: string; icon: string; fullName
 
 export function SessionInspector({
   selectedTaskId,
+  onClose,
 }: {
   selectedTaskId?: string | null;
+  onClose?: () => void;
 }) {
   const today = isoToday();
   const timerState = useTimer();
@@ -173,14 +176,27 @@ export function SessionInspector({
 
   return (
     <aside
-      className="relative shrink-0 w-[340px] h-full rounded-2xl bg-surface border border-line overflow-y-auto p-4 flex flex-col gap-3.5 select-none"
+      className="relative shrink-0 w-[300px] xl:w-[340px] h-full rounded-2xl bg-surface border border-line overflow-y-auto p-3.5 xl:p-4 flex flex-col gap-3.5 select-none transition-all duration-200"
     >
       {/* Top Section Header */}
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-mono uppercase tracking-wider text-fg-muted font-bold">
           This session
         </span>
-        <span className="size-2 rounded-full bg-accent animate-pulse" />
+        <div className="flex items-center gap-2">
+          <span className="size-2 rounded-full bg-accent animate-pulse" />
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              title="Hide Session Cockpit"
+              aria-label="Hide Session Cockpit"
+              className="size-6 rounded-lg border border-transparent hover:border-line hover:bg-hover text-fg-muted hover:text-fg grid place-items-center transition cursor-pointer"
+            >
+              <PanelRightClose size={13} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 1. Tactile Focus Chronograph Card */}

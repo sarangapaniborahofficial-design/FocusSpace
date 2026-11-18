@@ -88,6 +88,8 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(() => storage.get('focusspace-sidebar') === 'collapsed');
+  const [cockpitCollapsed, setCockpitCollapsed] = useState(() => storage.get('focusspace-cockpit') === 'collapsed');
+  const [windowWidth, setWindowWidth] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1280));
   const [drawer, setDrawer] = useState(false);
   const [nav, setNav] = useState<Nav>({ view: 'home', tab: 'tasks', pageId: null, query: '', n: 0 });
   const [quick, setQuick] = useState(false);
@@ -124,6 +126,17 @@ export default function App() {
       return 95;
     }
   });
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isNarrow = windowWidth < 1000;
+  const isUltraNarrow = windowWidth < 800;
+  const effectiveSidebarCollapsed = collapsed || isNarrow;
+  const effectiveCockpitCollapsed = cockpitCollapsed || isUltraNarrow;
 
   useEffect(() => {
     if (wallpaperBlobRecord?.blob) {
@@ -579,6 +592,13 @@ export default function App() {
       if (mod && e.key === '3') { e.preventDefault(); go('pages'); return; }
       if (mod && e.key === '4') { e.preventDefault(); go('analytics'); return; }
       if (mod && e.key === '5') { e.preventDefault(); go('review'); return; }
+      if (mod && key === 'b') {
+        e.preventDefault();
+        const next = !effectiveSidebarCollapsed;
+        setCollapsed(next);
+        storage.set('focusspace-sidebar', next ? 'collapsed' : 'expanded');
+        return;
+      }
       if (e.key === 'F11') {
         const api = getElectronAPI();
         if (api) {
@@ -673,7 +693,7 @@ export default function App() {
       )}
 
       {/* Row 1 — Full-Width Top Titlebar */}
-      <div className="relative z-40 shrink-0">
+      <div className="relative z-50 shrink-0">
         <Header
           title={title}
           onMenu={() => setDrawer(true)}
@@ -692,11 +712,17 @@ export default function App() {
           onOpenProfile={() => go('profile')}
           onOpenAiAdmin={() => setAiAdminOpen(true)}
           onToggleSidebar={() => {
-            const next = !collapsed;
+            const next = !effectiveSidebarCollapsed;
             setCollapsed(next);
             storage.set('focusspace-sidebar', next ? 'collapsed' : 'expanded');
           }}
-          isSidebarCollapsed={collapsed}
+          isSidebarCollapsed={effectiveSidebarCollapsed}
+          onToggleCockpit={() => {
+            const next = !effectiveCockpitCollapsed;
+            setCockpitCollapsed(next);
+            storage.set('focusspace-cockpit', next ? 'collapsed' : 'expanded');
+          }}
+          isCockpitCollapsed={effectiveCockpitCollapsed}
         />
       </div>
 
@@ -704,7 +730,7 @@ export default function App() {
       <div className="flex-1 min-h-0 flex gap-2.5 overflow-hidden relative z-10">
         {/* Island 1: Sidebar */}
         <Sidebar
-          collapsed={collapsed}
+          collapsed={effectiveSidebarCollapsed}
           setCollapsed={setCollapsed}
           active={active}
           setActive={go}
@@ -778,8 +804,14 @@ export default function App() {
         </main>
 
         {/* Island 3: Right Session Cockpit / Inspector */}
-        {(active === 'home' || (layoutMode === 'cockpit' && active !== 'plan')) && (
-          <SessionInspector selectedTaskId={selectedTaskId} />
+        {!effectiveCockpitCollapsed && (active === 'home' || (layoutMode === 'cockpit' && active !== 'plan')) && (
+          <SessionInspector
+            selectedTaskId={selectedTaskId}
+            onClose={() => {
+              setCockpitCollapsed(true);
+              storage.set('focusspace-cockpit', 'collapsed');
+            }}
+          />
         )}
       </div>
 

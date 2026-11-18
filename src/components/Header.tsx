@@ -9,6 +9,8 @@ import {
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Plus,
   Search,
   Sparkles,
@@ -47,6 +49,8 @@ export function Header({
   setLayoutMode,
   onToggleSidebar,
   isSidebarCollapsed,
+  onToggleCockpit,
+  isCockpitCollapsed,
   onMinimize,
   onToggleMaximize,
   onClose,
@@ -66,6 +70,8 @@ export function Header({
   setLayoutMode?: (m: LayoutMode) => void;
   onToggleSidebar?: () => void;
   isSidebarCollapsed?: boolean;
+  onToggleCockpit?: () => void;
+  isCockpitCollapsed?: boolean;
   onMinimize?: () => void;
   onToggleMaximize?: () => void;
   onClose?: () => void;
@@ -122,7 +128,7 @@ export function Header({
       snapHoverTimerRef.current = setTimeout(() => {
         setIsSnapOpen(true);
         snapHoverTimerRef.current = null;
-      }, 280);
+      }, 240);
     }
   };
 
@@ -134,7 +140,7 @@ export function Header({
     snapLeaveTimerRef.current = setTimeout(() => {
       setIsSnapOpen(false);
       snapLeaveTimerRef.current = null;
-    }, 320);
+    }, 380);
   };
 
   const handleMaximizeClick = () => {
@@ -173,7 +179,7 @@ export function Header({
           onToggleMaximize?.();
         }
       }}
-      className="h-12 shrink-0 rounded-2xl bg-surface border border-line px-4 flex items-center justify-between gap-3 window-drag-region select-none relative z-30"
+      className="h-12 shrink-0 rounded-2xl bg-surface border border-line px-4 flex items-center justify-between gap-3 window-drag-region select-none relative z-50"
     >
       {/* Left: Brand + Breadcrumb + Sidebar Toggle */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0 window-no-drag">
@@ -207,24 +213,25 @@ export function Header({
       </div>
 
       {/* Center: Centered Omni-Search Pill */}
-      <div className="window-no-drag flex-1 max-w-md mx-3 min-w-0 flex justify-center">
+      <div className="window-no-drag flex-1 max-w-md mx-2 sm:mx-3 min-w-0 flex justify-center">
         <button
           onClick={onSearch}
           aria-label="Search or capture a task (Ctrl + K)"
           title="Search or capture a task (@category #tag !urgent ~30m)"
-          className="w-full max-w-[420px] h-8 px-3 rounded-full border border-line bg-surface-2 hover:bg-hover text-fg-muted hover:text-fg flex items-center justify-between text-xs transition-all cursor-pointer shadow-xs group"
+          className="w-full max-w-[420px] h-8 px-2.5 sm:px-3 rounded-full border border-line bg-surface-2 hover:bg-hover text-fg-muted hover:text-fg flex items-center justify-between text-xs transition-all cursor-pointer shadow-xs group"
         >
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
             <Search size={13} className="text-fg-muted group-hover:text-accent-text transition-colors shrink-0" />
-            <span className="truncate">Search or capture a task (@category #tag !urgent ~30m)</span>
+            <span className="hidden md:inline truncate">Search or capture a task (@category #tag !urgent ~30m)</span>
+            <span className="md:hidden truncate">Search tasks...</span>
           </div>
-          <kbd className="hidden sm:inline font-mono text-[10px] px-1.5 py-0.5 rounded bg-surface border border-line text-fg-muted shrink-0 ml-2">
+          <kbd className="hidden sm:inline font-mono text-[10px] px-1.5 py-0.5 rounded bg-surface border border-line text-fg-muted shrink-0 ml-1.5 sm:ml-2">
             Ctrl K
           </kbd>
         </button>
       </div>
 
-      {/* Right: Screen Time, Quick Add, Theme, Controls & Window Buttons */}
+      {/* Right: Screen Time, Quick Add, Cockpit, Theme, Controls & Window Buttons */}
       <div className="flex items-center gap-1.5 shrink-0 window-no-drag">
         {/* Screen Time Badge */}
         {onOpenScreenTime && (
@@ -261,6 +268,18 @@ export function Header({
           >
             <Sparkles size={13} className="text-accent" />
             <span className="hidden lg:inline">AI Admin</span>
+          </button>
+        )}
+
+        {/* Session Cockpit Toggle Button */}
+        {onToggleCockpit && (
+          <button
+            onClick={onToggleCockpit}
+            title={isCockpitCollapsed ? 'Open Session Cockpit' : 'Close Session Cockpit'}
+            aria-label={isCockpitCollapsed ? 'Open Session Cockpit' : 'Close Session Cockpit'}
+            className="size-8 grid place-items-center rounded-xl border border-line bg-surface-2 hover:bg-hover text-fg-muted hover:text-fg transition-colors cursor-pointer shrink-0"
+          >
+            {isCockpitCollapsed ? <PanelRightOpen size={14} /> : <PanelRightClose size={14} />}
           </button>
         )}
 

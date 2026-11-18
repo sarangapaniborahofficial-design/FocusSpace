@@ -265,8 +265,8 @@ function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 840,
-    minWidth: 440,
-    minHeight: 380,
+    minWidth: 320,
+    minHeight: 260,
     title: 'FocusSpace',
     backgroundColor: '#00000000',
     backgroundMaterial: 'mica',
@@ -619,21 +619,43 @@ app.whenReady().then(() => {
     return false;
   });
 
-  ipcMain.handle('window:snap-to-layout', (_event, { layout } = {}) => {
+  ipcMain.handle('window:snap-to-layout', async (_event, { layout } = {}) => {
     if (!mainWindow || mainWindow.isDestroyed() || !layout) return false;
     try {
-      const currentDisplay = screen.getDisplayMatching(mainWindow.getBounds());
+      // 1. Calculate window center point to accurately detect the current display on multi-monitor setups (even when maximized)
+      const bounds = mainWindow.getBounds();
+      const center = {
+        x: Math.round(bounds.x + bounds.width / 2),
+        y: Math.round(bounds.y + bounds.height / 2),
+      };
+      const currentDisplay = screen.getDisplayNearestPoint(center);
       const workArea = currentDisplay.workArea;
       const targetBounds = calculateSnapBounds(layout, workArea);
 
-      if (mainWindow.isMaximized()) {
-        mainWindow.unmaximize();
-      }
-
+      // 2. Relax minimum sizes so narrow column or quadrant snaps are never blocked by OS constraints
       mainWindow.setMinimumSize(
-        Math.min(targetBounds.width, 360),
-        Math.min(targetBounds.height, 300)
+        Math.min(targetBounds.width, 320),
+        Math.min(targetBounds.height, 260)
       );
+
+      // 3. Handle maximized state cleanly by awaiting unmaximize before setting new bounds
+      if (mainWindow.isMaximized()) {
+        await new Promise((resolve) => {
+          let done = false;
+          const onUnmax = () => {
+            if (!done) {
+              done = true;
+              mainWindow.removeListener('unmaximize', onUnmax);
+              resolve();
+            }
+          };
+          mainWindow.once('unmaximize', onUnmax);
+          mainWindow.unmaximize();
+          setTimeout(onUnmax, 140);
+        });
+        // Brief delay to allow Windows DWM message pump to complete restore transition
+        await new Promise((r) => setTimeout(r, 20));
+      }
 
       mainWindow.setBounds(targetBounds, true);
       mainWindow.webContents.send('window:maximize-changed', false);

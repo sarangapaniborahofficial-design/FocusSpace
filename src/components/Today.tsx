@@ -217,10 +217,10 @@ export function Today({
         )}
 
         {/* Task Table Header */}
-        <div className="grid grid-cols-[1fr_110px_80px_85px] gap-2.5 px-3 py-2 text-[11px] uppercase tracking-wider font-mono text-fg-muted border-b border-line shrink-0">
+        <div className="grid grid-cols-[1fr_75px] sm:grid-cols-[1fr_110px_80px_85px] gap-2.5 px-3 py-2 text-[11px] uppercase tracking-wider font-mono text-fg-muted border-b border-line shrink-0">
           <span>Task</span>
-          <span>Category</span>
-          <span>Priority</span>
+          <span className="hidden sm:inline">Category</span>
+          <span className="hidden sm:inline">Priority</span>
           <span className="text-right">Due</span>
         </div>
 
@@ -241,7 +241,7 @@ export function Today({
                 <div
                   key={t.id}
                   onClick={() => onSelectTask?.(t.id)}
-                  className={`grid grid-cols-[1fr_110px_80px_85px] gap-2.5 px-3 py-2.5 rounded-xl items-center text-sm cursor-pointer transition ${
+                  className={`grid grid-cols-[1fr_75px] sm:grid-cols-[1fr_110px_80px_85px] gap-2.5 px-3 py-2.5 rounded-xl items-center text-sm cursor-pointer transition ${
                     isSelected
                       ? 'bg-surface-2 text-fg font-medium'
                       : 'text-fg-soft hover:bg-hover hover:text-fg'
@@ -277,7 +277,7 @@ export function Today({
                   </div>
 
                   {/* Category */}
-                  <div className="truncate text-xs flex items-center gap-1.5 text-fg-muted">
+                  <div className="hidden sm:flex truncate text-xs items-center gap-1.5 text-fg-muted">
                     {cat && (
                       <span
                         className="size-2 rounded-full shrink-0"
@@ -288,7 +288,7 @@ export function Today({
                   </div>
 
                   {/* Priority */}
-                  <div className="text-xs">
+                  <div className="hidden sm:block text-xs">
                     <span
                       className={`font-medium ${
                         t.priority === 'Urgent'
